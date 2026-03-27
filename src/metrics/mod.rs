@@ -1,10 +1,12 @@
 use anyhow::Result;
 use self::cpu::CpuError;
 use self::disk::DiskError;
+use self::gpu::GpuData;
 use self::gpu::GpuError;
 use self::network::NetworkError;
 use std::time::SystemTime;
 use tracing::debug;
+
 
 pub mod cpu;
 pub mod disk;
@@ -19,7 +21,7 @@ pub use network::NetworkCollector;
 #[derive(Debug, Clone)]
 pub struct Metrics {
     pub cpu_usage: f64,
-    pub gpu_usage: f64,
+    pub gpu_usage: Vec<GpuData>,
     pub network_io: f64,
     pub disk_activity: f64,
 }
@@ -96,20 +98,20 @@ impl MetricsCollector {
         }
     }
 
-    pub async fn collect(&mut self) -> Result<Metrics, CollectionError> {
-        debug!("Collecting metrics");
-        let cpu_usage = self.cpu.collect().await?;
-        let gpu_usage = self.gpu.collect().await?;
-        let network_io = self.network.collect().await?;
-        let disk_activity = self.disk.collect().await?;
+ pub async fn collect(&mut self) -> Result<Metrics, CollectionError> {
+    debug!("Collecting metrics");
+    let cpu_usage = self.cpu.collect().await?;
+    let gpu_data = self.gpu.collect().await?;
+    let network_io = self.network.collect().await?;
+    let disk_activity = self.disk.collect().await?;
 
-        self.last_collection = Some(SystemTime::now());
+    self.last_collection = Some(SystemTime::now());
 
-        Ok(Metrics {
-            cpu_usage,
-            gpu_usage,
-            network_io,
-            disk_activity,
-        })
-    }
+    Ok(Metrics {
+        cpu_usage,
+        gpu_usage: gpu_data,
+        network_io,
+        disk_activity,
+    })
+}
 }

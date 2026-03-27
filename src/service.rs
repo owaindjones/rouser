@@ -2,6 +2,8 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 
 use crate::config::{Config, Thresholds, TimingConfig};
+use crate::metrics::gpu::GpuData;
+
 use crate::metrics::{CpuCollector, DiskCollector, GpuCollector, Metrics, NetworkCollector};
 use crate::inhibit::InhibitionState;
 
@@ -19,11 +21,11 @@ impl ThresholdManager {
     }
 
     pub fn should_inhibit(&self, metrics: &Metrics) -> bool {
-        metrics.cpu_usage > self.thresholds.cpu_usage
-            || metrics.gpu_usage > self.thresholds.gpu_usage
-            || metrics.network_io > self.thresholds.network_io
-            || metrics.disk_activity > self.thresholds.disk_activity
-    }
+    metrics.cpu_usage > self.thresholds.cpu_usage
+        || metrics.gpu_usage.iter().any(|gpu| gpu.usage > self.thresholds.gpu_usage)
+        || metrics.network_io > self.thresholds.network_io
+        || metrics.disk_activity > self.thresholds.disk_activity
+}
 }
 
 pub struct DataService {
@@ -84,9 +86,18 @@ impl DataManager {
         let metrics = self.collect_metrics().await?;
         self.last_collection = Some(std::time::SystemTime::now());
 
+        let gpu_str: Vec<String> = metrics.gpu_usage.iter().map(|gpu| {
+            format!("{} GPU: {:.1}%", gpu.vendor_type, gpu.usage)
+        }).collect();
+        let gpu_display = if gpu_str.is_empty() {
+            "None".to_string()
+        } else {
+            gpu_str.join(", ")
+        };
+
         debug!(
-            "Metrics: CPU={:.1}%, GPU={:.1}%, Network={:.2} Mbps, Disk={:.2} MB/s",
-            metrics.cpu_usage, metrics.gpu_usage, metrics.network_io, metrics.disk_activity
+            "Metrics: CPU={:.1}%, Network={:.2} Mbps, Disk={:.2} MB/s, GPUs: {}",
+            metrics.cpu_usage, metrics.network_io, metrics.disk_activity, gpu_display
         );
 
         let should_inhibit = self.threshold_manager.should_inhibit(&metrics);
@@ -216,8 +227,11 @@ fn metrics_exceeded_desc(metrics: &Metrics, thresholds: &Thresholds) -> String {
     if metrics.cpu_usage > thresholds.cpu_usage {
         parts.push(format!("CPU {}% > {}%", metrics.cpu_usage, thresholds.cpu_usage));
     }
-    if metrics.gpu_usage > thresholds.gpu_usage {
-        parts.push(format!("GPU {}% > {}%", metrics.gpu_usage, thresholds.gpu_usage));
+    // List each GPU individually
+    for gpu in &metrics.gpu_usage {
+        if gpu.usage > thresholds.gpu_usage {
+            parts.push(format!("{} GPU {}% > {}%", gpu.vendor_type, gpu.usage, thresholds.gpu_usage));
+        }
     }
     if metrics.network_io > thresholds.network_io {
         parts.push(format!("Network {:.1} Mbps > {:.1} Mbps", metrics.network_io, thresholds.network_io));
@@ -303,7 +317,7 @@ mod tests {
         
         let metrics = Metrics {
             cpu_usage: 90.0,
-            gpu_usage: 50.0,
+            gpu_usage: vec![GpuData { vendor_type: "NVIDIA", usage: 50.0 }],
             network_io: 10.0,
             disk_activity: 5.0,
         };
@@ -318,7 +332,7 @@ mod tests {
         
         let metrics = Metrics {
             cpu_usage: 50.0,
-            gpu_usage: 50.0,
+            gpu_usage: vec![GpuData { vendor_type: "NVIDIA", usage: 10.0 }],
             network_io: 10.0,
             disk_activity: 5.0,
         };

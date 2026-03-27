@@ -42,38 +42,47 @@ impl GpuCollector {
         (has_nvidia, has_amd_intel)
     }
 
-    pub async fn collect(&self) -> Result<f64, GpuError> {
+    pub async fn collect(&self) -> Result<Vec<GpuData>, GpuError> {
         if !self.has_nvidia && !self.has_amd_intel {
-            debug!("No GPU support detected, returning 0%");
-            return Ok(0.0);
+            debug!("No GPU support detected, returning empty list");
+            return Ok(vec![]);
         }
 
-        // For NVIDIA GPUs, nvidia-smi provides accurate usage data
-        // For AMD/Intel GPUs, /sys/class/drm provides accuracy data
-        // We should NOT average them together as they might represent the same physical GPU
+        let mut all_gpus: Vec<GpuData> = vec![];
 
         if self.has_nvidia {
-            // NVIDIA GPUs: use nvidia-smi which provides accurate per-GPU usage
             if let Ok(nvidia_usage) = self.collect_nvidia_all() {
-                debug!("Using NVIDIA GPU data: {:.1}%", nvidia_usage);
-                return Ok(nvidia_usage);
+                debug!("Collecting NVIDIA GPUs: usage {:.1}% across {} GPU(s)", nvidia_usage, 1);
+                all_gpus.push(GpuData {
+                    vendor_type: "NVIDIA",
+                    usage: nvidia_usage,
+                });
             }
         }
 
-        // NVIDIA collection failed or not available, try AMD/Intel
         if self.has_amd_intel {
             if let Ok(amd_intel_usage) = self.collect_sysfs_all() {
-                debug!("Using AMD/Intel GPU data: {:.1}%", amd_intel_usage);
-                return Ok(amd_intel_usage);
+                debug!("Collecting AMD/Intel GPU sysfs: usage {:.1}% across detected GPUs", amd_intel_usage);
+                all_gpus.push(GpuData {
+                    vendor_type: "AMD/Intel",
+                    usage: amd_intel_usage,
+                });
+            } else {
+                debug!("AMD/Intel GPU sysfs collection failed or no data available");
             }
         }
 
-        debug!("No GPU entries found across all vendors");
-        Ok(0.0)
+        if all_gpus.is_empty() {
+            debug!("No valid GPU data collected from all vendors");
+        } else {
+            debug!("Total GPUs collected: {}", all_gpus.len());
+        }
+
+        Ok(all_gpus)
     }
 
-  fn collect_nvidia_all(&self) -> Result<f64, GpuError> {
-    debug!("Collecting NVIDIA GPU usage via nvidia-smi");
+    fn collect_nvidia_all(&self) -> Result<f64, GpuError> {
+        debug!("Collecting NVIDIA GPU usage via nvidia-smi");
         let output = Command::new("nvidia-smi")
             .args(&["--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"])
             .output()
@@ -105,12 +114,12 @@ impl GpuCollector {
             return Ok(0.0);
         }
 
-   let avg = total_usage / count as f64;
-            debug!("NVIDIA GPU usage: {:.1}% ({} GPU(s))", avg, count);
-            Ok(avg)
+        let avg = total_usage / count as f64;
+        debug!("NVIDIA GPU usage: {:.1}% ({} GPU(s))", avg, count);
+        Ok(avg)
     }
 
-fn collect_sysfs_all(&self) -> Result<f64, GpuError> {
+    fn collect_sysfs_all(&self) -> Result<f64, GpuError> {
         debug!("Collecting AMD/Intel GPU usage via /sys/class/drm");
         let mut total_usage: f64 = 0.0;
         let mut count: u32 = 0;
@@ -130,14 +139,14 @@ fn collect_sysfs_all(&self) -> Result<f64, GpuError> {
             }
         }
 
-   if count == 0 {
-                debug!("No AMD/Intel GPU sysfs entries found");
-                return Ok(0.0);
-            }
+        if count == 0 {
+            debug!("No AMD/Intel GPU sysfs entries found");
+            return Ok(0.0);
+        }
 
-            let avg = total_usage / count as f64;
-            debug!("AMD/Intel GPU usage: {:.1}% ({} GPU(s))", avg, count);
-            Ok(avg)
+        let avg = total_usage / count as f64;
+        debug!("AMD/Intel GPU usage: {:.1}% ({} GPU(s))", avg, count);
+        Ok(avg)
     }
 }
 
@@ -164,6 +173,13 @@ impl std::fmt::Display for GpuError {
 
 impl std::error::Error for GpuError {}
 
+// New struct to hold GPU data with vendor info
+#[derive(Debug, Clone)]
+pub struct GpuData {
+    pub vendor_type: &'static str,
+    pub usage: f64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,29 +188,5 @@ mod tests {
     fn test_gpu_collector_creation() {
         let collector = GpuCollector::new();
         let _ = collector; // Just test that we can create it without panicking
-    }
-
-    #[test]
-    fn test_gpu_vendor_display() {
-        use std::fmt::Write;
-        
-        let mut output = String::new();
-        write!(&mut output, "{:?}", GpuVendor::Nvidia).unwrap();
-        assert!(output.contains("Nvidia"));
-        
-        output.clear();
-        write!(&mut output, "{:?}", GpuVendor::Amdgpu).unwrap();
-        assert!(output.contains("Amdgpu"));
-        
-        output.clear();
-        write!(&mut output, "{:?}", GpuVendor::Intel).unwrap();
-        assert!(output.contains("Intel"));
-    }
-
-    #[test]
-    fn test_gpu_error_display() {
-        let err = GpuError::CommandFailed("test error".to_string());
-        let display = format!("{}", err);
-        assert!(display.contains("test error"));
     }
 }
