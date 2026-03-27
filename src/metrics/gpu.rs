@@ -48,37 +48,32 @@ impl GpuCollector {
             return Ok(0.0);
         }
 
-        let mut total_usage: f64 = 0.0;
-        let mut gpu_count: f64 = 0.0;
+        // For NVIDIA GPUs, nvidia-smi provides accurate usage data
+        // For AMD/Intel GPUs, /sys/class/drm provides accuracy data
+        // We should NOT average them together as they might represent the same physical GPU
 
         if self.has_nvidia {
-            if let Ok(usage) = self.collect_nvidia_all() {
-                total_usage += usage;
-                gpu_count += 1.0;
+            // NVIDIA GPUs: use nvidia-smi which provides accurate per-GPU usage
+            if let Ok(nvidia_usage) = self.collect_nvidia_all() {
+                debug!("Using NVIDIA GPU data: {:.1}%", nvidia_usage);
+                return Ok(nvidia_usage);
             }
         }
 
+        // NVIDIA collection failed or not available, try AMD/Intel
         if self.has_amd_intel {
-            if let Ok(usage) = self.collect_sysfs_all() {
-                total_usage += usage;
-                gpu_count += 1.0;
+            if let Ok(amd_intel_usage) = self.collect_sysfs_all() {
+                debug!("Using AMD/Intel GPU data: {:.1}%", amd_intel_usage);
+                return Ok(amd_intel_usage);
             }
         }
 
-        if gpu_count == 0.0 {
-            debug!("No GPU entries found across all vendors");
-            return Ok(0.0);
-        }
-
-        let avg = total_usage / gpu_count;
-        debug!(
-            "All GPU usage: {:.1}% ({} vendor types)",
-            avg, gpu_count as u32
-        );
-        Ok(avg)
+        debug!("No GPU entries found across all vendors");
+        Ok(0.0)
     }
 
-    fn collect_nvidia_all(&self) -> Result<f64, GpuError> {
+  fn collect_nvidia_all(&self) -> Result<f64, GpuError> {
+    debug!("Collecting NVIDIA GPU usage via nvidia-smi");
         let output = Command::new("nvidia-smi")
             .args(&["--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"])
             .output()
@@ -94,11 +89,14 @@ impl GpuCollector {
         let mut count: u32 = 0;
 
         for line in output_str.lines() {
-            if let Some(usage_str) = line.trim().strip_suffix('%') {
-                if let Ok(usage) = usage_str.parse::<f64>() {
-                    total_usage += usage;
-                    count += 1;
-                }
+            let line = line.trim();
+            // nvidia-smi with --format=csv,noheader,nounits returns just the number
+            // Without that flag, it returns "XX%" with the percentage symbol
+            let usage_str = line.strip_suffix('%').unwrap_or(line);
+            if let Ok(usage) = usage_str.parse::<f64>() {
+                total_usage += usage;
+                count += 1;
+                debug!("Parsed NVIDIA GPU usage: {}% from line: {}", usage, line);
             }
         }
 
@@ -107,12 +105,13 @@ impl GpuCollector {
             return Ok(0.0);
         }
 
-        let avg = total_usage / count as f64;
-        debug!("NVIDIA GPU usage: {:.1}% ({} GPU(s))", avg, count);
-        Ok(avg)
+   let avg = total_usage / count as f64;
+            debug!("NVIDIA GPU usage: {:.1}% ({} GPU(s))", avg, count);
+            Ok(avg)
     }
 
-  fn collect_sysfs_all(&self) -> Result<f64, GpuError> {
+fn collect_sysfs_all(&self) -> Result<f64, GpuError> {
+        debug!("Collecting AMD/Intel GPU usage via /sys/class/drm");
         let mut total_usage: f64 = 0.0;
         let mut count: u32 = 0;
 
@@ -131,14 +130,14 @@ impl GpuCollector {
             }
         }
 
-        if count == 0 {
-            debug!("No AMD/Intel GPU sysfs entries found");
-            return Ok(0.0);
-        }
+   if count == 0 {
+                debug!("No AMD/Intel GPU sysfs entries found");
+                return Ok(0.0);
+            }
 
-        let avg = total_usage / count as f64;
-        debug!("AMD/Intel GPU usage: {:.1}% ({} GPU(s))", avg, count);
-        Ok(avg)
+            let avg = total_usage / count as f64;
+            debug!("AMD/Intel GPU usage: {:.1}% ({} GPU(s))", avg, count);
+            Ok(avg)
     }
 }
 

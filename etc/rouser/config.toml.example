@@ -9,10 +9,10 @@ log_level = "verbose"
 
 # Metric thresholds (percentages and MB/s)
 [thresholds]
-cpu_usage = 15.0      # CPU usage percentage
-gpu_usage = 20.0      # GPU usage percentage
+cpu_usage = 10.0      # CPU usage percentage
+gpu_usage = 15.0      # GPU usage percentage
 network_io = 5.0    # Network throughput in Mbps
-disk_activity = 10.0  # Disk throughput in MB/s
+disk_activity = 1.0  # Disk throughput in MB/s
 
 # Timing parameters
 [timing]
@@ -21,8 +21,8 @@ idle_duration = "60s"       # Time below threshold before releasing
 
 # D-Bus inhibition settings
 [inhibition]
-what = ["sleep", "hibernate", "shutdown"]
-mode = "block"
+what = ["idle", "sleep", "hibernate", "shutdown"]
+mode = "block-weak"
 
 # Network interface configuration
 [network]

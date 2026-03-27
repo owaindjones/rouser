@@ -51,7 +51,7 @@ async fn main() -> ExitCode {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("rouser=info".parse().unwrap()),
+                .add_directive("rouser=debug".parse().unwrap()),
         )
         .with_target(true)
         .with_level(true)
