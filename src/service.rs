@@ -66,7 +66,7 @@ impl DataManager {
 
         Ok(Self {
             state: InhibitionState::new(),
-            metrics_below_threshold_since: Some(std::time::SystemTime::now()),
+            metrics_below_threshold_since: None,
             metrics_above_threshold_since: None,
             threshold_manager,
             cpu: CpuCollector::new(),
@@ -80,9 +80,9 @@ impl DataManager {
         })
     }
 
-   pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
-    let metrics = self.collect_metrics().await?;
-    self.last_collection = Some(std::time::SystemTime::now());
+    pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
+        let metrics = self.collect_metrics().await?;
+        self.last_collection = Some(std::time::SystemTime::now());
 
         debug!(
             "Metrics: CPU={:.1}%, GPU={:.1}%, Network={:.2} Mbps, Disk={:.2} MB/s",
@@ -113,10 +113,10 @@ impl DataManager {
         Ok(())
     }
 
-  async fn collect_metrics(&mut self) -> Result<Metrics, DataServiceError> {
-    let cpu_usage = self.cpu.collect().await.map_err(|e| DataServiceError {
-        inner: format!("CPU collection failed: {}", e),
-    })?;
+    async fn collect_metrics(&mut self) -> Result<Metrics, DataServiceError> {
+        let cpu_usage = self.cpu.collect().await.map_err(|e| DataServiceError {
+            inner: format!("CPU collection failed: {}", e),
+        })?;
     let gpu_usage = self.gpu.collect().await.map_err(|e| DataServiceError {
         inner: format!("GPU collection failed: {}", e),
     })?;
