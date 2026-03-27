@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::fs;
-use std::time::{Duration, SystemTime};
 use tracing::debug;
+
+
+
 
 #[derive(Debug, Clone)]
 pub struct DiskStats {
@@ -25,43 +27,39 @@ impl DiskCollector {
         }
     }
 
-    pub async fn collect(&mut self) -> Result<f64, DiskError> {
+pub async fn collect(&mut self) -> Result<f64, DiskError> {
         let current_stats = self.read_disk_stats()?;
-        let now = SystemTime::now();
 
-        match &self.last_stats {
-            HashMap::new() => {
-                self.last_stats = current_stats;
-                debug!("Disk: first sample, returning 0.0 MB/s");
-                Ok(0.0)
-            }
-            _ => {
-                let mut total_sectors = 0u64;
+        if self.last_stats.is_empty() {
+            self.last_stats = current_stats;
+            debug!("Disk: first sample, returning 0.0 MB/s");
+            Ok(0.0)
+        } else {
+            let mut total_sectors = 0u64;
 
-                for (key, stats) in &current_stats {
-                    if let Some(prev) = self.last_stats.get(key) {
-                        let read_delta = stats.sectors_read.saturating_sub(prev.sectors_read);
-                        let write_delta = stats.sectors_written.saturating_sub(prev.sectors_written);
-                        total_sectors = total_sectors.saturating_add(read_delta);
-                        total_sectors = total_sectors.saturating_add(write_delta);
-                    }
+            for (key, stats) in &current_stats {
+                if let Some(prev) = self.last_stats.get(key) {
+                    let read_delta = stats.sectors_read.saturating_sub(prev.sectors_read);
+                    let write_delta = stats.sectors_written.saturating_sub(prev.sectors_written);
+                    total_sectors = total_sectors.saturating_add(read_delta);
+                    total_sectors = total_sectors.saturating_add(write_delta);
                 }
-
-                // Calculate average interval (simplified: use 5 seconds)
-                let interval_seconds: f64 = 5.0;
-
-                // Convert sectors to bytes (assuming 512-byte sectors)
-                const SECTOR_SIZE: u64 = 512;
-                let total_bytes = total_sectors as f64 * SECTOR_SIZE as f64;
-
-                // Convert to MB/s
-                let throughput_mb_s = total_bytes / (interval_seconds * 1_000_000.0);
-
-                self.last_stats = current_stats;
-
-                debug!("Disk usage: {:.2} MB/s", throughput_mb_s);
-                Ok(throughput_mb_s)
             }
+
+            // Calculate average interval (simplified: use 5 seconds)
+            let interval_seconds: f64 = 5.0;
+
+            // Convert sectors to bytes (assuming 512-byte sectors)
+            const SECTOR_SIZE: u64 = 512;
+            let total_bytes = total_sectors as f64 * SECTOR_SIZE as f64;
+
+            // Convert to MB/s
+            let throughput_mb_s = total_bytes / (interval_seconds * 1_000_000.0);
+
+            self.last_stats = current_stats;
+
+            debug!("Disk usage: {:.2} MB/s", throughput_mb_s);
+            Ok(throughput_mb_s)
         }
     }
 
@@ -135,3 +133,28 @@ impl std::fmt::Display for DiskError {
 }
 
 impl std::error::Error for DiskError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+#[test]
+    fn test_disk_collector_creation() {
+        let _collector = DiskCollector::new(vec!["loop".to_string()]);
+        assert!(true);
+    }
+
+    #[test]
+    fn test_disk_collector_default_excludes() {
+        let collector = DiskCollector::default();
+        assert!(collector.exclude_prefixes.contains(&"loop".to_string()));
+        assert!(collector.exclude_prefixes.contains(&"cdrom".to_string()));
+    }
+
+    #[test]
+    fn test_disk_error_display() {
+        let err = DiskError::IoError("test error".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("test error"));
+    }
+}

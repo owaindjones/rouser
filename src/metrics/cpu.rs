@@ -1,5 +1,6 @@
 use std::fs;
-use tracing::{debug, warn};
+use tracing::debug;
+
 
 #[derive(Debug, Clone)]
 pub struct CpuStats {
@@ -129,3 +130,33 @@ impl std::fmt::Display for CpuError {
 }
 
 impl std::error::Error for CpuError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cpu_collector_creation() {
+        let collector = CpuCollector::new();
+        assert!(collector.last_stats.is_none());
+        assert!(collector.last_time.is_none());
+    }
+
+    #[test]
+    fn test_cpu_stats_display() {
+        let stats = CpuStats {
+            user: 100,
+            nice: 10,
+            system: 50,
+            idle: 840,
+            iowait: 5,
+            irq: 1,
+            softirq: 4,
+            steal: 0,
+            guest: 0,
+            guest_nice: 0,
+        };
+        let display = format!("{:?}", stats);
+        assert!(display.contains("CpuStats"));
+    }
+}

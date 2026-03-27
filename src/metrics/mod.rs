@@ -1,9 +1,10 @@
 use anyhow::Result;
-use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
-use std::time::{Duration, SystemTime};
-use tracing::{debug, warn};
+use self::cpu::CpuError;
+use self::disk::DiskError;
+use self::gpu::GpuError;
+use self::network::NetworkError;
+use std::time::SystemTime;
+use tracing::debug;
 
 pub mod cpu;
 pub mod disk;
@@ -21,6 +22,56 @@ pub struct Metrics {
     pub gpu_usage: f64,
     pub network_io: f64,
     pub disk_activity: f64,
+}
+
+#[derive(Debug)]
+pub struct CollectionError {
+    source: CollectionErrorKind,
+}
+
+#[derive(Debug)]
+pub enum CollectionErrorKind {
+    Cpu(CpuError),
+    Gpu(GpuError),
+    Network(NetworkError),
+    Disk(DiskError),
+}
+
+impl std::fmt::Display for CollectionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.source {
+            CollectionErrorKind::Cpu(e) => write!(f, "CPU collection failed: {}", e),
+            CollectionErrorKind::Gpu(e) => write!(f, "GPU collection failed: {}", e),
+            CollectionErrorKind::Network(e) => write!(f, "Network collection failed: {}", e),
+            CollectionErrorKind::Disk(e) => write!(f, "Disk collection failed: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for CollectionError {}
+
+impl From<CpuError> for CollectionError {
+    fn from(e: CpuError) -> Self {
+        Self { source: CollectionErrorKind::Cpu(e) }
+    }
+}
+
+impl From<GpuError> for CollectionError {
+    fn from(e: GpuError) -> Self {
+        Self { source: CollectionErrorKind::Gpu(e) }
+    }
+}
+
+impl From<NetworkError> for CollectionError {
+    fn from(e: NetworkError) -> Self {
+        Self { source: CollectionErrorKind::Network(e) }
+    }
+}
+
+impl From<DiskError> for CollectionError {
+    fn from(e: DiskError) -> Self {
+        Self { source: CollectionErrorKind::Disk(e) }
+    }
 }
 
 pub struct MetricsCollector {
@@ -46,7 +97,7 @@ impl MetricsCollector {
     }
 
     pub async fn collect(&mut self) -> Result<Metrics, CollectionError> {
-        // Collect all metrics
+        debug!("Collecting metrics");
         let cpu_usage = self.cpu.collect().await?;
         let gpu_usage = self.gpu.collect().await?;
         let network_io = self.network.collect().await?;
@@ -62,29 +113,3 @@ impl MetricsCollector {
         })
     }
 }
-
-#[derive(Debug)]
-pub struct CollectionError {
-    pub source: CollectionErrorKind,
-}
-
-#[derive(Debug)]
-pub enum CollectionErrorKind {
-    CpuError,
-    GpuError,
-    NetworkError,
-    DiskError,
-}
-
-impl std::fmt::Display for CollectionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.source {
-            CollectionErrorKind::CpuError => write!(f, "CPU collection failed"),
-            CollectionErrorKind::GpuError => write!(f, "GPU collection failed"),
-            CollectionErrorKind::NetworkError => write!(f, "Network collection failed"),
-            CollectionErrorKind::DiskError => write!(f, "Disk collection failed"),
-        }
-    }
-}
-
-impl std::error::Error for CollectionError {}

@@ -51,7 +51,7 @@ impl NetworkCollector {
                 // Convert bytes to megabits per second
                 // (bytes * 8 bits) / (seconds * 1,000,000)
                 let throughput_mbps = (total_delta as f64 * 8.0)
-                    / (interval.as_secs() as f64 * 1_000_000.0);
+                    / (interval.as_secs_f64() * 1_000_000.0);
 
                 self.last_stats = current_stats;
                 self.last_time = Some(now);
@@ -98,10 +98,10 @@ impl NetworkCollector {
                 .map(|s| s.parse().unwrap_or(0))
                 .collect();
 
-            if values.len() < 17 {
-                debug!("Invalid /proc/net/dev line: {}", name);
-                continue;
-            }
+           if values.len() < 16 {
+            debug!("Invalid /proc/net/dev line: {} (expected 16 values, got {})", name, values.len());
+            continue;
+        }
 
             stats_map.insert(name, NetworkStats {
                 rx_bytes: values[0],
@@ -133,3 +133,21 @@ impl std::fmt::Display for NetworkError {
 }
 
 impl std::error::Error for NetworkError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_network_collector_creation() {
+        let _collector = NetworkCollector::new(vec!["lo".to_string()]);
+        assert!(true);
+    }
+
+    #[test]
+    fn test_network_error_display() {
+        let err = NetworkError::IoError("test error".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("test error"));
+    }
+}

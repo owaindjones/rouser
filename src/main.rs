@@ -4,13 +4,15 @@ mod metrics;
 mod service;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use humantime::Duration;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use tracing::{error, info, warn};
 
 use config::ConfigLoader;
 use service::DataService;
+
 
 /// rouser - A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded
 #[derive(Parser)]
@@ -29,9 +31,12 @@ struct Args {
     #[arg(long)]
     dry_run: bool,
 
-    /// Duration to run in dry run mode (e.g., "60s", "5m")
+    /// Duration to run in dry run mode (e.g., "60s", "5m"). Use "forever" to run indefinitely.
     #[arg(long, default_value = "30s")]
-    duration: humantime::Duration,
+    duration: Duration,
+    /// Run dry mode indefinitely (overrides --duration)
+    #[arg(long)]
+    forever: bool,
 
     /// Run in foreground (default: daemon mode)
     #[arg(long)]
@@ -91,7 +96,7 @@ async fn main() -> ExitCode {
 
     // Run in dry-run mode if requested
     if args.dry_run {
-        match run_dry_run(&config, args.duration).await {
+        match run_dry_run(&config, args.duration, args.forever).await {
             Ok(_) => {
                 info!("Dry run completed successfully");
                 ExitCode::SUCCESS
@@ -116,9 +121,15 @@ async fn main() -> ExitCode {
     }
 }
 
-async fn run_dry_run(config: &config::Config, duration: humantime::Duration) -> Result<()> {
-    let duration = duration.into();
-    info!("Running in dry-run mode for {:?}", duration);
+async fn run_dry_run(
+    config: &config::Config,
+    duration: humantime::Duration,
+    forever: bool,
+) -> Result<()> {
+    info!("Running in dry-run mode (forever: {})", forever);
+    if !forever {
+        info!("Duration: {:?}", std::time::Duration::from(duration));
+    }
     info!("Configuration:");
     info!("  - CPU threshold: {}%", config.thresholds.cpu_usage);
     info!("  - GPU threshold: {}%", config.thresholds.gpu_usage);
@@ -130,12 +141,14 @@ async fn run_dry_run(config: &config::Config, duration: humantime::Duration) -> 
     let mut service = DataService::new(config, true).await?;
 
     let start = std::time::Instant::now();
-    while start.elapsed() < duration {
+    loop {
+        if !forever && start.elapsed() >= duration.into() {
+            info!("Dry run completed after {:?}", start.elapsed());
+            break;
+        }
         tokio::time::sleep(config.daemon.update_interval).await;
-        service.tick().await?;
+        service.tick(config).await?;
     }
-
-    info!("Dry run completed after {:?}", start.elapsed());
     Ok(())
 }
 
@@ -158,8 +171,8 @@ async fn run_daemon(config: &config::Config, foreground: bool) -> Result<()> {
 
     tokio::select! {
         result = async {
-            loop {
-                if let Err(e) = service.tick().await {
+          loop {
+                if let Err(e) = service.tick(config).await {
                     warn!("Tick failed: {}", e);
                     tokio::time::sleep(config.daemon.update_interval).await;
                 }

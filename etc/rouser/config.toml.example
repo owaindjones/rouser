@@ -5,14 +5,14 @@
 [daemon]
 name = "rouser"
 update_interval = "5s"  # Polling interval
-log_level = "info"
+log_level = "verbose"
 
 # Metric thresholds (percentages and MB/s)
 [thresholds]
-cpu_usage = 80.0      # CPU usage percentage
-gpu_usage = 90.0      # GPU usage percentage
-network_io = 100.0    # Network throughput in Mbps
-disk_activity = 50.0  # Disk throughput in MB/s
+cpu_usage = 15.0      # CPU usage percentage
+gpu_usage = 20.0      # GPU usage percentage
+network_io = 5.0    # Network throughput in Mbps
+disk_activity = 10.0  # Disk throughput in MB/s
 
 # Timing parameters
 [timing]

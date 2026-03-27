@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
-use tracing::{debug, warn};
+use std::process::Command;
+use tracing::debug;
 use which::which;
 
 #[derive(Debug, Clone)]
@@ -18,64 +19,73 @@ pub enum GpuVendor {
 }
 
 pub struct GpuCollector {
-    vendor: Option<GpuVendor>,
+    has_nvidia: bool,
+    has_amd_intel: bool,
 }
 
 impl GpuCollector {
     pub fn new() -> Self {
-        let vendor = Self::detect_gpu();
-        Self { vendor }
+        let (has_nvidia, has_amd_intel) = Self::detect_gpus();
+        debug!(
+            "GPU detection complete - NVIDIA: {}, AMD/Intel: {}",
+            has_nvidia, has_amd_intel
+        );
+        Self {
+            has_nvidia,
+            has_amd_intel,
+        }
     }
 
-    fn detect_gpu() -> Option<GpuVendor> {
-        // Check for NVIDIA first
-        if which("nvidia-smi").is_ok() {
-            debug!("Detected NVIDIA GPU (nvidia-smi available)");
-            return Some(GpuVendor::Nvidia);
-        }
-
-        // Check for AMD/Intel
-        if Path::new("/sys/class/drm").exists() {
-            // Try to distinguish AMD vs Intel
-            if Path::new("/sys/class/drm/card0/device/uvm").exists() {
-                debug!("Detected AMD/Intel GPU found (uvm present)");
-                // Heuristic: if /sys/class/kfd/kfd exists, it's more likely AMD
-                if Path::new("/sys/class/kfd/kfd").exists() {
-                    Some(GpuVendor::Amdgpu)
-                } else {
-                    Some(GpuVendor::Intel)
-                }
-            } else {
-                Some(GpuVendor::Unknown)
-            }
-        } else {
-            None
-        }
+    fn detect_gpus() -> (bool, bool) {
+        let has_nvidia = which("nvidia-smi").is_ok();
+        let has_amd_intel = Path::new("/sys/class/drm").exists();
+        (has_nvidia, has_amd_intel)
     }
 
     pub async fn collect(&self) -> Result<f64, GpuError> {
-        debug!("Collecting GPU usage (vendor: {:?})", self.vendor);
+        if !self.has_nvidia && !self.has_amd_intel {
+            debug!("No GPU support detected, returning 0%");
+            return Ok(0.0);
+        }
 
-        match self.vendor {
-            Some(GpuVendor::Nvidia) => self.collect_nvidia(),
-            Some(GpuVendor::Amdgpu | GpuVendor::Intel) => self.collect_sysfs(),
-            _ => {
-                debug!("No GPU support detected, returning 0%");
-                Ok(0.0)
+        let mut total_usage: f64 = 0.0;
+        let mut gpu_count: f64 = 0.0;
+
+        if self.has_nvidia {
+            if let Ok(usage) = self.collect_nvidia_all() {
+                total_usage += usage;
+                gpu_count += 1.0;
             }
         }
-        .map(|usage| usage)
+
+        if self.has_amd_intel {
+            if let Ok(usage) = self.collect_sysfs_all() {
+                total_usage += usage;
+                gpu_count += 1.0;
+            }
+        }
+
+        if gpu_count == 0.0 {
+            debug!("No GPU entries found across all vendors");
+            return Ok(0.0);
+        }
+
+        let avg = total_usage / gpu_count;
+        debug!(
+            "All GPU usage: {:.1}% ({} vendor types)",
+            avg, gpu_count as u32
+        );
+        Ok(avg)
     }
 
-    fn collect_nvidia(&self) -> Result<f64, GpuError> {
-        use std::process::Command;
-
+    fn collect_nvidia_all(&self) -> Result<f64, GpuError> {
         let output = Command::new("nvidia-smi")
             .args(&["--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"])
             .output()
             .map_err(|e| GpuError::CommandFailed(format!("nvidia-smi: {}", e)))?;
 
         if !output.status.success() {
+            debug!("nvidia-smi command failed");
             return Ok(0.0);
         }
 
@@ -102,7 +112,7 @@ impl GpuCollector {
         Ok(avg)
     }
 
-    fn collect_sysfs(&self) -> Result<f64, GpuError> {
+  fn collect_sysfs_all(&self) -> Result<f64, GpuError> {
         let mut total_usage: f64 = 0.0;
         let mut count: u32 = 0;
 
@@ -122,7 +132,7 @@ impl GpuCollector {
         }
 
         if count == 0 {
-            debug!("No GPU sysfs entries found");
+            debug!("No AMD/Intel GPU sysfs entries found");
             return Ok(0.0);
         }
 
@@ -154,3 +164,38 @@ impl std::fmt::Display for GpuError {
 }
 
 impl std::error::Error for GpuError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gpu_collector_creation() {
+        let collector = GpuCollector::new();
+        let _ = collector; // Just test that we can create it without panicking
+    }
+
+    #[test]
+    fn test_gpu_vendor_display() {
+        use std::fmt::Write;
+        
+        let mut output = String::new();
+        write!(&mut output, "{:?}", GpuVendor::Nvidia).unwrap();
+        assert!(output.contains("Nvidia"));
+        
+        output.clear();
+        write!(&mut output, "{:?}", GpuVendor::Amdgpu).unwrap();
+        assert!(output.contains("Amdgpu"));
+        
+        output.clear();
+        write!(&mut output, "{:?}", GpuVendor::Intel).unwrap();
+        assert!(output.contains("Intel"));
+    }
+
+    #[test]
+    fn test_gpu_error_display() {
+        let err = GpuError::CommandFailed("test error".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("test error"));
+    }
+}

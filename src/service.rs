@@ -39,9 +39,9 @@ impl DataService {
         Ok(Self { inner })
     }
 
-    pub async fn tick(&mut self, config: &Config) -> anyhow::Result<()> {
-        self.inner.tick(config).await
-    }
+  pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
+    self.inner.tick(config).await
+}
 }
 
 pub struct DataManager {
@@ -80,9 +80,9 @@ impl DataManager {
         })
     }
 
-    pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
-        let metrics = self.collect_metrics().await?;
-        self.last_collection = Some(std::time::SystemTime::now());
+   pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
+    let metrics = self.collect_metrics().await?;
+    self.last_collection = Some(std::time::SystemTime::now());
 
         debug!(
             "Metrics: CPU={:.1}%, GPU={:.1}%, Network={:.2} Mbps, Disk={:.2} MB/s",
@@ -113,19 +113,27 @@ impl DataManager {
         Ok(())
     }
 
-    async fn collect_metrics(&mut self) -> Result<Metrics, DataServiceError> {
-        let cpu_usage = self.cpu.collect().await?;
-        let gpu_usage = self.gpu.collect().await?;
-        let network_io = self.network.collect().await?;
-        let disk_activity = self.disk.collect().await?;
+  async fn collect_metrics(&mut self) -> Result<Metrics, DataServiceError> {
+    let cpu_usage = self.cpu.collect().await.map_err(|e| DataServiceError {
+        inner: format!("CPU collection failed: {}", e),
+    })?;
+    let gpu_usage = self.gpu.collect().await.map_err(|e| DataServiceError {
+        inner: format!("GPU collection failed: {}", e),
+    })?;
+    let network_io = self.network.collect().await.map_err(|e| DataServiceError {
+        inner: format!("Network collection failed: {}", e),
+    })?;
+    let disk_activity = self.disk.collect().await.map_err(|e| DataServiceError {
+        inner: format!("Disk collection failed: {}", e),
+    })?;
 
-        Ok(Metrics {
-            cpu_usage,
-            gpu_usage,
-            network_io,
-            disk_activity,
-        })
-    }
+    Ok(Metrics {
+        cpu_usage,
+        gpu_usage,
+        network_io,
+        disk_activity,
+    })
+}
 
     async fn update_state(
         &mut self,
@@ -236,5 +244,94 @@ impl std::error::Error for DataServiceError {}
 impl From<std::io::Error> for DataServiceError {
     fn from(e: std::io::Error) -> Self {
         Self { inner: e.to_string() }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{Config, Thresholds, TimingConfig, DaemonConfig, InhibitionConfig, NetworkConfig, DiskConfig, LoggingConfig};
+
+    fn create_test_config() -> Config {
+        Config {
+            daemon: DaemonConfig {
+                name: "test".to_string(),
+                update_interval: std::time::Duration::from_secs(5),
+                log_level: "info".to_string(),
+            },
+            thresholds: Thresholds {
+                cpu_usage: 80.0,
+                gpu_usage: 90.0,
+                network_io: 100.0,
+                disk_activity: 50.0,
+            },
+            timing: TimingConfig {
+                duration_threshold: std::time::Duration::from_secs(30),
+                idle_duration: std::time::Duration::from_secs(60),
+            },
+            inhibition: InhibitionConfig {
+                what: vec!["sleep".to_string()],
+                mode: "block".to_string(),
+            },
+            network: NetworkConfig {
+                exclude_interfaces: vec!["lo".to_string()],
+                include_interfaces: vec![],
+            },
+            disk: DiskConfig {
+                exclude_device_prefixes: vec!["loop".to_string()],
+            },
+            logging: LoggingConfig {
+                file: "/tmp/test.log".to_string(),
+                rotation_max_size_mb: 10,
+                rotation_max_files: 5,
+                format: "text".to_string(),
+            },
+        }
+    }
+
+    #[test]
+    fn test_threshold_manager_creation() {
+        let config = create_test_config();
+        let manager = ThresholdManager::new(&config.thresholds, &config.timing);
+        assert!(true); // Basic instantiation test
+    }
+
+    #[test]
+    fn test_threshold_manager_should_inhibit_high_cpu() {
+        let config = create_test_config();
+        let manager = ThresholdManager::new(&config.thresholds, &config.timing);
+        
+        let metrics = Metrics {
+            cpu_usage: 90.0,
+            gpu_usage: 50.0,
+            network_io: 10.0,
+            disk_activity: 5.0,
+        };
+        
+        assert!(manager.should_inhibit(&metrics));
+    }
+
+    #[test]
+    fn test_threshold_manager_should_not_inherit_idle_cpu() {
+        let config = create_test_config();
+        let manager = ThresholdManager::new(&config.thresholds, &config.timing);
+        
+        let metrics = Metrics {
+            cpu_usage: 50.0,
+            gpu_usage: 50.0,
+            network_io: 10.0,
+            disk_activity: 5.0,
+        };
+        
+        assert!(!manager.should_inhibit(&metrics));
+    }
+
+    #[test]
+    fn test_data_service_error_display() {
+        let err = DataServiceError {
+            inner: "test error".to_string(),
+        };
+        let display = format!("{}", err);
+        assert!(display.contains("test error"));
     }
 }

@@ -35,9 +35,16 @@ which = "5.0"
 
 # Serialization for config
 serde = { version = "1.0", features = ["derive"] }
+humantime-serde = "1.0"
+
+# CLI parsing
+clap = { version = "4", features = ["derive"] }
+humantime = "2.1"
+
 
 [dev-dependencies]
 tempfile = "3.0"
+tokio = { version = "1", features = ["rt", "time"]}
 
 [[bin]]
 name = "rouser"

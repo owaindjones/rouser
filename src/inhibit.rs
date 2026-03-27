@@ -1,9 +1,9 @@
 use anyhow::{Result, anyhow};
-use std::os::unix::io::RawFd;
 use std::fs::File;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use std::os::fd::FromRawFd;
+use std::os::unix::io::RawFd;
+use tracing::{debug, info};
+
 
 pub struct SleepInhibitor {
     fd: Option<File>,
@@ -18,67 +18,33 @@ impl SleepInhibitor {
         description: &str,
         mode: &str,
     ) -> Result<Self> {
-        use std::ffi::CString;
-        use std::ptr;
-
-        let what_c = CString::new(what)
-            .map_err(|e| anyhow!("Failed to convert what to C string: {}", e))?;
-        let mode_c = CString::new(mode)
-            .map_err(|e| anyhow!("Failed to convert mode to C string: {}", e))?;
-        let description_c = CString::new(description)
-            .map_err(|e| anyhow!("Failed to convert description to C string: {}", e))?;
-
         let sleep_type = "sleep";
-        let sleep_type_c = CString::new(sleep_type)
-            .map_err(|e| anyhow!("Failed to convert sleep_type to C string: {}", e))?;
-
+        
         let connection = zbus::Connection::system()
             .await
             .map_err(|e| anyhow!("Failed to connect to system D-Bus: {}", e))?;
 
-        let proxy = connection
-            .object_proxy("org.freedesktop.login1", "/org/freedesktop/login1")
-            .with_interface::<zbus::zvariant::PropertyStream<()>>(
-                "org.freedesktop.login1.Manager",
-            );
-
-        // Use the zbus API with typed proxy
-        let proxy: zbus::Proxy<'_> = proxy.typed::<(), (RawFd, String)>();
+        let proxy = zbus::Proxy::new(&connection, 
+            "org.freedesktop.login1", 
+            "/org/freedesktop/login1", 
+            "org.freedesktop.login1.Manager")
+            .await
+            .map_err(|e| anyhow!("Failed to create proxy: {}", e))?;
+    
+        // Inhibit returns (reserved1, reserved2, reserved3, fd, cookie)
+        // where fd is the int32 file descriptor
+        let result: (u32, u32, u32, i32, String) = proxy
+            .call("Inhibit", &(sleep_type, mode, what, description))
+            .await
+            .map_err(|e| anyhow!("Failed to call Inhibit: {}", e))?;
         
-        let result = proxy
-            .call("Inhibit", &(
-                sleep_type_c.to_str().unwrap(),
-                mode_c.to_str().unwrap(),
-                what_c.to_str().unwrap(),
-                description_c.to_str().unwrap()
-            ))
-            .await;
-
-        match result {
-            Ok((fd, cookie)) => {
-                let file = unsafe { File::from_raw_fd(fd) };
-                info!("Sleep inhibition acquired: {} (cookie: {})", what, cookie);
-                
-                Ok(Self {
-                    fd: Some(file),
-                    cookie: Some(cookie),
-                    what: what.to_string(),
-                    description: description.to_string(),
-                })
-            }
-            Err(e) => {
-                warn!("Failed to acquire sleep inhibition: {}", e);
-                
-                // Check for permission errors
-                if let Some(dbus_err) = e.as_dbus_error() {
-                    if dbus_err.1.contains("Access denied") {
-                        return Err(anyhow!("D-Bus access denied. Add user to 'login' group or run as root."));
-                    }
-                }
-                
-                Err(anyhow!("Failed to inhibit sleeping: {}", e))
-            }
-        }
+        let (_r1, _r2, _r3, fd, cookie) = result;
+        Ok(Self {
+            fd: Some(unsafe { File::from_raw_fd(fd as RawFd) }),
+            cookie: Some(cookie),
+            what: what.to_string(),
+            description: description.to_string(),
+        })
     }
 
     pub fn cookie(&self) -> Option<&str> {
