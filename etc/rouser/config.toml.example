@@ -1,0 +1,42 @@
+# rouser configuration file
+# Default location: /etc/rouser/config.toml
+
+# Daemon configuration
+[daemon]
+name = "rouser"
+update_interval = "5s"  # Polling interval
+log_level = "info"
+
+# Metric thresholds (percentages and MB/s)
+[thresholds]
+cpu_usage = 80.0      # CPU usage percentage
+gpu_usage = 90.0      # GPU usage percentage
+network_io = 100.0    # Network throughput in Mbps
+disk_activity = 50.0  # Disk throughput in MB/s
+
+# Timing parameters
+[timing]
+duration_threshold = "30s"  # Time above threshold before inhibiting
+idle_duration = "60s"       # Time below threshold before releasing
+
+# D-Bus inhibition settings
+[inhibition]
+what = ["sleep", "hibernate", "shutdown"]
+mode = "block"
+
+# Network interface configuration
+[network]
+exclude_interfaces = ["lo"]  # Exclude loopback interface
+include_interfaces = []      # Include only these (empty = all except excluded)
+
+# Disk device configuration
+[disk]
+exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
+# Note: dm- (LVM) devices are included by default
+
+# Logging configuration
+[logging]
+file = "/var/log/rouser/rouser.log"
+rotation_max_size_mb = 10
+rotation_max_files = 5
+format = "text"

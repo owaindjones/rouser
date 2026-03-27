@@ -1,0 +1,49 @@
+[package]
+name = "rouser"
+version = "0.1.0"
+edition = "2021"
+description = "A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/yourusername/rouser"
+keywords = ["daemon", "systemd", "sleep", "inhibit", "metrics"]
+categories = ["os::unix-apis", "os::pda-apis"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# D-Bus bindings
+zbus = "4"
+
+# TOML configuration parsing (pure Rust, secure)
+toml = "0.8"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Time utilities
+chrono = { version = "0.4", features = ["serde"] }
+
+# Path/which utilities
+which = "5.0"
+
+# Serialization for config
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.0"
+
+[[bin]]
+name = "rouser"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
