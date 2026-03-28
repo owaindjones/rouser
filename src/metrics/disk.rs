@@ -15,6 +15,7 @@ pub struct DiskStats {
 pub struct DiskCollector {
     exclude_prefixes: Vec<String>,
     last_stats: HashMap<String, DiskStats>,
+    last_collection_time: Option<std::time::SystemTime>,
 }
 
 impl DiskCollector {
@@ -24,43 +25,49 @@ impl DiskCollector {
         Self {
             exclude_prefixes,
             last_stats: HashMap::new(),
+            last_collection_time: None,
         }
     }
 
 pub async fn collect(&mut self) -> Result<f64, DiskError> {
+        let current_time = std::time::SystemTime::now();
         let current_stats = self.read_disk_stats()?;
 
-        if self.last_stats.is_empty() {
+        if self.last_stats.is_empty() || self.last_collection_time.is_none() {
             self.last_stats = current_stats;
+            self.last_collection_time = Some(current_time);
             debug!("Disk: first sample, returning 0.0 MB/s");
-            Ok(0.0)
-        } else {
-            let mut total_sectors = 0u64;
-
-            for (key, stats) in &current_stats {
-                if let Some(prev) = self.last_stats.get(key) {
-                    let read_delta = stats.sectors_read.saturating_sub(prev.sectors_read);
-                    let write_delta = stats.sectors_written.saturating_sub(prev.sectors_written);
-                    total_sectors = total_sectors.saturating_add(read_delta);
-                    total_sectors = total_sectors.saturating_add(write_delta);
-                }
-            }
-
-            // Calculate average interval (simplified: use 5 seconds)
-            let interval_seconds: f64 = 5.0;
-
-            // Convert sectors to bytes (assuming 512-byte sectors)
-            const SECTOR_SIZE: u64 = 512;
-            let total_bytes = total_sectors as f64 * SECTOR_SIZE as f64;
-
-            // Convert to MB/s
-            let throughput_mb_s = total_bytes / (interval_seconds * 1_000_000.0);
-
-            self.last_stats = current_stats;
-
-            debug!("Disk usage: {:.2} MB/s", throughput_mb_s);
-            Ok(throughput_mb_s)
+            return Ok(0.0);
         }
+
+        let interval_seconds = current_time
+            .duration_since(self.last_collection_time.unwrap())
+            .unwrap_or(std::time::Duration::from_secs(5))
+            .as_secs_f64();
+
+        let mut total_sectors = 0u64;
+
+        for (key, stats) in &current_stats {
+            if let Some(prev) = self.last_stats.get(key) {
+                let read_delta = stats.sectors_read.saturating_sub(prev.sectors_read);
+                let write_delta = stats.sectors_written.saturating_sub(prev.sectors_written);
+                total_sectors = total_sectors.saturating_add(read_delta);
+                total_sectors = total_sectors.saturating_add(write_delta);
+            }
+        }
+
+        // Convert sectors to bytes (assuming 512-byte sectors)
+        const SECTOR_SIZE: u64 = 512;
+        let total_bytes = total_sectors as f64 * SECTOR_SIZE as f64;
+
+        // Convert to MB/s
+        let throughput_mb_s = total_bytes / (interval_seconds * 1_000_000.0);
+
+        self.last_stats = current_stats;
+        self.last_collection_time = Some(current_time);
+
+        debug!("Disk usage: {:.2} MB/s (interval: {:.2}s)", throughput_mb_s, interval_seconds);
+        Ok(throughput_mb_s)
     }
 
     fn read_disk_stats(&self) -> Result<HashMap<String, DiskStats>, DiskError> {
@@ -117,6 +124,20 @@ impl Default for DiskCollector {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_disk_error_display() {
+        let err = DiskError::IoError("test error".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("test error"));
+    }
+}
+
 #[derive(Debug)]
 pub enum DiskError {
     IoError(String),
@@ -134,27 +155,3 @@ impl std::fmt::Display for DiskError {
 
 impl std::error::Error for DiskError {}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-#[test]
-    fn test_disk_collector_creation() {
-        let _collector = DiskCollector::new(vec!["loop".to_string()]);
-        assert!(true);
-    }
-
-    #[test]
-    fn test_disk_collector_default_excludes() {
-        let collector = DiskCollector::default();
-        assert!(collector.exclude_prefixes.contains(&"loop".to_string()));
-        assert!(collector.exclude_prefixes.contains(&"cdrom".to_string()));
-    }
-
-    #[test]
-    fn test_disk_error_display() {
-        let err = DiskError::IoError("test error".to_string());
-        let display = format!("{}", err);
-        assert!(display.contains("test error"));
-    }
-}

@@ -264,15 +264,13 @@ impl From<std::io::Error> for DataServiceError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Config, Thresholds, TimingConfig, DaemonConfig, InhibitionConfig, NetworkConfig, DiskConfig, LoggingConfig};
+    use crate::config::{Config, Thresholds, TimingConfig, InhibitionConfig, NetworkConfig, DiskConfig};
 
     fn create_test_config() -> Config {
         Config {
-            daemon: DaemonConfig {
-                name: "test".to_string(),
-                update_interval: std::time::Duration::from_secs(5),
-                log_level: "info".to_string(),
-            },
+            name: "test".to_string(),
+            update_interval: std::time::Duration::from_secs(5),
+            log_level: "info".to_string(),
             thresholds: Thresholds {
                 cpu_usage: 80.0,
                 gpu_usage: 90.0,
@@ -293,12 +291,6 @@ mod tests {
             },
             disk: DiskConfig {
                 exclude_device_prefixes: vec!["loop".to_string()],
-            },
-            logging: LoggingConfig {
-                file: "/tmp/test.log".to_string(),
-                rotation_max_size_mb: 10,
-                rotation_max_files: 5,
-                format: "text".to_string(),
             },
         }
     }

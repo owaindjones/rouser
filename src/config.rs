@@ -7,26 +7,17 @@ use tracing::{info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    pub daemon: DaemonConfig,
+    pub name: String,
+    pub update_interval: Duration,
+    pub log_level: String,
     pub thresholds: Thresholds,
     pub timing: TimingConfig,
     pub inhibition: InhibitionConfig,
     pub network: NetworkConfig,
     pub disk: DiskConfig,
-    pub logging: LoggingConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonConfig {
-    #[serde(default = "default_daemon_name")]
-    pub name: String,
-    #[serde(default = "default_update_interval", with = "humantime_serde")]
-    pub update_interval: Duration,
-    #[serde(default = "default_log_level")]
-    pub log_level: String,
-}
-
-fn default_daemon_name() -> String {
+fn default_name() -> String {
     "rouser".to_string()
 }
 
@@ -36,18 +27,6 @@ fn default_update_interval() -> Duration {
 
 fn default_log_level() -> String {
     "info".to_string()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Thresholds {
-    #[serde(default = "default_cpu_usage")]
-    pub cpu_usage: f64,
-    #[serde(default = "default_gpu_usage")]
-    pub gpu_usage: f64,
-    #[serde(default = "default_network_io")]
-    pub network_io: f64,
-    #[serde(default = "default_disk_activity")]
-    pub disk_activity: f64,
 }
 
 fn default_cpu_usage() -> f64 {
@@ -67,11 +46,15 @@ fn default_disk_activity() -> f64 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TimingConfig {
-    #[serde(default = "default_duration_threshold", with = "humantime_serde")]
-    pub duration_threshold: Duration,
-    #[serde(default = "default_idle_duration", with = "humantime_serde")]
-    pub idle_duration: Duration,
+pub struct Thresholds {
+    #[serde(default = "default_cpu_usage")]
+    pub cpu_usage: f64,
+    #[serde(default = "default_gpu_usage")]
+    pub gpu_usage: f64,
+    #[serde(default = "default_network_io")]
+    pub network_io: f64,
+    #[serde(default = "default_disk_activity")]
+    pub disk_activity: f64,
 }
 
 fn default_duration_threshold() -> Duration {
@@ -83,11 +66,11 @@ fn default_idle_duration() -> Duration {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InhibitionConfig {
-    #[serde(default = "default_what")]
-    pub what: Vec<String>,
-    #[serde(default = "default_mode")]
-    pub mode: String,
+pub struct TimingConfig {
+    #[serde(default = "default_duration_threshold", with = "humantime_serde")]
+    pub duration_threshold: Duration,
+    #[serde(default = "default_idle_duration", with = "humantime_serde")]
+    pub idle_duration: Duration,
 }
 
 fn default_what() -> Vec<String> {
@@ -96,6 +79,14 @@ fn default_what() -> Vec<String> {
 
 fn default_mode() -> String {
     "block".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InhibitionConfig {
+    #[serde(default = "default_what")]
+    pub what: Vec<String>,
+    #[serde(default = "default_mode")]
+    pub mode: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,22 +101,6 @@ pub struct NetworkConfig {
 pub struct DiskConfig {
     #[serde(default)]
     pub exclude_device_prefixes: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LoggingConfig {
-    #[serde(default)]
-    pub file: String,
-    #[serde(default)]
-    pub rotation_max_size_mb: u32,
-    #[serde(default = "default_rotation_max_files")]
-    pub rotation_max_files: u32,
-    #[serde(default)]
-    pub format: String,
-}
-
-fn default_rotation_max_files() -> u32 {
-    5
 }
 
 pub struct ConfigLoader {
@@ -159,32 +134,32 @@ impl ConfigLoader {
         Ok(())
     }
 
-  fn validate_thresholds(&self, config: &toml::Value) -> Result<()> {
-    if let Some(thresholds) = config.get("thresholds") {
-        if let Some(cpu_usage) = thresholds.get("cpu_usage") {
-            if let Some(cpu) = cpu_usage.as_str().and_then(|s| s.parse::<f64>().ok()) {
-                if cpu < 0.0 || cpu > 100.0 {
-                    anyhow::bail!(
-                        "cpu_usage threshold must be between 0.0 and 100.0, got: {}",
-                        cpu
-                    );
+    fn validate_thresholds(&self, config: &toml::Value) -> Result<()> {
+        if let Some(thresholds) = config.get("thresholds") {
+            if let Some(cpu_usage) = thresholds.get("cpu_usage") {
+                if let Some(cpu) = cpu_usage.as_str().and_then(|s| s.parse::<f64>().ok()) {
+                    if cpu < 0.0 || cpu > 100.0 {
+                        anyhow::bail!(
+                            "cpu_usage threshold must be between 0.0 and 100.0, got: {}",
+                            cpu
+                        );
+                    }
                 }
             }
-        }
 
-        if let Some(gpu_usage) = thresholds.get("gpu_usage") {
-            if let Some(gpu) = gpu_usage.as_str().and_then(|s| s.parse::<f64>().ok()) {
-                if gpu < 0.0 || gpu > 100.0 {
-                    anyhow::bail!(
-                        "gpu_usage threshold must be between 0.0 and 100.0, got: {}",
-                        gpu
-                    );
+            if let Some(gpu_usage) = thresholds.get("gpu_usage") {
+                if let Some(gpu) = gpu_usage.as_str().and_then(|s| s.parse::<f64>().ok()) {
+                    if gpu < 0.0 || gpu > 100.0 {
+                        anyhow::bail!(
+                            "gpu_usage threshold must be between 0.0 and 100.0, got: {}",
+                            gpu
+                        );
+                    }
                 }
             }
         }
+        Ok(())
     }
-    Ok(())
-}
 
     pub fn load(&self) -> Result<Config> {
         if !self.config_path.exists() {
@@ -206,11 +181,9 @@ impl ConfigLoader {
 
     fn load_defaults(&self) -> Result<Config> {
         let config = Config {
-            daemon: DaemonConfig {
-                name: default_daemon_name(),
-                update_interval: default_update_interval(),
-                log_level: default_log_level(),
-            },
+            name: default_name(),
+            update_interval: default_update_interval(),
+            log_level: default_log_level(),
             thresholds: Thresholds {
                 cpu_usage: default_cpu_usage(),
                 gpu_usage: default_gpu_usage(),
@@ -231,12 +204,6 @@ impl ConfigLoader {
             },
             disk: DiskConfig {
                 exclude_device_prefixes: vec!["loop".to_string(), "fd".to_string(), "sr".to_string(), "cdrom".to_string()],
-            },
-  logging: LoggingConfig {
-                file: "/var/log/rouser/rouser.log".to_string(),
-                rotation_max_size_mb: 10,
-                rotation_max_files: default_rotation_max_files(),
-                format: "text".to_string(),
             },
         };
 

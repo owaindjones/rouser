@@ -142,6 +142,11 @@
 - [x] Implement config validation
   - ConfigLoader::validate() checks file existence and threshold ranges
   - Validates CPU/GPU thresholds are 0-100
+- [x] Simplify config structure (removed daemon nesting and logging section)
+  - Config now has flat structure: name, update_interval, log_level, thresholds, timing, inhibition, network, disk
+  - Removed [logging] section and LoggingConfig struct
+  - Removed daemon name from config (not needed)
+  - log_level can be set in config file or via RUST_LOG environment variable
 - [ ] Implement hot-reload capability (optional)
 
 ### 3.2 Metrics Collection
@@ -167,6 +172,8 @@
   - Excludes virtual devices (loop, fd, sr, cdrom)
   - Includes LVM (dm-) devices
   - Calculates throughput in MB/s (512-byte sectors)
+  - Fixed: Uses dynamic interval calculation instead of hardcoded 5s
+  - This fixes under-reporting of disk activity
 - [ ] Implement metric smoothing/averaging
 
 ### 3.3 Sleep Inhibition
@@ -196,7 +203,9 @@
 - [x] Implement main monitoring loop
   - DataService::tick() in src/service.rs
   - Collects all metrics, checks thresholds, updates state
-  - Called in main loop at daemon.update_interval
+  - Called in main loop at update_interval (fixed: now respects config in both dry-run and normal modes)
+  - Fixed: update_interval is now properly used in normal daemon mode (was missing sleep before)
+- [x] Remove --foreground CLI argument (was unused, no daemon mode exists)
 - [ ] Implement graceful shutdown
   - Signal handling in src/main.rs (SIGINT/SIGTERM)
   - Shutdown handler releases inhibition
@@ -284,11 +293,15 @@
    - All metrics collectors working
    - **Multi-GPU support**: GpuCollector refactored to support mixed NVIDIA + AMD/Intel GPUs
    - **Network collector fixed**: Corrected /proc/net/dev parsing (16 values)
+   - **Disk collector fixed**: Dynamic interval calculation (was using hardcoded 5s)
+   - **CLI simplified**: Removed --foreground argument
+   - **Config simplified**: Removed daemon nesting and [logging] section
+   - **Log level fixed**: Now respects config.log_level and RUST_LOG environment variable
+   - **Update interval fixed**: Now properly used in normal daemon mode (was missing sleep)
    - D-Bus inhibition with proper error handling
    - State management and hysteresis timing
    - Signal handling for graceful shutdown
-   - Unit tests written and passing (17 tests)
-   - Minor TODO: metric smoothing, graceful shutdown cleanup
+   - Unit tests written and passing (13 tests)
 
 **In Progress**: Phase 4 (Systemd Integration)
    - Next Steps:

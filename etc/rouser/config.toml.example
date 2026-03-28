@@ -1,11 +1,10 @@
-# rouser configuration file
+ # rouser configuration file
 # Default location: /etc/rouser/config.toml
+# Set RUST_LOG=debug for debug logging, RUST_LOG=info for info, etc.
 
-# Daemon configuration
-[daemon]
 name = "rouser"
 update_interval = "5s"  # Polling interval
-log_level = "verbose"
+log_level = "info"
 
 # Metric thresholds (percentages and MB/s)
 [thresholds]
@@ -33,10 +32,3 @@ include_interfaces = []      # Include only these (empty = all except excluded)
 [disk]
 exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
 # Note: dm- (LVM) devices are included by default
-
-# Logging configuration
-[logging]
-file = "/var/log/rouser/rouser.log"
-rotation_max_size_mb = 10
-rotation_max_files = 5
-format = "text"

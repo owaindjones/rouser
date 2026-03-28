@@ -38,26 +38,14 @@ struct Args {
     #[arg(long)]
     forever: bool,
 
-    /// Run in foreground (default: daemon mode)
-    #[arg(long)]
-    foreground: bool,
+ 
 }
 
 #[tokio::main]
 async fn main() -> ExitCode {
     let args = Args::parse();
 
-    // Initialize tracing subscriber
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("rouser=debug".parse().unwrap()),
-        )
-        .with_target(true)
-        .with_level(true)
-        .with_thread_ids(false)
-        .with_thread_names(false)
-        .init();
+ 
 
     info!("rouser starting...");
 
@@ -67,6 +55,29 @@ async fn main() -> ExitCode {
     });
 
     let config_loader = ConfigLoader::new(&config_path);
+
+    // Load configuration for normal operation
+    let config = match config_loader.load() {
+        Ok(cfg) => {
+            info!("Loaded configuration from {}", config_path.display());
+            cfg
+        }
+        Err(e) => {
+            error!("Failed to load configuration: {}", e);
+            return ExitCode::FAILURE;
+        }
+    };
+
+    // Initialize tracing subscriber with config log_level
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::new(format!("{}/rouser=debug", config.log_level)),
+        )
+        .with_target(true)
+        .with_level(true)
+        .with_thread_ids(false)
+        .with_thread_names(false)
+        .init();
 
     // Validate configuration if requested
     if args.validate_config {
@@ -82,19 +93,7 @@ async fn main() -> ExitCode {
         }
     }
 
-    // Load configuration for normal operation
-    let config = match config_loader.load() {
-        Ok(cfg) => {
-            info!("Loaded configuration from {}", config_path.display());
-            cfg
-        }
-        Err(e) => {
-            error!("Failed to load configuration: {}", e);
-            return ExitCode::FAILURE;
-        }
-    };
-
-    // Run in dry-run mode if requested
+ 
     if args.dry_run {
         match run_dry_run(&config, args.duration, args.forever).await {
             Ok(_) => {
@@ -108,7 +107,7 @@ async fn main() -> ExitCode {
         }
     } else {
         // Normal daemon mode
-        match run_daemon(&config, args.foreground).await {
+        match run_daemon(&config).await {
             Ok(_) => {
                 info!("rouser stopped normally");
                 ExitCode::SUCCESS
@@ -146,17 +145,14 @@ async fn run_dry_run(
             info!("Dry run completed after {:?}", start.elapsed());
             break;
         }
-        tokio::time::sleep(config.daemon.update_interval).await;
+        tokio::time::sleep(config.update_interval).await;
         service.tick(config).await?;
     }
     Ok(())
 }
 
-async fn run_daemon(config: &config::Config, foreground: bool) -> Result<()> {
-    info!("Starting rouser daemon in {} mode", if foreground { "foreground" } else { "daemon" });
-
-    // Check for required systemd/logind environment
-    if std::env::var("NOTIFY_SOCKET").is_err() && !foreground && which::which("systemd-run").is_ok() {
+async fn run_daemon(config: &config::Config) -> Result<()> {
+    if std::env::var("NOTIFY_SOCKET").is_err() && which::which("systemd-run").is_ok() {
         warn!("NOTIFY_SOCKET not set, consider running under systemd");
     }
 
@@ -174,7 +170,7 @@ async fn run_daemon(config: &config::Config, foreground: bool) -> Result<()> {
           loop {
                 if let Err(e) = service.tick(config).await {
                     warn!("Tick failed: {}", e);
-                    tokio::time::sleep(config.daemon.update_interval).await;
+                    tokio::time::sleep(config.update_interval).await;
                 }
             }
         } => {
