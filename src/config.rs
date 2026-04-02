@@ -8,6 +8,7 @@ use tracing::{info, warn};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub name: String,
+    #[serde(with = "humantime_serde")]
     pub update_interval: Duration,
     pub log_level: String,
     pub thresholds: Thresholds,
@@ -103,6 +104,7 @@ pub struct DiskConfig {
     pub exclude_device_prefixes: Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct ConfigLoader {
     config_path: std::path::PathBuf,
 }

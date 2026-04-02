@@ -42,36 +42,31 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> ExitCode {
+ async fn main() -> ExitCode {
     let args = Args::parse();
 
- 
-
-    info!("rouser starting...");
-
-    // Load configuration
+    // Load configuration to get log_level
     let config_path = args.config.clone().unwrap_or_else(|| {
         PathBuf::from("/etc/rouser/config.toml")
     });
 
     let config_loader = ConfigLoader::new(&config_path);
+    let config_result = config_loader.clone().load();
+    let should_validate = args.validate_config;
 
-    // Load configuration for normal operation
-    let config = match config_loader.load() {
-        Ok(cfg) => {
-            info!("Loaded configuration from {}", config_path.display());
-            cfg
-        }
-        Err(e) => {
-            error!("Failed to load configuration: {}", e);
-            return ExitCode::FAILURE;
+    // Initialize tracing subscriber with RUST_LOG or default to info
+    let log_level = if let Ok(val) = std::env::var("RUST_LOG") {
+        val
+    } else {
+        match &config_result {
+            Ok(cfg) => format!("{}/rouser=debug", cfg.log_level),
+            Err(_) => "info/rouser=debug".to_string(),
         }
     };
 
-    // Initialize tracing subscriber with config log_level
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::new(format!("{}/rouser=debug", config.log_level)),
+            tracing_subscriber::EnvFilter::new(log_level),
         )
         .with_target(true)
         .with_level(true)
@@ -79,8 +74,10 @@ async fn main() -> ExitCode {
         .with_thread_names(false)
         .init();
 
-    // Validate configuration if requested
-    if args.validate_config {
+    info!("rouser starting...");
+
+    // Validate configuration if requested (before full config load for validation message)
+    if should_validate {
         match config_loader.validate() {
             Ok(_) => {
                 info!("Configuration is valid");
@@ -92,6 +89,12 @@ async fn main() -> ExitCode {
             }
         }
     }
+
+    // Load configuration (reload now that logging is initialized)
+    let config = config_loader.load().unwrap_or_else(|e| {
+        eprintln!("Failed to load configuration: {}", e);
+        std::process::exit(1);
+    });
 
  
     if args.dry_run {
@@ -170,8 +173,8 @@ async fn run_daemon(config: &config::Config) -> Result<()> {
           loop {
                 if let Err(e) = service.tick(config).await {
                     warn!("Tick failed: {}", e);
-                    tokio::time::sleep(config.update_interval).await;
                 }
+                tokio::time::sleep(config.update_interval).await;
             }
         } => {
             result
