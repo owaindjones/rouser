@@ -1,67 +1,72 @@
-use anyhow::{Result, anyhow};
-use std::fs::File;
-use std::os::fd::FromRawFd;
-use std::os::unix::io::RawFd;
-use tracing::{debug, info};
+use dbus::blocking::Connection;
+use tracing::{debug, info, warn};
 
-
+/// Sleep inhibitor using lower-level dbus crate
+/// The dbus crate properly handles file descriptors (h: UNIX_FD type)
 pub struct SleepInhibitor {
-    fd: Option<File>,
-    cookie: Option<String>,
+    conn: Connection,
+    #[allow(dead_code)] // Keep the fd alive for inhibition
+    _fd: dbus::arg::OwnedFd,
     what: String,
     description: String,
 }
 
 impl SleepInhibitor {
-    pub async fn new(
+  pub async fn new(
         what: &str,
-        description: &str,
+        who: &str,
+        why: &str,
         mode: &str,
-    ) -> Result<Self> {
-        let sleep_type = "sleep";
+    ) -> anyhow::Result<Self> {
+        // D-Bus login1 only supports "block" and "delay" modes, not "block-weak"
+        let dbus_mode = if mode == "block-weak" {
+            warn!("D-Bus API does not support 'block-weak' mode. Using 'block' instead.");
+            "block"
+        } else {
+            mode
+        };
         
-        let connection = zbus::Connection::system()
-            .await
-            .map_err(|e| anyhow!("Failed to connect to system D-Bus: {}", e))?;
+        // Connect to system D-Bus
+        let conn = Connection::new_system()
+            .map_err(|e| anyhow::anyhow!("Failed to connect to system D-Bus: {}", e))?;
 
-        let proxy = zbus::Proxy::new(&connection, 
-            "org.freedesktop.login1", 
-            "/org/freedesktop/login1", 
-            "org.freedesktop.login1.Manager")
-            .await
-            .map_err(|e| anyhow!("Failed to create proxy: {}", e))?;
-    
-        // Inhibit returns (reserved1, reserved2, reserved3, fd, cookie)
-        // where fd is the int32 file descriptor
-        let result: (u32, u32, u32, i32, String) = proxy
-            .call("Inhibit", &(sleep_type, mode, what, description))
-            .await
-            .map_err(|e| anyhow!("Failed to call Inhibit: {}", e))?;
+        // Use with_proxy to create a wrapper for the target object
+        let proxy = conn.with_proxy(
+            "org.freedesktop.login1",
+            "/org/freedesktop/login1",
+            std::time::Duration::from_millis(3000),
+        );
+
+        // Call Inhibit - returns (file_descriptor,) tuple
+        // The dbus crate handles file descriptors properly via OwnedFd
+        let result: (dbus::arg::OwnedFd,) = proxy
+            .method_call(
+                "org.freedesktop.login1.Manager", 
+                "Inhibit", 
+                (what.to_string(), who.to_string(), why.to_string(), dbus_mode.to_string())
+            )
+            .map_err(|e| anyhow::anyhow!("Failed to call Inhibit: {}", e))?;
+
+        // Keep the file descriptor alive for the lifetime of the inhibition
+        // The fd is what keeps the inhibition active - it must not be dropped
+        let fd = result.0;
         
-        let (_r1, _r2, _r3, fd, cookie) = result;
+        info!("Inhibition acquired successfully");
+
         Ok(Self {
-            fd: Some(unsafe { File::from_raw_fd(fd as RawFd) }),
-            cookie: Some(cookie),
+            conn,
+            _fd: fd,
             what: what.to_string(),
-            description: description.to_string(),
+            description: why.to_string(),
         })
-    }
-
-    pub fn cookie(&self) -> Option<&str> {
-        self.cookie.as_deref()
     }
 
     pub fn what(&self) -> &str {
         &self.what
     }
-}
 
-impl Drop for SleepInhibitor {
-    fn drop(&mut self) {
-        if let Some(ref cookie) = self.cookie {
-            info!("Dropping sleep inhibition: {}", cookie);
-            // File descriptor is automatically closed when File is dropped
-        }
+    pub fn description(&self) -> &str {
+        &self.description
     }
 }
 
@@ -78,18 +83,20 @@ impl InhibitionState {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn acquire(
         &mut self,
         what: &str,
-        description: &str,
+        who: &str,
+        why: &str,
         mode: &str,
-    ) -> Result<()> {
+    ) -> anyhow::Result<()> {
         if self.is_inhibited {
             debug!("Already inhibited");
             return Ok(());
         }
 
-        let inhibitor = SleepInhibitor::new(what, description, mode).await?;
+        let inhibitor = SleepInhibitor::new(what, who, why, mode).await?;
 
         self.inhibitor = Some(inhibitor);
         self.is_inhibited = true;
@@ -113,6 +120,12 @@ impl InhibitionState {
 
     pub fn inhibitor(&self) -> Option<&SleepInhibitor> {
         self.inhibitor.as_ref()
+    }
+}
+
+impl Drop for SleepInhibitor {
+    fn drop(&mut self) {
+        info!("Sleep inhibition released for: {}", self.description());
     }
 }
 

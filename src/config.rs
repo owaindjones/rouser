@@ -74,8 +74,8 @@ pub struct TimingConfig {
     pub idle_duration: Duration,
 }
 
-fn default_what() -> Vec<String> {
-    vec!["sleep".to_string(), "hibernate".to_string(), "shutdown".to_string()]
+fn default_what() -> String {
+    "sleep".to_string()
 }
 
 fn default_mode() -> String {
@@ -85,7 +85,7 @@ fn default_mode() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InhibitionConfig {
     #[serde(default = "default_what")]
-    pub what: Vec<String>,
+    pub what: String,
     #[serde(default = "default_mode")]
     pub mode: String,
 }

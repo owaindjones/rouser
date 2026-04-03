@@ -1,7 +1,6 @@
 use anyhow::Result;
 use self::cpu::CpuError;
 use self::disk::DiskError;
-use self::gpu::GpuData;
 use self::gpu::GpuError;
 use self::network::NetworkError;
 use std::time::SystemTime;
@@ -15,7 +14,7 @@ pub mod network;
 
 pub use cpu::CpuCollector;
 pub use disk::DiskCollector;
-pub use gpu::GpuCollector;
+pub use gpu::{GpuCollector, GpuData};
 pub use network::NetworkCollector;
 
 #[derive(Debug, Clone)]

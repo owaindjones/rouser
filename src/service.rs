@@ -2,7 +2,6 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 
 use crate::config::{Config, Thresholds, TimingConfig};
-use crate::metrics::gpu::GpuData;
 
 use crate::metrics::{CpuCollector, DiskCollector, GpuCollector, Metrics, NetworkCollector};
 use crate::inhibit::InhibitionState;
@@ -175,21 +174,23 @@ impl DataManager {
             }
 
             if !self.state.is_inhibited() {
-                if self.is_dry_run {
-                    info!(
-                        "[DRY RUN] Would inhibit sleep: {} above threshold for {:?}",
-                        metrics_exceeded_desc(metrics, &config.thresholds),
-                        config.timing.duration_threshold
-                    );
-                } else {
-                    let what: String = config.inhibition.what.join(",");
-                    let description = "Rouser: system metrics exceed threshold".to_string();
-                    
-                    match self.state.acquire(
-                        &what,
-                        &description,
-                        &config.inhibition.mode,
-                    ).await {
+                  if self.is_dry_run {
+                       info!(
+                           "[DRY RUN] Would inhibit sleep: {} above threshold for {:?}",
+                           metrics_exceeded_desc(metrics, &config.thresholds),
+                           config.timing.duration_threshold
+                       );
+                   } else {
+                       let what = &config.inhibition.what;
+                       let who = std::env::var("USER").unwrap_or_else(|_| "rouser".to_string());
+                       let description = "Rouser: system metrics exceed threshold".to_string();
+                       
+                       match self.state.acquire(
+                            what,
+                            &who,
+                            &description,
+                            config.inhibition.mode.as_str(),
+                       ).await {
                         Ok(_) => {
                             self.metrics_below_threshold_since = None;
                             self.metrics_above_threshold_since = Some(std::time::SystemTime::now());
@@ -265,6 +266,7 @@ impl From<std::io::Error> for DataServiceError {
 mod tests {
     use super::*;
     use crate::config::{Config, Thresholds, TimingConfig, InhibitionConfig, NetworkConfig, DiskConfig};
+    use crate::metrics::GpuData;
 
     fn create_test_config() -> Config {
         Config {
@@ -282,7 +284,7 @@ mod tests {
                 idle_duration: std::time::Duration::from_secs(60),
             },
             inhibition: InhibitionConfig {
-                what: vec!["sleep".to_string()],
+                what: "sleep".to_string(),
                 mode: "block".to_string(),
             },
             network: NetworkConfig {

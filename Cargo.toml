@@ -15,6 +15,7 @@ tokio = { version = "1", features = ["full"] }
 
 # D-Bus bindings
 zbus = "4"
+dbus = "0.9.7"
 
 # TOML configuration parsing (pure Rust, secure)
 toml = "0.8"

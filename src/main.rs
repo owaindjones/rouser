@@ -5,7 +5,6 @@ mod service;
 
 use anyhow::Result;
 use clap::Parser;
-use humantime::Duration;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use tracing::{error, info, warn};
@@ -31,14 +30,8 @@ struct Args {
     #[arg(long)]
     dry_run: bool,
 
-    /// Duration to run in dry run mode (e.g., "60s", "5m"). Use "forever" to run indefinitely.
-    #[arg(long, default_value = "30s")]
-    duration: Duration,
-    /// Run dry mode indefinitely (overrides --duration)
-    #[arg(long)]
-    forever: bool,
-
  
+
 }
 
 #[tokio::main]
@@ -98,14 +91,14 @@ struct Args {
 
  
     if args.dry_run {
-        match run_dry_run(&config, args.duration, args.forever).await {
+        match run_dry_run(&config).await {
             Ok(_) => {
                 info!("Dry run completed successfully");
-                ExitCode::SUCCESS
+                return ExitCode::SUCCESS;
             }
             Err(e) => {
                 error!("Dry run failed: {}", e);
-                ExitCode::FAILURE
+                return ExitCode::FAILURE;
             }
         }
     } else {
@@ -123,15 +116,8 @@ struct Args {
     }
 }
 
-async fn run_dry_run(
-    config: &config::Config,
-    duration: humantime::Duration,
-    forever: bool,
-) -> Result<()> {
-    info!("Running in dry-run mode (forever: {})", forever);
-    if !forever {
-        info!("Duration: {:?}", std::time::Duration::from(duration));
-    }
+async fn run_dry_run(config: &config::Config) -> Result<()> {
+    info!("Running in dry-run mode indefinitely");
     info!("Configuration:");
     info!("  - CPU threshold: {}%", config.thresholds.cpu_usage);
     info!("  - GPU threshold: {}%", config.thresholds.gpu_usage);
@@ -142,16 +128,10 @@ async fn run_dry_run(
 
     let mut service = DataService::new(config, true).await?;
 
-    let start = std::time::Instant::now();
     loop {
-        if !forever && start.elapsed() >= duration.into() {
-            info!("Dry run completed after {:?}", start.elapsed());
-            break;
-        }
-        tokio::time::sleep(config.update_interval).await;
         service.tick(config).await?;
+        tokio::time::sleep(config.update_interval).await;
     }
-    Ok(())
 }
 
 async fn run_daemon(config: &config::Config) -> Result<()> {

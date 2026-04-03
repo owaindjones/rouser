@@ -3,22 +3,22 @@
 # Set RUST_LOG=debug for debug logging, RUST_LOG=info for info
 
 name = "rouser"
-update_interval = "5s"
+update_interval = "3s"
 log_level = "debug"
 
 [thresholds]
-cpu_usage = 80.0
-gpu_usage = 90.0
-network_io = 100.0
-disk_activity = 50.0
+cpu_usage = 10.0
+gpu_usage = 15.0
+network_io = 5.0
+disk_activity = 1.0
 
 [timing]
-duration_threshold = "30s"
-idle_duration = "60s"
+duration_threshold = "10s"
+idle_duration = "120s"
 
 [inhibition]
-what = ["sleep", "hibernate", "shutdown"]
-mode = "block"
+what = "sleep"
+mode = "block-weak"
 
 [network]
 exclude_interfaces = ["lo"]
