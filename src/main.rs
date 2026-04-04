@@ -119,12 +119,12 @@ struct Args {
 async fn run_dry_run(config: &config::Config) -> Result<()> {
     info!("Running in dry-run mode indefinitely");
     info!("Configuration:");
-    info!("  - CPU threshold: {}%", config.thresholds.cpu_usage);
-    info!("  - GPU threshold: {}%", config.thresholds.gpu_usage);
-    info!("  - Network threshold: {} Mbps", config.thresholds.network_io);
-    info!("  - Disk threshold: {} MB/s", config.thresholds.disk_activity);
+    info!("  - CPU threshold: {}%, EMA alpha: {:.2}", config.metrics.cpu.threshold, config.metrics.cpu.ema_alpha);
+    info!("  - GPU threshold: {}%, EMA alpha: {:.2}", config.metrics.gpu.threshold, config.metrics.gpu.ema_alpha);
+    info!("  - Network threshold: {} Mbps, EMA alpha: {:.2}", config.metrics.network.threshold, config.metrics.network.ema_alpha);
+    info!("  - Disk threshold: {} MB/s, EMA alpha: {:.2}", config.metrics.disk.threshold, config.metrics.disk.ema_alpha);
     info!("  - Duration threshold: {:?}", config.timing.duration_threshold);
-    info!("  - Idle duration: {:?}", config.timing.idle_duration);
+    info!("  - Cooldown duration: {:?}", config.timing.cooldown_duration);
 
     let mut service = DataService::new(config, true).await?;
 

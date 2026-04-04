@@ -12,11 +12,9 @@ pub struct Config {
     #[serde(with = "humantime_serde")]
     pub update_interval: Duration,
     pub log_level: String,
-    pub thresholds: Thresholds,
+    pub metrics: Metrics,
     pub timing: TimingConfig,
     pub inhibition: InhibitionConfig,
-    pub network: NetworkConfig,
-    pub disk: DiskConfig,
 }
 
 fn default_name() -> String {
@@ -59,20 +57,100 @@ pub struct Thresholds {
     pub disk_activity: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetricsConfig {
+    #[serde(default = "default_ema_alpha_cpu")]
+    pub ema_alpha: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CpuConfig {
+    #[serde(default = "default_cpu_usage")]
+    pub threshold: f64,
+    #[serde(default = "default_ema_alpha_cpu")]
+    pub ema_alpha: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GpuConfig {
+    #[serde(default = "default_gpu_usage")]
+    pub threshold: f64,
+    #[serde(default = "default_ema_alpha_gpu")]
+    pub ema_alpha: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct NetworkConfig {
+    #[serde(default = "default_network_io")]
+    pub threshold: f64,
+    #[serde(default = "default_ema_alpha_network")]
+    pub ema_alpha: f64,
+    #[serde(default)]
+    pub exclude_interfaces: Vec<String>,
+    #[serde(default)]
+    pub include_interfaces: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DiskConfig {
+    #[serde(default = "default_disk_activity")]
+    pub threshold: f64,
+    #[serde(default = "default_ema_alpha_disk")]
+    pub ema_alpha: f64,
+    #[serde(default)]
+    pub exclude_device_prefixes: Vec<String>,
+}
+
+fn default_cpu() -> CpuConfig {
+    Default::default()
+}
+
+fn default_gpu() -> GpuConfig {
+    Default::default()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Metrics {
+    #[serde(default = "default_cpu")]
+    pub cpu: CpuConfig,
+    #[serde(default = "default_gpu")]
+    pub gpu: GpuConfig,
+    #[serde(default)]
+    pub network: NetworkConfig,
+    #[serde(default)]
+    pub disk: DiskConfig,
+}
+
 fn default_duration_threshold() -> Duration {
     Duration::from_secs(30)
 }
 
-fn default_idle_duration() -> Duration {
+fn default_cooldown_duration() -> Duration {
     Duration::from_secs(60)
+}
+
+fn default_ema_alpha_cpu() -> f64 {
+    0.3
+}
+
+fn default_ema_alpha_gpu() -> f64 {
+    0.3
+}
+
+fn default_ema_alpha_network() -> f64 {
+    0.2
+}
+
+fn default_ema_alpha_disk() -> f64 {
+    0.2
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimingConfig {
     #[serde(default = "default_duration_threshold", with = "humantime_serde")]
     pub duration_threshold: Duration,
-    #[serde(default = "default_idle_duration", with = "humantime_serde")]
-    pub idle_duration: Duration,
+    #[serde(default = "default_cooldown_duration", with = "humantime_serde")]
+    pub cooldown_duration: Duration,
 }
 
 fn default_what() -> String {
@@ -92,20 +170,6 @@ pub struct InhibitionConfig {
 }
 
 
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkConfig {
-    #[serde(default)]
-    pub exclude_interfaces: Vec<String>,
-    #[serde(default)]
-    pub include_interfaces: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiskConfig {
-    #[serde(default)]
-    pub exclude_device_prefixes: Vec<String>,
-}
 
 #[derive(Clone)]
 pub struct ConfigLoader {
@@ -189,27 +253,34 @@ impl ConfigLoader {
             name: default_name(),
             update_interval: default_update_interval(),
             log_level: default_log_level(),
-            thresholds: Thresholds {
-                cpu_usage: default_cpu_usage(),
-                gpu_usage: default_gpu_usage(),
-                network_io: default_network_io(),
-                disk_activity: default_disk_activity(),
+            metrics: Metrics {
+                cpu: CpuConfig {
+                    threshold: default_cpu_usage(),
+                    ema_alpha: default_ema_alpha_cpu(),
+                },
+                gpu: GpuConfig {
+                    threshold: default_gpu_usage(),
+                    ema_alpha: default_ema_alpha_gpu(),
+                },
+                network: NetworkConfig {
+                    threshold: default_network_io(),
+                    ema_alpha: default_ema_alpha_network(),
+                    exclude_interfaces: vec!["lo".to_string()],
+                    include_interfaces: vec![],
+                },
+                disk: DiskConfig {
+                    threshold: default_disk_activity(),
+                    ema_alpha: default_ema_alpha_disk(),
+                    exclude_device_prefixes: vec!["loop".to_string(), "fd".to_string(), "sr".to_string(), "cdrom".to_string()],
+                },
             },
             timing: TimingConfig {
                 duration_threshold: default_duration_threshold(),
-                idle_duration: default_idle_duration(),
+                cooldown_duration: default_cooldown_duration(),
             },
-           inhibition: InhibitionConfig {  
+            inhibition: InhibitionConfig {  
                 what: default_what(), 
                 mode: default_mode(),
-            },
-
-            network: NetworkConfig {
-                exclude_interfaces: vec!["lo".to_string()],
-                include_interfaces: vec![],
-            },
-            disk: DiskConfig {
-                exclude_device_prefixes: vec!["loop".to_string(), "fd".to_string(), "sr".to_string(), "cdrom".to_string()],
             },
         };
 
@@ -236,28 +307,47 @@ mod tests {
     }
 
     #[test]
-    fn test_threshold_defaults() {
-        let thresholds = Thresholds {
-            cpu_usage: default_cpu_usage(),
-            gpu_usage: default_gpu_usage(),
-            network_io: default_network_io(),
-            disk_activity: default_disk_activity(),
+    fn test_metrics_defaults() {
+        let metrics = Metrics {
+            cpu: CpuConfig {
+                threshold: default_cpu_usage(),
+                ema_alpha: default_ema_alpha_cpu(),
+            },
+            gpu: GpuConfig {
+                threshold: default_gpu_usage(),
+                ema_alpha: default_ema_alpha_gpu(),
+            },
+            network: NetworkConfig {
+                threshold: default_network_io(),
+                ema_alpha: default_ema_alpha_network(),
+                exclude_interfaces: vec![],
+                include_interfaces: vec![],
+            },
+            disk: DiskConfig {
+                threshold: default_disk_activity(),
+                ema_alpha: default_ema_alpha_disk(),
+                exclude_device_prefixes: vec![],
+            },
         };
         
-        assert_eq!(thresholds.cpu_usage, 80.0);
-        assert_eq!(thresholds.gpu_usage, 90.0);
-        assert_eq!(thresholds.network_io, 100.0);
-        assert_eq!(thresholds.disk_activity, 50.0);
+        assert_eq!(metrics.cpu.threshold, 80.0);
+        assert_eq!(metrics.gpu.threshold, 90.0);
+        assert_eq!(metrics.network.threshold, 100.0);
+        assert_eq!(metrics.disk.threshold, 50.0);
+        assert_eq!(metrics.cpu.ema_alpha, 0.3);
+        assert_eq!(metrics.gpu.ema_alpha, 0.3);
+        assert_eq!(metrics.network.ema_alpha, 0.2);
+        assert_eq!(metrics.disk.ema_alpha, 0.2);
     }
 
     #[test]
     fn test_timing_defaults() {
         let timing = TimingConfig {
             duration_threshold: default_duration_threshold(),
-            idle_duration: default_idle_duration(),
+            cooldown_duration: default_cooldown_duration(),
         };
         
         assert_eq!(timing.duration_threshold.as_secs(), 30);
-        assert_eq!(timing.idle_duration.as_secs(), 60);
+        assert_eq!(timing.cooldown_duration.as_secs(), 60);
     }
 }
