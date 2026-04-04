@@ -1,5 +1,5 @@
 use dbus::blocking::Connection;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Sleep inhibitor using lower-level dbus crate
 /// The dbus crate properly handles file descriptors (h: UNIX_FD type)
@@ -18,13 +18,7 @@ impl SleepInhibitor {
         why: &str,
         mode: &str,
     ) -> anyhow::Result<Self> {
-        // D-Bus login1 only supports "block" and "delay" modes, not "block-weak"
-        let dbus_mode = if mode == "block-weak" {
-            warn!("D-Bus API does not support 'block-weak' mode. Using 'block' instead.");
-            "block"
-        } else {
-            mode
-        };
+        let dbus_mode = mode;
         
         // Connect to system D-Bus
         let conn = Connection::new_system()

@@ -3,8 +3,8 @@ use tracing::{debug, info, warn};
 
 use crate::config::{Config, Thresholds, TimingConfig};
 
-use crate::metrics::{CpuCollector, DiskCollector, GpuCollector, Metrics, NetworkCollector};
 use crate::inhibit::InhibitionState;
+use crate::metrics::{CpuCollector, DiskCollector, GpuCollector, Metrics, NetworkCollector};
 
 pub struct ThresholdManager {
     thresholds: Thresholds,
@@ -115,7 +115,7 @@ impl DataManager {
                     "Releasing sleep inhibition: all metrics below threshold for {:?}",
                     elapsed
                 );
-                self.state.release().await;
+                self.state.release();
                 self.metrics_below_threshold_since = Some(std::time::SystemTime::now());
             }
         }
@@ -181,24 +181,24 @@ impl DataManager {
                            config.timing.duration_threshold
                        );
                    } else {
-                       let what = &config.inhibition.what;
-                       let who = std::env::var("USER").unwrap_or_else(|_| "rouser".to_string());
+let _what = &config.inhibition.what;
+                        let who = std::env::var("USER").unwrap_or_else(|_| "rouser".to_string());
                        let description = "Rouser: system metrics exceed threshold".to_string();
                        
                        match self.state.acquire(
-                            what,
-                            &who,
-                            &description,
-                            config.inhibition.mode.as_str(),
-                       ).await {
-                        Ok(_) => {
-                            self.metrics_below_threshold_since = None;
-                            self.metrics_above_threshold_since = Some(std::time::SystemTime::now());
-                        }
-                        Err(e) => {
-                            warn!("Failed to acquire inhibition: {}", e);
-                        }
-                    }
+                             &config.inhibition.what,
+                             &who,
+                             &description,
+                             &config.inhibition.mode,
+                        ).await {
+                         Ok(_) => {
+                             self.metrics_below_threshold_since = None;
+                             self.metrics_above_threshold_since = Some(std::time::SystemTime::now());
+                         }
+                         Err(e) => {
+                             warn!("Failed to acquire inhibition: {}", e);
+                         }
+                     }
                 }
             }
         } else {
@@ -214,7 +214,7 @@ impl DataManager {
                 if self.is_dry_run {
                     info!("[DRY RUN] Would release sleep inhibition");
                 } else {
-                    self.state.release().await;
+self.state.release().await;
                 }
             }
         }

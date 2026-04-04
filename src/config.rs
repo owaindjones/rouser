@@ -83,12 +83,14 @@ fn default_mode() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InhibitionConfig {
-    #[serde(default = "default_what")]
-    pub what: String,
-    #[serde(default = "default_mode")]
-    pub mode: String,
+pub struct InhibitionConfig {  
+    #[serde(default = "default_what")]  
+    pub what: String, 
+    #[serde(default = "default_mode")] 
+    pub mode: String, 
 }
+
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
@@ -196,10 +198,11 @@ impl ConfigLoader {
                 duration_threshold: default_duration_threshold(),
                 idle_duration: default_idle_duration(),
             },
-            inhibition: InhibitionConfig {
-                what: default_what(),
+           inhibition: InhibitionConfig {  
+                what: default_what(), 
                 mode: default_mode(),
             },
+
             network: NetworkConfig {
                 exclude_interfaces: vec!["lo".to_string()],
                 include_interfaces: vec![],
