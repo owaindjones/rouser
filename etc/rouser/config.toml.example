@@ -33,4 +33,4 @@ cooldown_duration = "60s"     # Time below threshold before releasing inhibition
 
 [inhibition]
 what = "shutdown:idle"  # Lock types: shutdown:idle, sleep, suspend, shutdown, idle
-mode = "block-weak"  # Mode: block, delay, block-weak
+mode = "block"  # Mode: block, delay, block-weak

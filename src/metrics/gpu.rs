@@ -44,6 +44,10 @@ impl GpuCollector {
         (has_nvidia, has_amd_intel)
     }
 
+    pub fn has_gpus(&self) -> bool {
+        self.has_nvidia || self.has_amd_intel
+    }
+
     pub async fn collect(&self) -> Result<Vec<GpuData>, GpuError> {
         if !self.has_nvidia && !self.has_amd_intel {
             debug!("No GPU support detected, returning empty list");

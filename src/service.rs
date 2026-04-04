@@ -13,22 +13,33 @@ pub struct SmoothingState {
 }
 
 impl SmoothingState {
-    pub fn new(_ema_alpha: f64) -> Self {
+    pub fn new(_alpha: f64) -> Self {
         Self {
             ema: 0.0,
             initialized: false,
         }
     }
 
-    pub fn update(&mut self, value: f64, ema_alpha: f64) -> f64 {
+    /// Update with asymmetric EMA: faster response to increases, slower decay for decreases
+    /// This prevents rapid inhibition release from brief idle periods while remaining responsive to spikes
+    pub fn update(&mut self, value: f64, alpha: f64) -> f64 {
         if !self.initialized {
             self.ema = value;
             self.initialized = true;
-            value
-        } else {
-            self.ema = ema_alpha * value + (1.0 - ema_alpha) * self.ema;
-            self.ema
+            return value;
         }
+
+        let factor = if value > self.ema {
+            // Rising edge: use higher alpha (2x the configured alpha for faster response)
+            // Cap at 1.0 to prevent overshoot
+            (alpha.max(0.1) * 2.0).min(1.0)
+        } else {
+            // Falling edge: use lower alpha (0.5x the configured alpha for slower decay)
+            alpha.min(0.5).max(0.01) / 2.0
+        };
+
+        self.ema = factor * value + (1.0 - factor) * self.ema;
+        self.ema
     }
 
     pub fn value(&self) -> f64 {
@@ -77,12 +88,12 @@ impl ThresholdManager {
     pub fn should_inhibit(
         &self,
         smoothed_cpu: f64,
-        smoothed_gpu: f64,
+        gpu_smoothed_values: &[f64],
         smoothed_network: f64,
         smoothed_disk: f64,
     ) -> bool {
         smoothed_cpu > self.cpu_threshold
-            || smoothed_gpu > self.gpu_threshold
+            || gpu_smoothed_values.iter().any(|&v| v > self.gpu_threshold)
             || smoothed_network > self.network_threshold
             || smoothed_disk > self.disk_threshold
     }
@@ -100,9 +111,9 @@ pub struct DataManager {
     disk: DiskCollector,
     last_collection: Option<std::time::SystemTime>,
     is_dry_run: bool,
-    // EMA smoothing state for each metric
+    // EMA smoothing state for each metric (and per-GPU)
     cpu_smooth: SmoothingState,
-    gpu_smooth: SmoothingState,
+    gpu_smoothing: Vec<SmoothingState>,
     network_smooth: SmoothingState,
     disk_smooth: SmoothingState,
 }
@@ -141,6 +152,11 @@ impl DataManager {
             config.metrics.disk.ema_alpha,
         );
 
+        // Initialize per-GPU smoothing states based on detected GPUs
+        let gpu_collector = GpuCollector::new();
+        let has_gpu = gpu_collector.has_gpus();
+        let num_gpus = if has_gpu { 2 } else { 0 }; // Default to 2 GPU slots, will resize on first collection
+        
         Ok(Self {
             state: InhibitionState::new(),
             metrics_below_threshold_since: None,
@@ -156,7 +172,7 @@ impl DataManager {
             last_collection: None,
             is_dry_run,
             cpu_smooth: SmoothingState::new(config.metrics.cpu.ema_alpha),
-            gpu_smooth: SmoothingState::new(config.metrics.gpu.ema_alpha),
+            gpu_smoothing: (0..num_gpus).map(|_| SmoothingState::new(config.metrics.gpu.ema_alpha)).collect(),
             network_smooth: SmoothingState::new(config.metrics.network.ema_alpha),
             disk_smooth: SmoothingState::new(config.metrics.disk.ema_alpha),
         })
@@ -168,25 +184,40 @@ impl DataManager {
 
         // Apply EMA smoothing to raw metrics
         let smoothed_cpu = self.cpu_smooth.update(metrics.cpu_usage, config.metrics.cpu.ema_alpha);
-        let smoothed_gpu = if !metrics.gpu_usage.is_empty() {
-            let avg_raw: f64 = metrics.gpu_usage.iter().map(|g| g.usage).sum::<f64>() / metrics.gpu_usage.len() as f64;
-            self.gpu_smooth.update(avg_raw, config.metrics.gpu.ema_alpha)
-        } else {
-            0.0
-        };
+        
+        // Smooth each GPU individually and collect smoothed values
+        let mut gpu_smoothed_values: Vec<f64> = vec![0.0; metrics.gpu_usage.len()];
+        for (i, gpu) in metrics.gpu_usage.iter().enumerate() {
+            if i < self.gpu_smoothing.len() {
+                gpu_smoothed_values[i] = self.gpu_smoothing[i].update(gpu.usage, config.metrics.gpu.ema_alpha);
+            }
+        }
+        
         let smoothed_network = self.network_smooth.update(metrics.network_io, config.metrics.network.ema_alpha);
         let smoothed_disk = self.disk_smooth.update(metrics.disk_activity, config.metrics.disk.ema_alpha);
 
+        // Build GPU debug string with individual values
+        let gpu_debug: String = if !metrics.gpu_usage.is_empty() {
+            metrics.gpu_usage.iter().enumerate()
+                .map(|(i, g)| format!("{}: {:.1}%", g.vendor_type, g.usage))
+                .collect::<Vec<_>>()
+                .join(", ")
+        } else {
+            "None".to_string()
+        };
+
         debug!(
-            "Metrics: CPU={:.1}% (smoothed: {:.1}%), GPU={:.1}% (smoothed: {:.1}%), Network={:.2} Mbps (smoothed: {:.2}), Disk={:.2} MB/s (smoothed: {:.2})",
+            "Metrics: CPU={:.1}% (smoothed: {:.1}%), GPU: {} (smoothed: {:.1}%, {:.1}%), Network={:.2} Mbps (smoothed: {:.2}), Disk={:.2} MB/s (smoothed: {:.2})",
             metrics.cpu_usage, smoothed_cpu,
-            metrics.gpu_usage.iter().map(|g| g.usage).sum::<f64>() / metrics.gpu_usage.len() as f64, smoothed_gpu,
+            gpu_debug,
+            gpu_smoothed_values.get(0).unwrap_or(&0.0), 
+            gpu_smoothed_values.get(1).unwrap_or(&0.0),
             metrics.network_io, smoothed_network,
             metrics.disk_activity, smoothed_disk
         );
 
         let should_inhibit = self.threshold_manager.should_inhibit(
-            smoothed_cpu, smoothed_gpu, smoothed_network, smoothed_disk,
+            smoothed_cpu, &gpu_smoothed_values, smoothed_network, smoothed_disk,
         );
 
         self.update_state(should_inhibit, config).await?;
@@ -402,7 +433,8 @@ mod tests {
             config.metrics.disk.ema_alpha,
         );
         
-        assert!(manager.should_inhibit(90.0, 50.0, 10.0, 5.0));
+        // CPU above threshold (90 > 80)
+        assert!(manager.should_inhibit(90.0, &[50.0], 10.0, 5.0));
     }
 
     #[test]
@@ -419,7 +451,44 @@ mod tests {
             config.metrics.disk.ema_alpha,
         );
         
-        assert!(!manager.should_inhibit(50.0, 10.0, 10.0, 5.0));
+        // All metrics below threshold
+        assert!(!manager.should_inhibit(50.0, &[10.0], 10.0, 5.0));
+    }
+
+    #[test]
+    fn test_threshold_manager_should_inhibit_high_gpu() {
+        let config = create_test_config();
+        let manager = ThresholdManager::new(
+            config.metrics.cpu.threshold,
+            config.metrics.gpu.threshold,
+            config.metrics.network.threshold,
+            config.metrics.disk.threshold,
+            config.metrics.cpu.ema_alpha,
+            config.metrics.gpu.ema_alpha,
+            config.metrics.network.ema_alpha,
+            config.metrics.disk.ema_alpha,
+        );
+        
+        // GPU above threshold (95 > 90)
+        assert!(manager.should_inhibit(80.0, &[95.0], 10.0, 5.0));
+    }
+
+    #[test]
+    fn test_threshold_manager_should_inhibit_any_gpu() {
+        let config = create_test_config();
+        let manager = ThresholdManager::new(
+            config.metrics.cpu.threshold,
+            config.metrics.gpu.threshold,
+            config.metrics.network.threshold,
+            config.metrics.disk.threshold,
+            config.metrics.cpu.ema_alpha,
+            config.metrics.gpu.ema_alpha,
+            config.metrics.network.ema_alpha,
+            config.metrics.disk.ema_alpha,
+        );
+        
+        // First GPU below, second GPU above threshold
+        assert!(manager.should_inhibit(80.0, &[50.0, 95.0], 10.0, 5.0));
     }
 
     #[test]
@@ -446,39 +515,66 @@ mod ema_tests {
     }
 
     #[test]
-    fn test_ema_smoothing() {
+    fn test_ema_asymmetric_increase() {
         let mut state = SmoothingState::new(0.5);
         
         // Initial value
         assert_eq!(state.update(10.0, 0.5), 10.0);
         
-        // With alpha=0.5: new_ema = 0.5 * new + 0.5 * old
-        // Second reading of 20.0: ema = 0.5 * 20 + 0.5 * 10 = 15
-        assert_eq!(state.update(20.0, 0.5), 15.0);
+        // Increase: factor = min(0.5 * 2, 1.0) = 1.0 (full weight to new value)
+        // ema = 1.0 * 20 + 0.0 * 10 = 20
+        assert_eq!(state.update(20.0, 0.5), 20.0);
         
-        // Third reading of 30.0: ema = 0.5 * 30 + 0.5 * 15 = 22.5
-        assert_eq!(state.update(30.0, 0.5), 22.5);
+        // Another increase: factor = 1.0 (still maxed)
+        // ema = 1.0 * 30 + 0.0 * 20 = 30
+        assert_eq!(state.update(30.0, 0.5), 30.0);
     }
 
     #[test]
-    fn test_ema_low_alpha() {
+    fn test_ema_asymmetric_decrease() {
+        let mut state = SmoothingState::new(0.5);
+        
+        // Initial value
+        assert_eq!(state.update(50.0, 0.5), 50.0);
+        
+        // Decrease: uses 0.5x alpha = 0.25
+        // ema = 0.25 * 40 + 0.75 * 50 = 10 + 37.5 = 47.5
+        assert_eq!(state.update(40.0, 0.5), 47.5);
+        
+        // Another decrease: ema = 0.25 * 30 + 0.75 * 47.5 = 7.5 + 35.625 = 43.125
+        assert_eq!(state.update(30.0, 0.5), 43.125);
+    }
+
+    #[test]
+    fn test_ema_low_alpha_slower_decay() {
         let mut state = SmoothingState::new(0.1);
         
-        // With alpha=0.1, changes are slower
-        assert_eq!(state.update(10.0, 0.1), 10.0);
-        assert_eq!(state.update(90.0, 0.1), 18.0); // 0.1 * 90 + 0.9 * 10 = 18
+        // Initial value
+        assert_eq!(state.update(90.0, 0.1), 90.0);
         
-        // Fourth reading of 50.0: ema = 0.1 * 50 + 0.9 * 18 = 21.2
-        assert_eq!(state.update(50.0, 0.1), 21.2);
+        // Decrease from high to low: factor = min(0.1, 0.5) / 2 = 0.05
+        // ema = 0.05 * 10 + 0.95 * 90 = 0.5 + 85.5 = 86.0
+        assert_eq!(state.update(10.0, 0.1), 86.0);
+        
+        // Another decrease: factor = 0.05 (still low)
+        // ema = 0.05 * 5 + 0.95 * 86 = 0.25 + 81.7 = 81.95
+        assert_eq!(state.update(5.0, 0.1), 81.95);
     }
 
     #[test]
-    fn test_ema_high_alpha() {
+    fn test_ema_high_alpha_rapid_response() {
         let mut state = SmoothingState::new(0.9);
         
-        // With alpha=0.9, changes are faster
+        // Initial value
         assert_eq!(state.update(10.0, 0.9), 10.0);
-        assert_eq!(state.update(90.0, 0.9), 82.0); // 0.9 * 90 + 0.1 * 10 = 82
+        
+        // Increase: factor = min(0.9 * 2, 1.0) = 1.0 (full weight to new value)
+        // ema = 1.0 * 90 + 0.0 * 10 = 90
+        assert_eq!(state.update(90.0, 0.9), 90.0);
+        
+        // Decrease: factor = min(0.9, 0.5) / 2 = 0.5 / 2 = 0.25
+        // ema = 0.25 * 50 + 0.75 * 90 = 12.5 + 67.5 = 80.0
+        assert_eq!(state.update(50.0, 0.9), 80.0);
     }
 
     #[test]
