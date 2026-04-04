@@ -4,9 +4,11 @@ use tracing::{debug, info};
 /// Sleep inhibitor using lower-level dbus crate
 /// The dbus crate properly handles file descriptors (h: UNIX_FD type)
 pub struct SleepInhibitor {
+    #[allow(dead_code)] // Connection kept for inhibitor lifetime
     conn: Connection,
     #[allow(dead_code)] // Keep the fd alive for inhibition
     _fd: dbus::arg::OwnedFd,
+    #[allow(dead_code)]
     what: String,
     description: String,
 }
@@ -55,6 +57,7 @@ impl SleepInhibitor {
         })
     }
 
+    #[allow(dead_code)]
     pub fn what(&self) -> &str {
         &self.what
     }
@@ -112,6 +115,7 @@ impl InhibitionState {
         self.is_inhibited
     }
 
+    #[allow(dead_code)]
     pub fn inhibitor(&self) -> Option<&SleepInhibitor> {
         self.inhibitor.as_ref()
     }

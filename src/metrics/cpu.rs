@@ -13,7 +13,8 @@ pub struct CpuStats {
     pub softirq: u64,
     pub steal: u64,
     pub guest: u64,
-    pub guest_nice: u64,
+    #[allow(dead_code)]
+    guest_nice: u64,
 }
 
 pub struct CpuCollector {

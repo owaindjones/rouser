@@ -5,12 +5,14 @@ use tracing::debug;
 use which::which;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Used in potential future GPU stats collection
 pub struct GpuStats {
     pub usage: f64,
     pub vendor: GpuVendor,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Used in potential future GPU stats collection
 pub enum GpuVendor {
     Nvidia,
     Amdgpu,
@@ -159,6 +161,7 @@ impl Default for GpuCollector {
 #[derive(Debug)]
 pub enum GpuError {
     CommandFailed(String),
+    #[allow(dead_code)] // Reserved for future use
     IoError(String),
 }
 

@@ -120,6 +120,7 @@ impl NetworkCollector {
 #[derive(Debug)]
 pub enum NetworkError {
     IoError(String),
+    #[allow(dead_code)] // Reserved for future use
     InvalidFormat,
 }
 

@@ -1,21 +1,19 @@
 use std::time::Duration;
 use tracing::{debug, info, warn};
 
-use crate::config::{Config, Thresholds, TimingConfig};
+use crate::config::{Config, Thresholds};
 
 use crate::inhibit::InhibitionState;
 use crate::metrics::{CpuCollector, DiskCollector, GpuCollector, Metrics, NetworkCollector};
 
 pub struct ThresholdManager {
     thresholds: Thresholds,
-    timing: TimingConfig,
 }
 
 impl ThresholdManager {
-    pub fn new(thresholds: &Thresholds, timing: &TimingConfig) -> Self {
+    pub fn new(thresholds: &Thresholds) -> Self {
         Self {
             thresholds: thresholds.clone(),
-            timing: timing.clone(),
         }
     }
 
@@ -63,7 +61,7 @@ impl DataManager {
         config: &Config,
         is_dry_run: bool,
     ) -> Result<Self, DataServiceError> {
-        let threshold_manager = ThresholdManager::new(&config.thresholds, &config.timing);
+        let threshold_manager = ThresholdManager::new(&config.thresholds);
 
         Ok(Self {
             state: InhibitionState::new(),
@@ -115,7 +113,7 @@ impl DataManager {
                     "Releasing sleep inhibition: all metrics below threshold for {:?}",
                     elapsed
                 );
-                self.state.release();
+                self.state.release().await;
                 self.metrics_below_threshold_since = Some(std::time::SystemTime::now());
             }
         }
@@ -300,14 +298,14 @@ mod tests {
     #[test]
     fn test_threshold_manager_creation() {
         let config = create_test_config();
-        let manager = ThresholdManager::new(&config.thresholds, &config.timing);
+        let manager = ThresholdManager::new(&config.thresholds);
         assert!(true); // Basic instantiation test
     }
 
     #[test]
     fn test_threshold_manager_should_inhibit_high_cpu() {
         let config = create_test_config();
-        let manager = ThresholdManager::new(&config.thresholds, &config.timing);
+        let manager = ThresholdManager::new(&config.thresholds);
         
         let metrics = Metrics {
             cpu_usage: 90.0,
@@ -322,7 +320,7 @@ mod tests {
     #[test]
     fn test_threshold_manager_should_not_inherit_idle_cpu() {
         let config = create_test_config();
-        let manager = ThresholdManager::new(&config.thresholds, &config.timing);
+        let manager = ThresholdManager::new(&config.thresholds);
         
         let metrics = Metrics {
             cpu_usage: 50.0,

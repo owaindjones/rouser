@@ -7,6 +7,7 @@ use tracing::{info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[allow(dead_code)] // Reserved for future use
     pub name: String,
     #[serde(with = "humantime_serde")]
     pub update_interval: Duration,

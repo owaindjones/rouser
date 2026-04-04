@@ -7,6 +7,7 @@ use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct DiskStats {
+    #[allow(dead_code)] // Reserved for future use
     pub name: String,
     pub sectors_read: u64,
     pub sectors_written: u64,
@@ -141,6 +142,7 @@ mod tests {
 #[derive(Debug)]
 pub enum DiskError {
     IoError(String),
+    #[allow(dead_code)] // Reserved for future use
     InvalidFormat,
 }
 
