@@ -3,7 +3,7 @@
 # Set RUST_LOG=debug for debug logging, RUST_LOG=info for info
 
 name = "rouser"
-update_interval = "3s"
+update_interval = "1s"
 log_level = "debug"
 
 # Per-metric configuration with thresholds and EMA smoothing parameters
@@ -32,5 +32,5 @@ duration_threshold = "10s"    # Min time above threshold before inhibiting sleep
 cooldown_duration = "60s"     # Time below threshold before releasing inhibition
 
 [inhibition]
-what = "idle"    # Lock type: idle, sleep, suspend, shutdown
+what = "shutdown:idle"  # Lock types: shutdown:idle, sleep, suspend, shutdown, idle
 mode = "block-weak"  # Mode: block, delay, block-weak

@@ -154,7 +154,7 @@ pub struct TimingConfig {
 }
 
 fn default_what() -> String {
-    "sleep".to_string()
+    "shutdown:idle".to_string()
 }
 
 fn default_mode() -> String {
