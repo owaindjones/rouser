@@ -30,15 +30,15 @@ struct Args {
     #[arg(long)]
     dry_run: bool,
 
-     /// Log level filter; RUST_LOG env var takes precedence. Overrides config.log_level if set.
+/// Log level filter; overrides config.log_level and RUST_LOG env var.
     #[arg(long, short = 'l')]
     log_level: Option<String>,
 
 }
 
 #[tokio::main]
- async fn main() -> ExitCode {
-    let args = Args::parse();
+async fn main() -> ExitCode {
+let args = Args::parse();
 
     // Load configuration to get log_level
     let config_path = args.config.clone().unwrap_or_else(|| {
@@ -49,11 +49,11 @@ struct Args {
     let config_result = config_loader.clone().load();
     let should_validate = args.validate_config;
 
-  // Resolve log level with precedence: RUST_LOG > CLI -l/--log-level > config.log_level > "info"
-    let log_level = if let Ok(val) = std::env::var("RUST_LOG") {
+    // Resolve log level with precedence: CLI -l/--log-level > RUST_LOG env var > config.log_level > "info"
+    let log_level = if let Some(ref cli_val) = args.log_level {
+        cli_val.to_string()
+    } else if let Ok(val) = std::env::var("RUST_LOG") {
         val
-    } else if let Some(ref cli_val) = args.log_level {
-        cli_val.clone()
     } else {
         match &config_result {
             Ok(cfg) => cfg.log_level.clone(),
