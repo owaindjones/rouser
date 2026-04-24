@@ -121,7 +121,6 @@ pub struct ThresholdManager {
     disk_state: SmoothingState,
     // ... per-GPU states
     duration_threshold: Duration,
-    idle_duration: Duration,
     cooldown_duration: Duration,
 }
 ```
@@ -350,11 +349,14 @@ impl ThresholdManager {
         }
     }
     
-    pub fn check(&self, metrics: &Metrics) -> bool {
-        // Check all metrics including memory
-        self.check_metric(&self.cpu_state, metrics.cpu, self.config.thresholds.cpu_usage)
-            || self.check_metric(&self.memory_state.as_ref(), metrics.memory, 
-                self.config.thresholds.memory_usage.unwrap_or(100.0))
+    pub fn check(&self, config: &Config) -> bool {
+        // Check each metric against its threshold using smoothed values
+        let cpu_ok = self.check_metric(&self.cpu_state, metrics.cpu.usage(), config.metrics.cpu.threshold);
+        let gpu_ok = self.gpu_states.iter().all(|state| {
+            self.check_metric(state, /* GPU value */, config.metrics.gpu.threshold)
+        });
+        // ... similar for network and disk
+        cpu_ok || gpu_ok || /* others */ false
     }
 }
 ```
@@ -549,13 +551,14 @@ mod integration_tests {
                 update_interval: Duration::from_millis(100),  // Fast for testing
                 ..Default::default()
             },
-            thresholds: ThresholdsConfig {
-                cpu_usage: 50.0,
-                ..Default::default()
+            metrics: MetricsConfig {
+                cpu: CpuConfig { threshold: 50.0, ..Default::default() },
+                gpu: GpuConfig::default(),
+                network: NetworkConfig::default(),
+                disk: DiskConfig::default(),
             },
             timing: TimingConfig {
                 duration_threshold: Duration::from_millis(200),
-                idle_duration: Duration::from_millis(100),
                 cooldown_duration: Duration::from_millis(100),
             },
             inhibition: InhibitionConfig {

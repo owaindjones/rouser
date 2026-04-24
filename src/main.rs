@@ -12,13 +12,36 @@ use tracing::{error, info, warn};
 use config::ConfigLoader;
 use service::DataService;
 
+const DEFAULT_CONFIG_PATHS: &[&str] = &[
+    "./config/rouser.toml",
+    "~/.config/rouser/config.toml",
+    "/etc/rouser/config.toml",
+];
+
+fn resolve_config_path(args: &Args) -> (PathBuf, Vec<String>) {
+    let fallback = PathBuf::from(DEFAULT_CONFIG_PATHS.last().unwrap());
+    if let Some(ref path) = args.config {
+        return (path.clone(), vec![path.display().to_string()]);
+    }
+    let mut searched: Vec<String> = Vec::new();
+    for pattern in DEFAULT_CONFIG_PATHS {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "~".to_string());
+        let expanded = (*pattern).replace("~", &home);
+        searched.push(expanded.clone());
+        if std::path::Path::new(&expanded).exists() {
+            return (PathBuf::from(expanded), searched);
+        }
+    }
+    (fallback, searched)
+}
+
 
 /// rouser - A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded
 #[derive(Parser)]
 #[command(name = "rouser")]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Path to configuration file
+    /// Path to configuration file [searches ./config/rouser.toml -> ~/.config/rouser/config.toml -> /etc/rouser/config.toml]
     #[arg(long, short)]
     config: Option<PathBuf>,
 
@@ -41,12 +64,17 @@ async fn main() -> ExitCode {
 let args = Args::parse();
 
     // Load configuration to get log_level
-    let config_path = args.config.clone().unwrap_or_else(|| {
-        PathBuf::from("/etc/rouser/config.toml")
-    });
+    let (config_path, searched_paths) = resolve_config_path(&args);
 
     let config_loader = ConfigLoader::new(&config_path);
     let config_result = config_loader.clone().load();
+    if config_result.is_err() {
+        warn!(
+            "No configuration file found at checked paths — using built-in defaults. \
+             Checked: {}",
+            searched_paths.join(", ")
+        );
+    }
     let should_validate = args.validate_config;
 
     // Resolve log level with precedence: CLI -l/--log-level > RUST_LOG env var > config.log_level > "info"

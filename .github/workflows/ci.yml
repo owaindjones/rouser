@@ -1,0 +1,340 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci-lint-test:
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache dependencies and build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ci-lint-test
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            libsystemd-dev libdbus-1-dev
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy lint check
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run all tests
+        run: cargo test --all-targets
+
+  build-artifacts-ci:
+    if: github.event_name != 'release'
+    needs: [ci-lint-test]
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: x86_64
+            deb_arch: amd64
+          - target: aarch64-unknown-linux-gnu
+            arch: aarch64
+            deb_arch: arm64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable toolchain and cross target
+        run: |
+          rustup update stable && rustup default stable
+          rustup component rustfmt clippy
+
+      - name: Cache dependencies and build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ci-build-${{ matrix.target }}
+
+      - name: Install cross-compilation toolchain (cross-rs)
+        if: matrix.arch == 'aarch64'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build binary
+        run: |
+          set -euo pipefail
+          BINARY="target/${{ matrix.target }}/release/rouser"
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            cargo build --release --target ${{ matrix.target }}
+          else
+            cross build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Create tarball artifact
+        run: |
+          set -euo pipefail
+          BINARY="target/${{ matrix.target }}/release/rouser"
+          ARCHIVE="rouser-${{ matrix.arch }}-linux.tar.gz"
+          chmod +x .github/scripts/packaging.sh
+          .github/scripts/packaging.sh package "$BINARY" "$ARCHIVE"
+
+      - name: Upload CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-${{ matrix.arch }}-linux-ci
+          path: "rouser-${{ matrix.arch }}-linux.tar.gz"
+          retention-days: 7
+
+  release-tarballs:
+    if: github.event_name == 'release'
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: x86_64
+          - target: aarch64-unknown-linux-gnu
+            arch: aarch64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable toolchain and rustfmt/clippy
+        run: |
+          rustup update stable && rustup default stable
+          rustup component rustfmt clippy
+
+      - name: Cache dependencies and build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-build-${{ matrix.target }}
+
+      - name: Install cross-compilation toolchain (cross-rs)
+        if: matrix.arch == 'aarch64'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build release binary
+        run: |
+          set -euo pipefail
+          BINARY="target/${{ matrix.target }}/release/rouser"
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            cargo build --release --target ${{ matrix.target }} --verbose
+          else
+            cross build --release --target ${{ matrix.target }} --verbose
+          fi
+
+      - name: Create release tarball
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          BINARY="target/${{ matrix.target }}/release/rouser"
+          ARCHIVE="rouser-v${VERSION}-linux-${{ matrix.arch }}.tar.gz"
+          chmod +x .github/scripts/packaging.sh
+          .github/scripts/packaging.sh package "$BINARY" "$ARCHIVE"
+
+      - name: Upload release asset (tarball)
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          gh release upload "${VERSION}" \
+            "rouser-v${VERSION}-linux-${{ matrix.arch }}.tar.gz" --clobber
+
+      - name: Upload GHA artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-release-${{ matrix.arch }}-linux
+          path: "rouser-v*-linux-${{ matrix.arch }}.tar.gz"
+          retention-days: 30
+
+  package-deb:
+    if: github.event_name == 'release'
+    needs: [release-tarballs]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            deb_arch: amd64
+          - arch: aarch64
+            deb_arch: arm64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release tarball
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rouser-release-${{ matrix.arch }}-linux*
+          path: dist-tarballs/
+          merge-multiple: true
+
+      - name: Extract binary from tarball
+        run: |
+          mkdir -p pkg-build
+          chmod +x .github/scripts/packaging.sh
+          TARBALL=$(ls dist-tarballs/*.tar.gz)
+          .github/scripts/packaging.sh extract "$TARBALL" "pkg-build"
+
+      - name: Install DEB packaging dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot
+
+      - name: Build DEB package
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          chmod +x .github/scripts/deb.sh
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          ARCH="${{ matrix.arch }}"
+          DEB_ARCH="${{ matrix.deb_arch }}"
+          .github/scripts/deb.sh build pkg-build "rouser-${RPM_VERSION}-${ARCH}.deb" "$RPM_VERSION" "$DEB_ARCH"
+
+      - name: Upload DEB release asset
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          gh release upload "${VERSION}" "rouser-${VERSION}-${{ matrix.arch }}.deb" --clobber
+
+      - name: Upload GHA artifact (DEB backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-deb-${{ matrix.deb_arch }}
+          path: rouser-*.deb
+          retention-days: 30
+
+  package-rpm:
+    if: github.event_name == 'release'
+    needs: [release-tarballs]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            rpm_arch: x86_64
+          - arch: aarch64
+            rpm_arch: aarch64
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RPM build dependencies (container)
+        run: |
+          dnf install -y \
+            rpm-build redhat-rpm-config \
+            systemd-devel dbus-devel gcc make tar gzip
+
+      - name: Download release tarball
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rouser-release-${{ matrix.arch }}-linux*
+          path: dist-tarballs/
+          merge-multiple: true
+
+      - name: Extract binary from tarball
+        run: |
+          mkdir -p pkg-build
+          chmod +x .github/scripts/packaging.sh
+          TARBALL=$(ls dist-tarballs/*.tar.gz)
+          .github/scripts/packaging.sh extract "$TARBALL" "pkg-build"
+
+      - name: Build RPM package
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          chmod +x .github/scripts/rpm.sh
+          ARCH="${{ matrix.rpm_arch }}"
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          .github/scripts/rpm.sh build pkg-build "$RPM_VERSION" "$ARCH"
+
+      - name: Upload RPM release asset
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          rpm_file=$(find . -maxdepth 2 -name "rouser-${VERSION}-*.rpm" 2>/dev/null | head -1)
+          if [ -n "$rpm_file" ]; then
+            gh release upload "${VERSION}" "$rpm_file" --clobber
+          else
+            echo "No RPM file found for ${{ matrix.rpm_arch }}" >&2
+            ls -R *.rpm 2>/dev/null || true
+          fi
+
+      - name: Upload GHA artifact (RPM backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-rpm-${{ matrix.rpm_arch }}
+          path: "**/rouser-*.rpm"
+          retention-days: 30
+
+  package-arch-pkgbuild:
+    if: github.event_name == 'release'
+    needs: [release-tarballs]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all release tarballs for PKGBUILD source URLs
+        run: |
+          mkdir -p dist-tarballs/
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          gh api repos/{owner}/{repo}/releases/assets \
+            --jq '.[] | select(.name | test("linux")) | {name, browser_download_url}' 2>/dev/null || true
+
+      - name: Generate PKGBUILD
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          chmod +x .github/scripts/pkgbuild.sh
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          .github/scripts/pkgbuild.sh generate PKGBUILD "$RPM_VERSION"
+
+      - name: Create Arch source archive artifact
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          tar czf "rouser-pkgbuild-v${VERSION}.tar.gz" PKGBUILD
+
+      - name: Upload Arch PKGBUILD as release asset
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          gh release upload "${VERSION}" \
+            "rouser-pkgbuild-v${VERSION}.tar.gz" --clobber
+
+      - name: Upload GHA artifact (PKGBUILD backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-arch-pkgbuild
+          path: PKGBUILD
+          retention-days: 30

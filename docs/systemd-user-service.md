@@ -15,45 +15,53 @@ Systemd user services allow rouser to:
 - Systemd user instance running (`systemctl --user daemon-reexec` may be needed)
 - D-Bus session bus available
 - User membership in `login` group (for D-Bus access) or polkit rule
+- **logind lingering enabled** for the user, so the service persists after logout:
+
+```bash
+loginctl enable-linger $USER
+```
 
 ## Installation Steps
 
 ### Step 1: Create Configuration Directory and File
 
+Copy the repo-packaged default config into your XDG path:
+
 ```bash
-# Create configuration directory in your home
 mkdir -p ~/.config/rouser
-
-# Copy example configuration
-cp /etc/rouser/config.toml.example ~/.config/rouser/config.toml
-
-# Or create custom config
+cp ./config/rouser.toml ~/.config/rouser/config.toml
+# Or create a custom one — see docs/configuration.md for full reference
 cat > ~/.config/rouser/config.toml << 'EOF'
-[daemon]
 name = "rouser"
 update_interval = "5s"
 log_level = "info"
 
-[thresholds]
-cpu_usage = 80.0
-gpu_usage = 90.0
-network_io = 100.0
-disk_activity = 50.0
+[metrics.cpu]
+threshold = 80.0       # CPU usage % (0–100) above which to inhibit sleep
+ema_alpha = 0.3        # EMA smoothing: higher = more responsive, lower = smoother
+
+[metrics.gpu]
+threshold = 90.0       # GPU usage % per device
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 100.0      # Network throughput in Mbps
+ema_alpha = 0.2        # EMA smoothing for network I/O
+exclude_interfaces = ["lo"]    # Exclude from monitoring (default: loopback)
+include_interfaces = []        # Only monitor these; empty means all
+
+[metrics.disk]
+threshold = 50.0       # Disk I/O in MB/s above which to inhibit sleep
+ema_alpha = 0.2        # EMA smoothing for disk activity
+exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]  # Exclude virtual devices
 
 [timing]
-duration_threshold = "30s"
-idle_duration = "60s"
-cooldown_duration = "60s"
+duration_threshold = "30s"   # Min time metrics must exceed threshold before inhibiting
+cooldown_duration = "60s"    # Time after releasing inhibition before re-inhibiting possible
 
-[inhibition]
-what = "shutdown:idle"
-mode = "block"
-
-[network]
-exclude_interfaces = ["lo"]
-
-[disk]
-exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
+[inhibitor]
+what = "shutdown:idle"       # Lock types: idle, sleep, suspend, shutdown (colon-separated)
+mode = "block"               # Mode: block, delay, or block-weak
 EOF
 ```
 
@@ -70,7 +78,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/rouser --config ~/.config/rouser/config.toml
+ExecStart=/home/%i/.local/bin/rouser --config /home/%i/.config/rouser/config.toml
 Restart=on-failure
 RestartSec=5s
 
@@ -78,8 +86,8 @@ RestartSec=5s
 NoNewPrivileges=true
 ProtectSystem=strict
 PrivateTmp=true
-ProtectHome=true
-ReadWritePaths=%h/.config/rouser %h/.local/log/rouser
+ProtectHome=read-only
+ReadWritePaths=%h/.config/rouser
 
 [Install]
 WantedBy=default.target
@@ -282,29 +290,27 @@ SystemCallFilter=~@privileged @resources
 
 ## Environment Configuration
 
-### Override Configuration via Environment
+### Override Logging via systemd environment
 
-Create an override file:
+Since rouser has no `ROUSER_*` config overrides, use systemd's `Environment=` to set `RUST_LOG`:
 
 ```bash
-sudo mkdir -p /etc/systemd/system/rouser.service.d
+systemctl --user edit rouser.service
 ```
 
-Create `/etc/systemd/system/rouser.service.d/override.conf`:
-
+Add:
 ```ini
 [Service]
-# Override environment variables
-Environment=ROUSER_LOG_LEVEL=debug
-Environment=ROUSER_THRESHOLDS_CPU_USAGE=75
+Environment="RUST_LOG=debug"
 ```
 
 Reload and restart:
-
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl restart rouser
+systemctl --user daemon-reload
+systemctl --user restart rouser
 ```
+
+Or override the log level via CLI by editing `ExecStart` in the service file to include `-l debug`.
 
 ### Resource Limits
 
@@ -400,12 +406,13 @@ sudo systemctl restart polkit
 
 ### Logging Issues
 
-**Enable debug logging**:
+**Enable debug logging in config.toml**:
 
 ```toml
-# In config.toml
-[daemon]
-log_level = "debug"
+name = "rouser"
+update_interval = "5s"
+log_level = "debug"   # Set at root level, not under [daemon]
+...
 ```
 
 Then restart:

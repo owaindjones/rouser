@@ -1,10 +1,24 @@
 # rouser
 
-[![Status](https://img.shields.io/badge/status-in%20development-blue)](https://github.com/yourusername/rouser)
-[![Rust](https://img.shields.io/badge/rust-stable-orange)](https://www.rust-lang.org)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+<p align="center">
+  <a href="#readme"><img src="docs/rouser-logo.svg" alt="rouser logo — eye/radar with animated metric bars" width="600"></a>
+</p>
 
 A Linux daemon that monitors system metrics (CPU, GPU, network, disk) and inhibits sleep when activity thresholds are exceeded.
+
+[![CI](https://github.com/yourusername/rouser/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/rouser/actions/workflows/ci.yml)
+[![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat&logo=rust)](https://www.rust-lang.org)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
+
+## Build & Packaging Coverage
+
+| Target | CI Status | Package Format |
+|--------|-----------|----------------|
+| x86_64 Linux | ![CI build](https://github.com/yourusername/rouser/actions/workflows/ci.yml/badge.svg?event=release) | Tarball + DEB + RPM |
+| aarch64 Linux | ![CI cross-build](https://github.com/yourusername/rouser/actions/workflows/ci.yml/badge.svg?event=release) | Tarball + DEB (arm64) + RPM (aarch64) |
+| Arch / Bazzite | — | PKGBUILD archive on release |
+
+> **Pre-release**: rouser is at `v0.0.0` (unreleased). No official releases yet. See [AGENTS.md](AGENTS.md) for versioning policy.
 
 ## Overview
 
@@ -36,92 +50,157 @@ Allow a system to:
 git clone https://github.com/yourusername/rouser.git
 cd rouser
 cargo build --release
-sudo cp target/release/rouser /usr/local/bin/
+cp target/release/rouser ~/.local/bin/
 ```
+
+### Via Installer Script
+
+The provided installer script fetches the latest release from GitHub and sets up systemd:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yourusername/rouser/main/scripts/install.sh | bash -s -- --help
+# Then run without flags to install:
+curl -fsSL https://raw.githubusercontent.com/yourusername/rouser/main/scripts/install.sh | bash
+```
+
+The installer will:
+1. Download the latest release archive matching your architecture (x86_64 or aarch64)
+2. Copy the binary to `~/.local/bin/rouser`
+3. Install default config to `~/.config/rouser/config.toml`
+4. Enable systemd user service at `~/.config/systemd/user/rouser.service`
+
+> **Note**: The installer requires `logind lingering` enabled for your user. Run the script's built-in guidance if systemctl complains about a non-active session.
 
 ### Dependencies
 
-- Rust 1.70+
-- Systemd (for login1 D-Bus API)
+- Rust 1.70+ (for source builds)
+- Systemd with D-Bus (login1 API, typically available on any modern distro)
 - Optional: NVIDIA drivers with `nvidia-smi` for GPU monitoring
 - Linux kernel with `/sys/class/drm` for AMD/Intel GPU monitoring
 
 ## Quick Start
 
-1. **Create configuration directory**:
-   ```bash
-   sudo mkdir -p /etc/rouser
-   ```
+### 1. Create Configuration
 
-2. **Create config file** (see Configuration below):
-   ```bash
-   sudo nano /etc/rouser/config.toml
-   ```
+rouser searches for config files in this order (first existing wins):
 
-3. **Validate configuration**:
-   ```bash
-   rouser --validate-config /etc/rouser/config.toml
-   ```
+| Priority | Path | Description |
+|----------|------|-------------|
+| 1 | `./config/rouser.toml` | Repo-packaged default |
+| 2 | `~/.config/rouser/config.toml` | XDG user config |
+| 3 | `/etc/rouser/config.toml` | System-wide config (requires root) |
 
-4. **Test in dry-run mode**:
-   ```bash
-   rouser --config /etc/rouser/config.toml --dry-run
-   ```
+Copy the repo default or create your own:
 
-5. **Run the daemon**:
-   ```bash
-   rouser --config /etc/rouser/config.toml
-   ```
+```bash
+# Use repo-packaged default in current directory
+cp config/rouser.toml ./config/rouser.toml
+
+# Or install to XDG path
+mkdir -p ~/.config/rouser
+cp config/rouser.toml ~/.config/rouser/config.toml
+```
+
+### 2. Validate Configuration
+
+```bash
+rouser --validate-config
+```
+
+### 3. Test in Dry-Run Mode
+
+```bash
+# Collect metrics with default log level (info)
+rouser --dry-run
+
+# With debug logging to see per-device readings
+RUST_LOG=debug rouser --dry-run -l debug
+```
+
+Sample output:
+```
+CPU threshold: 80%, EMA alpha: 0.30
+GPU threshold: 90%, EMA alpha: 0.30
+Network threshold: 100 Mbps, EMA alpha: 0.20
+Disk threshold: 50 MB/s, EMA alpha: 0.20
+Duration threshold: 30s
+Cooldown duration: 60s
+```
+
+### 4. Run as a Daemon
+
+```bash
+rouser --dry-run   # first test without inhibition
+rouser              # normal mode — inhibits sleep when thresholds exceeded (Ctrl+C to stop)
+```
+
+### 5. Install as Systemd User Service
+
+After verifying with dry-run:
+
+```bash
+# Enable and start the user service
+systemctl --user daemon-reload
+systemctl --user enable --now rouser.service
+
+# Check status
+journalctl --user -u rouser -f
+```
 
 ## Configuration
 
-Create `/etc/rouser/config.toml`:
+Create a config file at one of the default search paths (see Quick Start above) or pass `-c /path/to/config.toml`. The TOML format uses **nested metric sections** over flat threshold keys for clarity and per-metric EMA smoothing:
 
 ```toml
 name = "rouser"
 update_interval = "5s"
 log_level = "info"
 
-[thresholds]
-cpu_usage = 80.0       # CPU usage percentage (0-100)
-gpu_usage = 90.0       # GPU usage percentage (0-100)
-network_io = 100.0     # Network throughput in Mbps
-disk_activity = 50.0   # Disk I/O in MB/s
+[metrics.cpu]
+threshold = 80.0       # CPU usage % (0–100) above which to inhibit sleep
+ema_alpha = 0.3        # EMA smoothing: higher = more responsive, lower = smoother
+
+[metrics.gpu]
+threshold = 90.0       # GPU usage % per device
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 100.0      # Network throughput in Mbps
+ema_alpha = 0.2        # EMA smoothing for network I/O
+exclude_interfaces = ["lo"]    # Exclude from monitoring (default: loopback)
+include_interfaces = []        # Only monitor these; empty means all
+
+[metrics.disk]
+threshold = 50.0       # Disk I/O in MB/s above which to inhibit sleep
+ema_alpha = 0.2        # EMA smoothing for disk activity
+exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]  # Exclude virtual devices
 
 [timing]
-duration_threshold = "30s"   # Min time above threshold before inhibiting
-idle_duration = "60s"        # Time below threshold before releasing
+duration_threshold = "30s"   # Min time metrics must exceed threshold before inhibiting
+cooldown_duration = "60s"    # Time after releasing inhibition before re-inhibiting possible
 
 [inhibitor]
-what = "sleep"     # Lock type: idle, sleep, suspend, shutdown
-mode = "block"     # Mode: block, delay, block-weak
-
-[network]
-exclude_interfaces = ["lo"]
-include_interfaces = []
-
-[disk]
-exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
+what = "shutdown:idle"       # Lock types: idle, sleep, suspend, shutdown (colon-separated)
+mode = "block"               # Mode: block, delay, or block-weak
 ```
 
-### Configuration Options
+### Configuration Sections Reference
 
-#### `inhibitor.what` - Lock Type
-Controls what type of sleep the inhibitor blocks:
-- `idle` - Prevents idle suspend (default behavior)
-- `sleep` - Prevents sleep/hibernate
-- `suspend` - Prevents suspend-to-RAM
-- `shutdown` - Prevents shutdown
+#### `[metrics.cpu]` / `[metrics.gpu]` / `[metrics.network]` / `[metrics.disk]`
+Each metric section has `threshold`, `ema_alpha`, and optional interface/device filters (network, disk only). See [Configuration Reference](docs/configuration.md) for full details.
 
-Reference: https://systemd.io/INHIBITOR_LOCKS/
+#### `[timing]` — Hysteresis Timing
+- **`duration_threshold`** (`"30s"`): Minimum continuous time metrics must exceed threshold before inhibiting sleep. Prevents brief spikes from triggering inhibition.
+- **`cooldown_duration`** (`"60s"`): Time after releasing inhibition during which the daemon won't re-inhibit even if thresholds are exceeded again.
 
-#### `inhibitor.mode` - Inhibition Mode
-- `block` - Completely blocks sleep
-- `delay` - Delays sleep for the duration of inhibition
-- `block-weak` - Blocks sleep but can be overridden by privileged processes
+#### `[inhibitor]` — D-Bus Inhibition Settings
+| Key | Default | Description |
+|-----|---------|-------------|
+| `what` | `"shutdown:idle"` | Lock types to inhibit (colon-separated): `idle`, `sleep`, `suspend`, `shutdown`. Multiple combined with colons, e.g., `"sleep:suspend"`. Reference: [systemd inhibitor locks](https://systemd.io/INHIBITOR_LOCKS/) |
+| `mode` | `"block"` | Inhibition mode: `block` (completely blocks), `delay` (delays for duration of inhibition), `block-weak` (blocks but overridable by privileged processes) |
 
-#### `thresholds`
-Percentage or rate thresholds that trigger sleep inhibition:
+#### `[network]` and `[disk]` sub-fields
+These are nested under their respective metric sections (`[metrics.network]`, `[metrics.disk]`) in the TOML file, not top-level. See [Configuration Reference](docs/configuration.md).
 - `cpu_usage`: CPU usage percentage (0-100)
 - `gpu_usage`: GPU usage percentage (0-100), averaged across all GPUs
 - `network_io`: Network throughput in Mbps
@@ -137,68 +216,65 @@ Percentage or rate thresholds that trigger sleep inhibition:
 Usage: rouser [OPTIONS]
 
 Options:
-  -c, --config <CONFIG>          Path to configuration file [default: /etc/rouser/config.toml]
-      --validate-config          Validate configuration and exit
-      --dry-run                  Dry run mode (don't actually inhibit sleep)
+  -c, --config <CONFIG>          Path to configuration file (sequential search if omitted)
+      --validate-config          Validate configuration and exit without running
+      --dry-run                  Dry run mode (collect metrics but don't inhibit sleep)
+  -l, --log-level <LOG_LEVEL>    Set log level: debug, info, warn, error [overrides config + RUST_LOG]
   -h, --help                     Print help
   -V, --version                  Print version
 ```
 
+For full CLI reference see [docs/command-line.md](docs/command-line.md).
+
 ## Running as a Service
 
-### Using systemd (recommended)
+### Systemd User Service (recommended)
 
-Create `/etc/systemd/system/rouser.service`:
-
-```ini
-[Unit]
-Description=Rouser System Metrics Daemon
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/rouser -c /etc/rouser/config.toml
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable rouser
-sudo systemctl start rouser
-```
-
-Check status:
-```bash
-sudo systemctl status rouser
-journalctl -u rouser -f
-```
-
-### Manual execution
+rouser is installed as a **user service** — it runs under your user account without root:
 
 ```bash
-# Run with default configuration
+# After running the installer script, or manually:
+systemctl --user daemon-reload
+systemctl --user enable --now rouser.service
+
+# Check status
+journalctl --user -u rouser -f
+```
+
+The service file is at `~/.config/systemd/user/rouser.service` and targets `$HOME/.local/bin/rouser`.
+
+### Manual execution (not as a service)
+
+```bash
+# Run with default config search path
 rouser
 
-# Custom config path
-rouser --config /path/to/config.toml
+# Custom config, dry run for testing
+rouser --dry-run -l debug
 
-# Dry run mode
-rouser --dry-run
-
-# Validate only
+# Validate configuration before running
 rouser --validate-config
+
+# Stop the daemon: Ctrl+C or systemctl --user stop rouser.service
 ```
+
+### logind lingering (required for user services when not logged in)
+
+For systemd user services to persist after logout, enable lingering:
+
+```bash
+loginctl enable-linger $USER
+```
+
+Without lingering, `systemctl --user` only works while you have an active login session. The installer script provides guidance if systemctl reports issues with a non-active user session.
 
 ## Environment Variables
 
-- `RUST_LOG`: Logging level filter (e.g., `info`, `debug`, `rouser=debug`)
-  ```bash
-  RUST_LOG=debug rouser
-  ```
+| Variable | Description | Affects |
+|----------|-------------|---------|
+| `RUST_LOG` | Logging level filter (e.g., `"debug"`, `"info"`, `"rouser=debug,zbus=info"`) | Console logging output only |
+
+There are no `ROUSER_*` environment variable overrides for configuration values. All settings must come from the TOML file or be overridden at runtime via CLI flags (`-l/--log-level`).
 
 ## Troubleshooting
 
@@ -214,20 +290,27 @@ systemd-inhibit --list
 KDE Powerdevil may ignore inhibitors from unprivileged users. Solutions:
 
 1. **Add polkit rule** (recommended):
-   Create `/etc/polkit-1/rules.d/50-rouser.rules`:
-   ```javascript
-   polkit.addRule(function(action, subject) {
-       if (action.id == "org.freedesktop.login1.inhibit" &&
-           subject.user == "your_username") {
-           return polkit.Result.YES;
-       }
-   });
-   ```
+    Create `/etc/polkit-1/rules.d/50-rouser.rules`:
+    ```javascript
+    polkit.addRule(function(action, subject) {
+        if (action.id == "org.freedesktop.login1.inhibit" &&
+            subject.user == "your_username") {
+            return polkit.Result.YES;
+        }
+    });
+    ```
 
-2. **Run as root** (not recommended for security):
-   ```bash
-   sudo rouser --config /etc/rouser/config.toml
-   ```
+### Service logs not showing
+
+When running as a systemd user service, use `--user` flag:
+
+```bash
+# Wrong (system journal — won't have user-level service)
+journalctl -u rouser -f
+
+# Correct (user journal)
+journalctl --user -u rouser -f
+```
 
 ## Architecture
 
@@ -259,10 +342,9 @@ KDE Powerdevil may ignore inhibitors from unprivileged users. Solutions:
 ### Inhibition Flow
 
 1. Collect metrics every `update_interval` seconds
-2. If any metric exceeds threshold, wait for `duration_threshold`
-3. Acquire sleep inhibition lock via D-Bus
-4. When all metrics below threshold, wait for `idle_duration`
-5. Release inhibition lock (file descriptor closes automatically)
+2. If any metric exceeds its threshold continuously for at least `duration_threshold`, acquire sleep inhibition lock via D-Bus
+3. While inhibited, continue collecting metrics; brief drops below threshold do not release immediately — all metrics must stay below thresholds for the full `cooldown_duration` before releasing
+4. Release inhibition lock (file descriptor closes automatically)
 
 ## Development
 
@@ -272,26 +354,35 @@ KDE Powerdevil may ignore inhibitors from unprivileged users. Solutions:
 # Debug build
 cargo build
 
-# Release build
+# Release build (optimized)
 cargo build --release
 ```
 
-### Running Tests
+### Running Tests & Code Quality
+
+All checks must pass before any commit. See [AGENTS.md](AGENTS.md) for the full checklist:
 
 ```bash
-cargo test
+cargo fmt --check          # Ensure consistent formatting
+cargo clippy --all-targets -- -D warnings  # Zero lint warnings allowed
+cargo test --all-targets   # All unit tests passing
+cargo build --release      # Release binary compiles successfully
 ```
 
-### Code Quality
+### CI/CD Pipeline
 
-```bash
-# Format code
-cargo fmt
+The GitHub Actions workflow (`.github/workflows/ci.yml`) runs:
+- **On push/PR**: format check, clippy lint, tests, debug builds for x86_64 + aarch64 with tarball artifacts
+- **On release tag**: cross-compile releases, build DEB/RPM packages and Arch PKGBUILD, publish as GitHub Release assets
 
-# Lint with clippy
-cargo clippy -- -D warnings
-```
+## Documentation
 
-## License
+| Document | Description |
+|----------|-------------|
+| [docs/configuration.md](docs/configuration.md) | Full configuration reference with all options |
+| [docs/command-line.md](docs/command-line.md) | CLI argument reference and examples |
+| [docs/systemd-user-service.md](docs/systemd-user-service.md) | Running rouser as a systemd user service |
+| [docs/metrics-overview.md](docs/metrics-overview.md) | How each metric type is collected |
+| [docs/quickstart.md](docs/quickstart.md) | Step-by-step getting started guide |
+| [AGENTS.md](AGENTS.md) | Developer guidelines, versioning policy, coding conventions |
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

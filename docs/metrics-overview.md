@@ -163,35 +163,18 @@ rocm-smi --showgpuutilization
 - Calculates average across all detected GPUs
 - Falls back to 0% if no GPUs detected
 
-### Aggregation Strategy
+### Aggregation Strategy — Per-Device Reporting Over Averaging
 
-#### Multiple GPUs
+rouser reports each physical GPU **individually** rather than aggregating across devices. Each detected GPU is compared independently against the configured threshold:
 
-For systems with multiple GPUs, rouser calculates the **average** usage:
-
-```rust
-fn calculate_average(usage_values: &[f64]) -> f64 {
-    if usage_values.is_empty() {
-        0.0
-    } else {
-        usage_values.iter().sum::<f64>() / usage_values.len() as f64
-    }
-}
+```
+GPU0(nvidia): 95%   ← above 90% threshold → inhibits sleep
+card1(amdgpu): 78%  ← below 90% threshold → does not inhibit alone
 ```
 
-**Per-GPU Tracking**: rouser can also track each GPU individually via per-GPU configuration:
+A single GPU exceeding its threshold triggers inhibition regardless of other GPUs' states. This provides accurate per-GPU logging and prevents one low-usage card from masking a high-usage card's activity.
 
-```toml
-[[thresholds.gpu]]
-name = "nvidia-0"
-usage = 85.0
-ema_alpha = 0.15
-
-[[thresholds.gpu]]
-name = "nvidia-1"
-usage = 90.0
-ema_alpha = 0.1
-```
+**EMA Smoothing**: Each device has independent EMA smoothing applied to its readings before comparison against the threshold. The `ema_alpha` value in `[metrics.gpu]` controls smoothing strength uniformly across all GPUs.
 
 ## Network I/O
 
@@ -343,11 +326,13 @@ If no devices are available (highly unlikely):
 
 ### Polling Interval
 
-The polling interval is configurable via `daemon.update_interval`:
+The polling interval is a top-level config field:
 
 ```toml
-[daemon]
-update_interval = "5s"  # Default: 5 seconds
+name = "rouser"
+update_interval = "5s"   # Default: 5 seconds — time between metric collection cycles
+log_level = "info"
+...
 ```
 
 **Trade-offs**:
@@ -411,13 +396,14 @@ error!("No disk devices available");
 To reduce resource usage:
 
 ```toml
-[daemon]
-update_interval = "10s"  # Increase interval
+# Increase polling interval (default 5s)
+name = "rouser"
+update_interval = "10s"   # Less responsive but lower overhead
 
-[network]
-exclude_interfaces = ["lo", "docker0", "virbr0"]  # Exclude virtual interfaces
+[metrics.network]
+exclude_interfaces = ["lo", "docker0", "virbr0"]   # Exclude virtual interfaces
 
-[disk]
+[metrics.disk]
 exclude_device_prefixes = ["loop", "fd", "sr", "cdrom", "nbd"]  # Exclude more virtual devices
 ```
 

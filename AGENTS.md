@@ -7,6 +7,37 @@
 - **Commit frequently when stable**: Make atomic, logical commits whenever the codebase is in a working state (builds, tests pass). Do not batch unrelated changes into a single commit. Each commit should represent one coherent unit of change.
 - **Follow existing patterns first**: Before proposing new patterns or structures, search for and follow established conventions in the codebase. When in doubt, match what's already there.
 - **Graceful degradation over panics**: Metric collectors return `Result` types and fall back to zero values on failure. The daemon continues operating even when individual metrics are unavailable.
+- **No background tasks**: All work must be performed by subagents or in the foreground. Background tasks are not allowed because they often time out or exhaust the context window before completing.
+- **Subagents and subtasks allowed (foreground only)**: Delegating to subagents is encouraged for parallelizable work, but all spawned agents MUST run with `run_in_background=false` (synchronous mode). This ensures agent output is available in-session and prevents context loss from timed-out background tasks. Never spawn a task and forget about it — always collect results before proceeding.
+
+## Versioning Policy
+
+- **Semantic Versioning (SemVer)** is strictly enforced. All version bumps follow `MAJOR.MINOR.PATCH` format per [semver.org](https://semver.org/).
+- Current version: `v0.0.0` (unreleased pre-release state). Do NOT release until explicitly asked by the user.
+- **Pre-release rule**: Until first stable release, only patch-level changes are expected. Minor releases introduce new features; patches fix bugs without behavior change.
+  - `v0.0.1`, `v0.0.2`... — bug fixes and minor improvements while pre-1.0
+  - `v0.1.0` — first feature release (when ready)
+  - `vX.Y.Z` post-1.0: MAJOR for breaking changes, MINOR for new features, PATCH for bugfixes
+
+### Version Bump Rules
+| Change Type | Version Bump | Examples |
+|---|---|---|
+| Breaking API change (config format, CLI args) | MAJOR or MINOR (pre-1.0: MINOR) | `v0.1.0 → v0.2.0` |
+| New feature / capability | MINOR (pre-1.0: minor patch) | `v0.0.3 → v0.0.4` |
+| Bug fix, no behavior change | PATCH | `v0.0.4 → v0.0.5` |
+| CI/CD, packaging, docs-only | No version bump needed (unless it affects user-visible behavior) |
+
+### Version Management in Cargo.toml
+- Update `[package] version = "..."` before any release tag
+- Never commit a version bump without an associated release PR or explicit user request
+- The `--version` flag is derived from Cargo.toml by clap's automatic version handling — no manual sync needed
+
+### Git Tagging Convention
+- Pre-release: `v0.0.X` (e.g., `git tag -a v0.0.1 -m "Patch: fix config path resolution"`)
+- Release candidates: `v0.1.0-rc.1`, etc.
+- Stable releases: `vX.Y.Z` with annotated tags and release notes
+
+**Never release without explicit user instruction.** If the user asks to release, bump version first, then tag, then create GitHub release.
 
 ## Binary Artifacts
 
@@ -150,6 +181,14 @@ Unit tests cannot verify actual subprocess output parsing or real hardware detec
 ### Fail-Fast with Diagnostics for External Tools
 
 When an external binary (nvidia-smi) is available but returns zero results while hardware exists in sysfs, log a `warn!` message rather than silently returning empty data. This helps operators distinguish between "no GPUs" and "GPU monitoring tool failed." Add sysfs fallback collection as emergency recovery when primary methods fail entirely.
+
+### nvidia-smi Subprocess Is the Correct Approach for NVIDIA GPUs
+
+Direct GPU access alternatives were evaluated (NVML via FFI, sysfs under `/sys/bus/pci/devices/`, X11 libXNVCtrl). The conclusion: `nvidia-smi` subprocess is acceptable and preferred because it is already required as an external binary on NVIDIA systems, no well-maintained Rust NVML binding exists (`nvml-rs` crate is unmaintained since 2019), and per-device parsing via CSV output achieves the same information with negligible process spawn overhead (~1-5ms vs. typical 5s polling interval).
+
+### Deprecated FreeDesktop PowerManagement API Must Not Be Used
+
+The old `/org/freedesktop/PowerManagement.Inhibit` API is obsolete (deprecated ~2014) and must not be referenced as a viable approach. Always use `org.freedesktop.login1.Manager.Inhibit`. Document why deprecated approaches were abandoned in AGENTS.MD so future agents don't revisit dead ends.
 
 ## Dependency Policy
 

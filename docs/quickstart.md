@@ -4,261 +4,187 @@ This guide will help you get `rouser` running on your Linux system within 5 minu
 
 ## Prerequisites
 
-- Linux system with systemd
-- Root/sudo access
-- Rust 1.70+ and Cargo installed (for building from source)
+- Linux system with systemd (systemd user instance)
+- Your user logged in and active session (`loginctl enable-linger $USER` recommended for persistence after logout)
+- Rust 1.70+ (for building from source only — pre-built binaries available on releases)
+- D-Bus session bus available
 
 ## Installation Options
 
-### Option 1: Build from Source (Recommended)
+### Option 1: Build from Source
 
 ```bash
 # Clone repository
 git clone https://github.com/yourusername/rouser.git
 cd rouser
 
-# Build release binary
+# Build release binary and install to ~/.local/bin
 cargo build --release
-
-# Install to /usr/local/bin
-sudo install -m 755 target/release/rouser /usr/local/bin/rouser
+mkdir -p ~/.local/bin
+cp target/release/rouser ~/.local/bin/rouser
+chmod +x ~/.local/bin/rouser
 ```
 
-### Option 2: Pre-built Binary
+### Option 2: Via Installer Script (Recommended)
 
-Download the latest release binary from GitHub releases and extract:
+The installer script fetches the latest release, installs the binary, config, and enables systemd user service automatically:
 
 ```bash
-# Download binary (update version as needed)
-curl -LO https://github.com/yourusername/rouser/releases/download/v0.1.0/rouser-x86_64-unknown-linux-gnu.tar.gz
+curl -fsSL https://raw.githubusercontent.com/yourusername/rouser/main/scripts/install.sh | bash
+```
 
-# Extract
-tar -xzf rouser-x86_64-unknown-linux-gnu.tar.gz
+See `scripts/install.sh --help` for options.
 
-# Install
-sudo install -m 755 rouser /usr/local/bin/rouser
+### Option 3: Manual Download from Release
+
+Download pre-built archives from GitHub Releases matching your architecture:
+
+```bash
+# Update URL with actual release version and arch (x86_64 or aarch64)
+curl -LO https://github.com/yourusername/rouser/releases/download/v0.1.0/rouser-v0.1.0-linux-x86_64.tar.gz
+
+# Extract — contains binary + config + systemd service file
+tar -xzf rouser-v*.linux-*.tar.gz
+
+# Install components manually:
+cp rouser ~/.local/bin/rouser
+mkdir -p ~/.config/rouser
+cp config/rouser.toml ~/.config/rouser/config.toml
+systemctl --user daemon-reload  # if installing service file
 ```
 
 ## Configuration
 
-### Step 1: Create Configuration Directory
+### Config File Discovery
+
+When no `-c` flag is given, rouser searches **sequentially** for the first existing config:
+
+| Priority | Path | Description |
+|----------|------|-------------|
+| 1 | `./config/rouser.toml` | Repo-packaged default in current directory |
+| 2 | `~/.config/rouser/config.toml` | XDG user config (installed by installer script) |
+| 3 | `/etc/rouser/config.toml` | System-wide config (requires root to create) |
+
+### Create Configuration File
+
+Copy the repo default into your XDG path:
 
 ```bash
-sudo install -m 755 -d /etc/rouser
+mkdir -p ~/.config/rouser
+cp ./config/rouser.toml ~/.config/rouser/config.toml
 ```
 
-### Step 2: Create Configuration File
-
-Create `/etc/rouser/config.toml`:
+**Example configuration**:
 
 ```toml
-# /etc/rouser/config.toml
-
-# Daemon configuration
-[daemon]
 name = "rouser"
 update_interval = "5s"
 log_level = "info"
 
-# Metric thresholds (adjust based on your usage patterns)
-[thresholds]
-cpu_usage = 80.0
-gpu_usage = 90.0
-network_io = 100.0
-disk_activity = 50.0
+[metrics.cpu]
+threshold = 80.0       # CPU usage % above which to inhibit sleep
+ema_alpha = 0.3        # EMA smoothing: higher = more responsive
 
-# Timing parameters
+[metrics.gpu]
+threshold = 90.0       # GPU usage % per device
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 100.0      # Network throughput in Mbps
+ema_alpha = 0.2        # EMA smoothing for network I/O
+exclude_interfaces = ["lo"]    # Exclude loopback from monitoring
+include_interfaces = []        # Empty = monitor all interfaces
+
+[metrics.disk]
+threshold = 50.0       # Disk I/O in MB/s above which to inhibit sleep
+ema_alpha = 0.2        # EMA smoothing for disk activity
+exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]  # Exclude virtual devices
+
 [timing]
-duration_threshold = "30s"
-idle_duration = "60s"
+duration_threshold = "30s"   # Min time metrics must exceed threshold before inhibiting
+cooldown_duration = "60s"    # Time after releasing inhibition before re-inhibiting possible
 
-# Inhibition settings
-[inhibition]
-what = "shutdown:idle"
-mode = "block"
-
-# Network configuration
-[network]
-exclude_interfaces = ["lo"]
-
-# Disk configuration
-[disk]
-exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
+[inhibitor]
+what = "shutdown:idle"       # Lock types to inhibit (colon-separated)
+mode = "block"               # Inhibition mode: block, delay, or block-weak
 ```
 
-### Step 3: Set Secure Permissions
-
-```bash
-sudo chown root:root /etc/rouser/config.toml
-sudo chmod 0600 /etc/rouser/config.toml
-```
-
-**Security Note**: The configuration file should be readable only by root to prevent unauthorized modification.
-
-### Step 4: Create Log Directory (Optional)
-
-```bash
-sudo install -m 755 -d /var/log/rouser
-sudo chown root:root /var/log/rouser
-```
+See [Configuration Reference](configuration.md) for full option descriptions.
 
 ## Testing Configuration
 
 ### Validate Configuration
 
 ```bash
-rouser --validate-config /etc/rouser/config.toml
-```
+# Uses sequential default config search
+rouser --validate-config
 
-Expected output:
-
-```
-Configuration validated successfully
-  - /etc/rouser/config.toml
-  - All required fields present
-  - Threshold values within valid range
-  - File paths accessible
+# With explicit path
+rouser -c ~/.config/rouser/config.toml --validate-config
 ```
 
 ### Dry Run Mode
 
-Test with a dry run (won't actually inhibit sleep):
+Collect metrics and log readings without inhibiting sleep:
 
 ```bash
-rouser --config /etc/rouser/config.toml --dry-run --duration 60s
+# Runs indefinitely until Ctrl+C
+rouser --dry-run
+
+# With debug logging to see per-device GPU readings
+RUST_LOG=debug rouser -c ~/.config/rouser/config.toml --dry-run -l debug
 ```
 
-This will:
-- Parse and validate the configuration
-- Collect metrics for 60 seconds
-- Log what would trigger inhibition
-- Exit without inhibiting sleep
+Sample output in dry-run mode:
+```
+CPU threshold: 80%, EMA alpha: 0.30
+GPU threshold: 90%, EMA alpha: 0.30
+Network threshold: 100 Mbps, EMA alpha: 0.20
+Disk threshold: 50 MB/s, EMA alpha: 0.20
+Duration threshold: 30s
+Cooldown duration: 60s
+```
 
 ## Running the Daemon
 
 ### Manual Execution
 
 ```bash
-# Run with default configuration
-rouser --config /etc/rouser/config.toml
+# Run with default config search path
+rouser
 
 # Custom config path
-rouser --config /path/to/config.toml
+rouser -c /path/to/config.toml
 
-# Dry run mode
-rouser --config /etc/rouser/config.toml --dry-run
+# Override log level at runtime
+rouser -l debug --dry-run
 ```
 
-### Testing Inhibition
+The daemon runs indefinitely — press `Ctrl+C` to stop. When running as a systemd user service, use the service management commands below instead.
 
-Verify sleep inhibition is working:
+### Systemd User Service (Recommended)
+
+After testing with dry-run:
 
 ```bash
-# Start rouser with high CPU threshold in background
-rouser --config /etc/rouser/config.toml &
-PID=$!
-
-# Generate load
-yes > /dev/null &
-
-# Try to suspend (should be delayed/blocked)
-systemctl suspend
-
-# Cleanup
-kill $PID
-```
-
-## Systemd Service Setup
-
-### Step 1: Copy Service File
-
-Create `/etc/systemd/system/rouser.service`:
-
-```ini
-[Unit]
-Description=rouser - Linux Sleep Inhibition Daemon
-Documentation=https://github.com/yourusername/rouser
-After=network.target
-
-[Service]
-Type=simple
-User=root
-Group=root
-ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
-Restart=on-failure
-RestartSec=5s
-
-# Security hardening
-NoNewPrivileges=true
-ProtectSystem=strict
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Step 2: Enable and Start Service
-
-```bash
-# Reload systemd daemon
-sudo systemctl daemon-reload
-
-# Enable on boot
-sudo systemctl enable rouser
-
-# Start service
-sudo systemctl start rouser
+# Install and enable the user service (if not done by installer script)
+systemctl --user daemon-reload
+systemctl --user enable --now rouser.service
 
 # Check status
-sudo systemctl status rouser
+systemctl --user status rouser
+
+# View live logs
+journalctl --user -u rouser -f
 ```
 
-Expected output:
-
-```
-● rouser.service - rouser - Linux Sleep Inhibition Daemon
-     Loaded: loaded (/etc/systemd/system/rouser.service; enabled)
-     Active: active (running) since Mon 2026-03-26 10:00:00 UTC; 5min ago
-   Main PID: 1234 (rouser)
-      Tasks: 4 (limit: 4915)
-     Memory: 2.5M
-     CGroup: /system.slice/rouser.service
-             └─1234 /usr/local/bin/rouser --config /etc/rouser/config.toml
-```
-
-### Step 3: Check Logs
+### Service Management
 
 ```bash
-# View logs
-journalctl -u rouser -f
-
-# Or check log file
-sudo tail -f /var/log/rouser/rouser.log
-```
-
-## Basic Service Management
-
-### Start/Stop Service
-
-```bash
-# Start
-sudo systemctl start rouser
-
-# Stop
-sudo systemctl stop rouser
-
-# Restart
-sudo systemctl restart rouser
-
-# Reload configuration (without restart)
-sudo systemctl reload rouser
-```
-
-### Check Service Status
-
-```bash
-sudo systemctl status rouser
-sudo systemctl is-active rouser
+systemctl --user start rouser    # Start service
+systemctl --user stop rouser     # Stop service
+systemctl --user restart rouser  # Restart (after config change)
+systemctl --user disable rouser  # Disable auto-start on login
 ```
 
 ## Verifying Inhibition
@@ -266,154 +192,163 @@ sudo systemctl is-active rouser
 Check active sleep inhibitors:
 
 ```bash
-# List active inhibitors
+# List all current inhibitors
 loginctl list-inhibitors
 
 # Or use systemd-inhibit
 systemd-inhibit --list
 ```
 
-Expected output when running:
+When rouser is inhibiting, you should see an entry with description "rouser".
 
-```
-2 inhibitors listed.
-```
+### Quick Test
+
+1. Start rouser in dry-run mode and verify metrics are collected:
+   ```bash
+   RUST_LOG=debug rouser --dry-run -l debug 2>&1 | head -30
+   ```
+
+2. If inhibition works, you can temporarily lower the CPU threshold to `1` to test:
+   ```toml
+   # In config.toml — set thresholds very low just for testing
+   [metrics.cpu]
+   threshold = 1.0    # Will trigger on any significant activity
+   ema_alpha = 0.3
+
+   [timing]
+   duration_threshold = "5s"   # Short test window
+   cooldown_duration = "10s"
+   ```
+   
+   Then run `rouser` and check `loginctl list-inhibitors`. Restore thresholds after testing.
 
 ## Troubleshooting
 
-### Common Issues
+### Service Won't Start After Logout
 
-#### 1. Permission Denied on D-Bus
+Ensure logind lingering is enabled for your user:
 
-**Error**: `Access denied to D-Bus system bus`
-
-**Solution**:
 ```bash
-# Run as root (recommended for systemd service)
-sudo rouser --config /etc/rouser/config.toml
-
-# Or add user to login group
-sudo usermod -aG login $USER
+loginctl enable-linger $USER
+# Verify: loginctl show-user $USER | grep Linger
 ```
 
-#### 2. Configuration Validation Failed
+Without lingering, systemd only starts the service during active login sessions.
 
-**Error**: `Missing required field: thresholds.cpu_usage`
+### D-Bus Permission Errors
 
-**Solution**: Check `/etc/rouser/config.toml` for all required fields.
+If rouser cannot acquire sleep inhibition:
 
-#### 3. Service Not Starting
-
-**Error**: `Failed to start rouser`
-
-**Solution**:
-```bash
-# Check logs
-sudo journalctl -u rouser -n 50
-
-# Check config
-rouser --validate-config /etc/rouser/config.toml
-
-# Check file permissions
-ls -l /etc/rouser/config.toml
-```
-
-#### 4. GPU Metrics Not Collected
-
-**Error**: `GPU detection failed, using 0% as fallback`
-
-**Solutions**:
-- NVIDIA: `sudo apt install nvidia-utils`
-- AMD: Check ROCm installation
-- Intel: Verify i915 driver loaded
+1. **KDE Plasma**: Add a polkit rule (see [systemd user service docs](systemd-user-service.md))
+2. **Check D-Bus session**: `echo $DBUS_SESSION_BUS_ADDRESS` should be non-empty
+3. **Manual test**: `systemd-inhibit --what=sleep --mode=block --description="Test" sh -c "sleep 5"` — if this works but rouser doesn't, it's a config or threshold issue
 
 ### Inhibition Not Working on KDE Plasma
 
-KDE Powerdevil may ignore inhibitors from unprivileged users. Solutions:
+KDE Powerdevil may ignore inhibitors from unprivileged users. Create `/etc/polkit-1/rules.d/50-rouser.rules`:
 
-1. **Add polkit rule** (recommended):
-   Create `/etc/polkit-1/rules.d/50-rouser.rules`:
-   ```javascript
-   polkit.addRule(function(action, subject) {
-       if (action.id == "org.freedesktop.login1.inhibit" &&
-           subject.user == "your_username") {
-           return polkit.Result.YES;
-       }
-   });
-   ```
-
-2. **Run as root** (default for systemd service)
-
-### Debug Mode
-
-Enable verbose logging:
-
-```toml
-# In config.toml
-[daemon]
-log_level = "debug"
+```javascript
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.login1.inhibit" &&
+        subject.user == "your_username") {
+        return polkit.Result.YES;
+    }
+});
 ```
 
-Then restart:
+Then `sudo systemctl restart polkit`.
 
+### Debug Logging
+
+Enable verbose logging to see per-device metric readings:
+
+```toml
+# In config.toml — set log_level at root level
+name = "rouser"
+update_interval = "5s"
+log_level = "debug"     # NOT under [daemon] — rouser uses flat structure now
+```
+
+Or override via CLI (takes priority over config):
 ```bash
-sudo systemctl restart rouser
-sudo journalctl -u rouser -f
+rouser --dry-run -l debug
 ```
 
 ## Example Configurations
 
-### Home Server
+### Home Server (low activity baseline)
 
 ```toml
-[thresholds]
-cpu_usage = 75.0
-gpu_usage = 85.0
-network_io = 50.0
-disk_activity = 30.0
+name = "rouser"
+update_interval = "5s"
+log_level = "info"
+
+[metrics.cpu]
+threshold = 70.0
+ema_alpha = 0.3
+
+[metrics.gpu]
+threshold = 85.0
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 50.0
+ema_alpha = 0.2
+exclude_interfaces = ["lo"]
+
+[metrics.disk]
+threshold = 30.0
+ema_alpha = 0.2
+exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
 
 [timing]
 duration_threshold = "60s"
-idle_duration = "120s"
+cooldown_duration = "120s"
+
+[inhibitor]
+what = "sleep:idle"
+mode = "block"
 ```
 
-### Development Workstation
+### Development Workstation (high activity tolerance)
 
 ```toml
-[thresholds]
-cpu_usage = 90.0
-gpu_usage = 95.0
-network_io = 200.0
-disk_activity = 100.0
+[metrics.cpu]
+threshold = 90.0       # Only inhibit during heavy compilation/builds
+ema_alpha = 0.3
+
+[metrics.gpu]
+threshold = 95.0       # Gaming or GPU workloads
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 200.0      # Large downloads/uploads
+ema_alpha = 0.2
+exclude_interfaces = ["lo"]
+
+[metrics.disk]
+threshold = 100.0      # Heavy I/O builds or VM operations
+ema_alpha = 0.2
+exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
 
 [timing]
-duration_threshold = "30s"
-idle_duration = "60s"
-```
+duration_threshold = "30s"   # Shorter threshold for responsive inhibition
+cooldown_duration = "60s"
 
-### Headless Database Server
-
-```toml
-[thresholds]
-cpu_usage = 80.0
-network_io = 100.0
-disk_activity = 50.0
-
-[timing]
-duration_threshold = "45s"
-idle_duration = "90s"
+[inhibitor]
+what = "shutdown:idle:sleep:suspend"  # Block all sleep types
+mode = "block"
 ```
 
 ## Next Steps
 
-1. **Adjust Thresholds**: Monitor usage and tune thresholds based on your patterns
-2. **Configure Logging**: Set up log rotation and retention
-3. **Security Review**: Ensure compliance with your security policies
+1. **Adjust thresholds** based on your system's typical activity patterns (use `RUST_LOG=debug` dry-run to baseline)
+2. **Review [Configuration Reference](configuration.md)** for all available options and EMA smoothing details
+3. **Read the full docs/** directory for metrics collection methods, inhibition flow, and security hardening
 
 ## See Also
 
-- [Configuration Reference](configuration.md) - Complete configuration options
-- [Command Line Arguments](command-line.md) - CLI usage details
-- [Systemd User Service](systemd-user-service.md) - Detailed service setup
-- [Metrics Overview](metrics-overview.md) - How metrics are collected
-- [Averaging Explained](averaging.md) - Understanding threshold calculations
+- [Configuration Reference](configuration.md) — Complete configuration options with defaults
+- [Command Line Arguments](command-line.md) — CLI usage and environment variables
+- [Systemd User Service](systemd-user-service.md) — Detailed service setup and troubleshooting
+- [Metrics Overview](metrics-overview.md) — How each metric type is collected

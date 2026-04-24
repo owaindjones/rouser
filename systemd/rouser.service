@@ -1,0 +1,22 @@
+[Unit]
+Description=Rouser System Metrics Daemon
+Documentation=https://github.com/yourusername/rouser
+After=network.target systemd-user-sessions.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/rouser --config %h/.config/rouser/config.toml
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rouser
+# Security hardening (non-breaking for D-Bus access)
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=false
+ReadWritePaths=%t/rouser
+
+[Install]
+WantedBy=default.target

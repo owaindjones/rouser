@@ -72,6 +72,18 @@ TOML was chosen over YAML because:
 - Better security (avoids RUSTSEC-2025-0068 vulnerability in YAML parsers)
 - Native support via the `toml` crate
 
+## CI/CD Coverage
+
+rouser is built and packaged via GitHub Actions for multiple architectures on every release:
+
+| Target | Build Status | Package Formats Available |
+|--------|--------------|--------------------------|
+| x86_64 Linux | Built & tested | Tarball + DEB (amd64) + RPM (x86_64) |
+| aarch64 Linux | Cross-compiled & tested | Tarball + DEB (arm64) + RPM (aarch64) |
+| Arch / Bazzite | Built on release | PKGBUILD archive |
+
+> **Pre-release**: rouser is at `v0.0.0` (unreleased). No official releases yet. See [AGENTS.md](../AGENTS.md) for versioning policy.
+
 ## System Requirements
 
 ### Minimum Requirements
@@ -79,7 +91,7 @@ TOML was chosen over YAML because:
 | Resource | Value |
 |----------|-------|
 | OS | Linux with systemd (v219+) |
-| CPU | Any x86_64 or ARM64 |
+| CPU Architecture | x86_64 or aarch64 (pre-built binaries available via CI pipeline) |
 | Memory | 64 MB free |
 | Disk | 10 MB free |
 
@@ -88,9 +100,22 @@ TOML was chosen over YAML because:
 | Resource | Value |
 |----------|-------|
 | OS | Latest stable systemd |
+| CPU Architecture | x86_64 (native) or aarch64 (cross-compiled, same binaries work on both) |
 | CPU | Dual-core or better |
 | Memory | 128 MB free |
 | Disk | 50 MB free |
+
+### GPU Requirements (Optional — for GPU Monitoring)
+
+GPU monitoring is optional; rouser operates fully without any GPU. When GPUs are present, the following drivers and data sources are supported:
+
+| Vendor | Driver / Data Source | Notes |
+|--------|---------------------|-------|
+| NVIDIA | Proprietary driver with `nvidia-smi` binary (from driver package) | Per-GPU utilization via subprocess query (`--query-gpu=index,utilization.gpu`) |
+| AMD    | Open-source `amdgpu` kernel module | Sysfs path `/sys/class/drm/cardN/device/gpu_busy_percent` |
+| Intel  | `i915` or `xe` kernel module | Same sysfs path as AMD; driver detected via `device/driver` symlink target |
+
+No NVML library binding is used — rouser calls the `nvidia-smi` binary shipped with NVIDIA drivers. AMD and Intel GPUs require no external binaries beyond standard kernel interfaces.
 
 ## Performance Characteristics
 
@@ -140,17 +165,61 @@ TOML was chosen over YAML because:
 
 ### Principle of Least Privilege
 
-rouser runs as root (or dedicated user) with minimal required capabilities:
+rouser is designed to run as a **systemd user service** under the unprivileged invoking user's account — no root access required for normal operation. The recommended installation path (via installer script or manual setup) places the binary and config in `~/.local/bin/` and `~/.config/rouser/config.toml`, respectively.
 
-- Reads from `/proc` filesystem (virtual, no disk I/O)
-- D-Bus communication via login1 interface
-- No network access required after startup
+When running as a user service, rouser only needs:
+- Read access to `/proc` filesystem entries (`/proc/stat`, `/proc/net/dev`, `/proc/diskstats`) — available to any process on the system
+- D-Bus session bus access via `org.freedesktop.login1.Manager.Inhibit` for sleep inhibition (may require a polkit rule on some desktop environments like KDE Plasma)
+- Optional: read access to sysfs paths (`/sys/class/drm/cardN/device/gpu_busy_percent`) for AMD/Intel GPU monitoring — typically world-readable
 
-### File Permissions
+A system-wide installation under root is possible but not recommended; see [Running as a Service](systemd-user-service.md#alternative-systemd-system-service) for details.
 
-- Configuration file: Mode `0600`, owned by root
-- Log directory: Mode `0755`, writable by daemon user
-- Service file: Standard systemd permissions
+### File Permissions (User-Mode, Recommended)
+
+| Path | Permission | Notes |
+|------|-----------|-------|
+| Binary (`~/.local/bin/rouser`) | `0755` | User-owned executable |
+| Config (`~/.config/rouser/config.toml`) | `0644` (or stricter) | Owned by user; no sensitive data is stored in config |
+| Log directory (`~/.local/log/rouser`) | `0755` | Writable by daemon user only |
+
+### File Permissions (System-Mode, Optional — Requires Root)
+
+When installing system-wide under root:
+
+| Path | Permission | Notes |
+|------|-----------|-------|
+| Binary (`/usr/local/bin/rouser`) | `0755` root-owned executable | Installed via DEB/RPM or manual copy as root |
+| Config (`/etc/rouser/config.toml`) | `0644` root-owned, group-readable | No secrets in config; readable by all users is acceptable |
+| Service file (`/lib/systemd/system/rouser.service`) | `0644` systemd-managed | Standard systemd service permissions |
+
+### Desktop Environment Considerations
+
+- **KDE Plasma**: Powerdevil may ignore D-Bus inhibitors from unprivileged users. A polkit rule at `/etc/polkit-1/rules.d/50-rouser.rules` is recommended (see [systemd-user-service.md](systemd-user-service.md#kde-plasma-issues)).
+
+## Release Artifacts
+
+On every tagged release, GitHub Actions publishes build artifacts matching your architecture (x86_64 or aarch64):
+
+| Artifact | Format | Description |
+|----------|--------|-------------|
+| Tarball archive | `.tar.gz` | Contains binary + default config (`config/rouser.toml`) + systemd service file. Extract and install components manually, or use the installer script to handle it automatically. Available for x86_64 and aarch64. |
+| DEB package | `.deb` | Debian/Ubuntu native package built in GitHub Actions. Installs binary to `/usr/local/bin/`, config to `/etc/rouser/config.toml`, service file to `/lib/systemd/system/`. Available for amd64 and arm64. |
+| RPM package | `.rpm` | Red Hat/Fedora/CentOS native package built in a containerized `fedora:latest` image. Installs binary, config, and systemd service file at standard paths. Available for x86_64 and aarch64. |
+| Arch PKGBUILD | `.tar.gz` (source archive) | Archive containing `PKGBUILD` with source URLs pointing to all release tarballs. Download from the releases page and build locally via `makepkg`. Suitable for Arch Linux, Bazzite, and other Arch-based distros. |
+
+### Installer Script
+
+The provided installer script (`scripts/install.sh`) automates manual installation: it downloads the latest release tarball matching your architecture, extracts the binary to `~/.local/bin/`, installs default config to `~/.config/rouser/config.toml`, and enables the systemd user service. Run `curl -fsSL <url>/install.sh | bash -- --help` to see available options before installing.
+
+### Installation Methods Summary
+
+| Method | Best For | Root Required? |
+|--------|----------|----------------|
+| Cargo build (`cargo build`) | Developers, custom targets | No (for user install) |
+| Installer script (`install.sh`) | Quick setup on any distro | No (user-mode only) |
+| DEB package (.deb) | Debian/Ubuntu servers and desktops | Yes (system-wide install via `dpkg -i`) |
+| RPM package (.rpm) | Fedora/RHEL/CentOS/AlmaLinux | Yes (system-wide install via `dnf` or `rpm -i`) |
+| Arch PKGBUILD | Arch Linux, Bazzite, and derivatives | No (user-mode build) |
 
 ## License
 
@@ -158,7 +227,14 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Getting Started
 
-1. [Installation](quickstart.md) - Get rouser running on your system
-2. [Configuration](configuration.md) - Learn about configuration options
-3. [Running as Service](systemd-user-service.md) - Set up automatic startup
-4. [Developer Guide](developer-guide.md) - Contribute to the project
+1. [Quick Start Guide](quickstart.md) — Get rouser running on your system within 5 minutes
+2. [Configuration Reference](configuration.md) — Complete configuration options with defaults and examples
+3. [Command Line Arguments](command-line.md) — CLI usage, flags, and environment variables
+4. [Running as a Service](systemd-user-service.md) — Systemd user service setup, hardening, and troubleshooting
+5. [Metrics Overview](metrics-overview.md) — How each metric type is collected (CPU, GPU, network, disk)
+6. [Developer Guide](developer-guide.md) — Build process, code structure, and contribution guidelines
+
+## See Also
+
+- [CI Workflow](ci-workflow.md) — GitHub Actions pipeline: lint gates, cross-compilation, DEB/RPM/PKGBUILD packaging, release artifacts
+- [AGENTS.md](../AGENTS.md) — Developer conventions: versioning policy, commit format, error handling, async patterns

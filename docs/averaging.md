@@ -86,21 +86,24 @@ This asymmetry ensures:
 
 ### Per-Metric EMA Alpha
 
-Each metric can have its own smoothing factor:
+Each metric section has its own `ema_alpha` value:
 
 ```toml
-[thresholds]
-cpu_usage = 80.0
-cpu_ema_alpha = 0.1      # Default smoothing
+[metrics.cpu]
+threshold = 80.0
+ema_alpha = 0.1        # Default smoothing for CPU
 
-gpu_usage = 90.0
-gpu_ema_alpha = 0.2      # More responsive for GPU
+[metrics.gpu]
+threshold = 90.0
+ema_alpha = 0.2        # More responsive for GPU
 
-network_io = 100.0
-network_io_ema_alpha = 0.05  # Smoother for network
+[metrics.network]
+threshold = 100.0
+ema_alpha = 0.05       # Smoother for network bursts
 
-disk_activity = 50.0
-disk_activity_ema_alpha = 0.1
+[metrics.disk]
+threshold = 50.0
+ema_alpha = 0.1        # Standard smoothing for disk I/O
 ```
 
 ### Choosing Alpha Values
@@ -112,25 +115,17 @@ disk_activity_ema_alpha = 0.1
 | 0.20 | Fast (~7 samples for 63% change) | Low | Responsive, consistent workloads |
 | 0.50 | Very Fast (~3 samples for 63% change) | Minimal | Real-time, latency-critical |
 
-### Per-GPU Configuration
+### Per-GPU EMA Smoothing
 
-Each GPU can have individual smoothing:
+Each detected GPU applies the same `ema_alpha` from `[metrics.gpu]`, but independently. There is no per-GPU config override — the threshold and smoothing factor apply uniformly to all GPUs:
 
 ```toml
-[[thresholds.gpu]]
-name = "nvidia-0"
-usage = 85.0
-ema_alpha = 0.15  # More responsive for primary GPU
-
-[[thresholds.gpu]]
-name = "nvidia-1"
-usage = 90.0
-ema_alpha = 0.1   # Standard smoothing for secondary GPU
+[metrics.gpu]
+threshold = 90.0    # Applies to ALL detected GPUs
+ema_alpha = 0.2     # Applied per-device, not globally averaged
 ```
 
-This is useful when:
-- Primary GPU handles rendering (needs quick response)
-- Secondary GPU handles compute (can be smoother)
+This means GPU0(nvidia) at 95% and card1(amdgpu) at 87% are each compared against the same threshold independently — one exceeding it triggers inhibition regardless of the other's state.
 
 ## Threshold Evaluation
 
@@ -163,38 +158,31 @@ Time | CPU | Threshold | Duration Above | Action
 30s  | 100%|    80%    | 30s            | INHIBIT SLEEP
 ```
 
-### Idle Duration
+### Idle Behavior — How Release Works
 
-After metrics drop below threshold, rouser waits before releasing inhibition:
+There is no `idle_duration` field. Instead, release behavior uses the EMA-smoothed value compared against the threshold with hysteresis timing:
 
-```toml
-[timing]
-idle_duration = "60s"  # Wait 60 seconds before releasing
-```
-
-**Process**:
-1. All metrics fall below thresholds
-2. Start idle timer
-3. If all metrics stay below for `idle_duration`, release inhibition
-4. If any metric exceeds threshold, reset timer
+1. All metrics fall below their respective thresholds (using smoothed values)
+2. The `cooldown_duration` timer starts
+3. If all metrics stay below for the full cooldown period, inhibition is released
+4. If any metric exceeds its threshold during cooldown, the timer resets
 
 **Example**:
 
 ```
-Time | CPU | Idle Duration | Action
------|-----|---------------|--------
-30s  | 100%| N/A           | Already inhibiting
-35s  |  70%| 5s            | Below threshold, start timer
-40s  |  65%| 10s           | Continue waiting
-45s  |  70%| 15s           | Continue waiting
-50s  |  75%| 20s           | Continue waiting
-55s  |  80%| 25s           | Continue waiting
-60s  |  70%| 30s           | Continue waiting
-...  |  ...| ...           | ...
-90s  |  70%| 60s           | RELEASE INHIBITION
+Time | CPU  | Cooldown Timer | Action
+-----|------|----------------|--------
+30s  | 100% | N/A            | Already inhibiting (above 80%)
+35s  |  70% | 5s             | Below threshold, cooldown starts
+40s  |  65% | 10s            | Continue waiting
+45s  |  85% | RESET          | Above threshold — timer resets
+50s  |  90% | N/A            | Still inhibiting (above 80%)
+60s  |  70% | 5s             | Below threshold, cooldown restarts
+...  |  ... | ...            | ...
+120s |  65% | 60s            | RELEASE INHIBITION
 ```
 
-### Cooldown Duration
+### Cooldown Duration — Re-inhibition Prevention
 
 After releasing inhibition, rouser waits before re-inhibiting:
 
@@ -316,7 +304,7 @@ Result: Oscillation dampened from ±20% to ±3.2%
 
 ### Tuning Recommendations
 
-1. **Start with defaults**: `alpha=0.1`, `duration_threshold=30s`, `idle_duration=60s`
+1. **Start with defaults**: `alpha=0.1`, `duration_threshold=30s`, `cooldown_duration=60s`
 2. **Monitor logs**: Watch for frequent inhibit/release cycles
 3. **Adjust alpha**: If too sensitive, lower alpha; if too sluggish, increase
 4. **Tune timing**: If cycles persist, increase `cooldown_duration`
@@ -326,46 +314,79 @@ Result: Oscillation dampened from ±20% to ±3.2%
 
 **Home Server** (bursty network/disk):
 ```toml
-[thresholds]
-cpu_usage = 80.0
-cpu_ema_alpha = 0.1
-network_io = 50.0
-network_io_ema_alpha = 0.05  # Smoother for network bursts
-disk_activity = 30.0
-disk_activity_ema_alpha = 0.05
+name = "rouser"
+update_interval = "5s"
+log_level = "info"
+
+[metrics.cpu]
+threshold = 80.0
+ema_alpha = 0.1        # Default smoothing for CPU
+
+[metrics.gpu]
+threshold = 90.0
+ema_alpha = 0.2
+
+[metrics.network]
+threshold = 50.0
+ema_alpha = 0.05       # Smoother for network bursts
+
+[metrics.disk]
+threshold = 30.0
+ema_alpha = 0.05       # Smooth disk readings during bursty I/O
 
 [timing]
-duration_threshold = "60s"
-idle_duration = "120s"
-cooldown_duration = "120s"
+duration_threshold = "60s"   # Longer to avoid inhibiting on brief idle gaps
+cooldown_duration = "120s"   # Extended cooldown for workloads with natural pauses
+
+[inhibitor]
+what = "sleep:idle"
+mode = "block"
 ```
 
 **Development Workstation** (consistent CPU/GPU):
 ```toml
-[thresholds]
-cpu_usage = 90.0
-cpu_ema_alpha = 0.15  # More responsive
-gpu_usage = 95.0
-gpu_ema_alpha = 0.2   # Very responsive for GPU
+[metrics.cpu]
+threshold = 90.0
+ema_alpha = 0.15       # More responsive for compilation bursts
+
+[metrics.gpu]
+threshold = 95.0
+ema_alpha = 0.2        # Responsive for GPU workloads
+
+[metrics.network]
+threshold = 100.0
+ema_alpha = 0.2
+
+[metrics.disk]
+threshold = 50.0
+ema_alpha = 0.1
 
 [timing]
-duration_threshold = "30s"
-idle_duration = "60s"
-cooldown_duration = "60s"
+duration_threshold = "30s"   # Standard threshold timing
+cooldown_duration = "60s"    # Standard cooldown period
+
+[inhibitor]
+what = "shutdown:idle:sleep:suspend"
+mode = "block"
 ```
 
 **Gaming System** (quick response):
 ```toml
-[thresholds]
-cpu_usage = 85.0
-cpu_ema_alpha = 0.2
-gpu_usage = 90.0
-gpu_ema_alpha = 0.25  # Very responsive for gaming
+[metrics.cpu]
+threshold = 85.0
+ema_alpha = 0.2        # Quick spike detection
+
+[metrics.gpu]
+threshold = 90.0
+ema_alpha = 0.25       # Very responsive for gaming GPU activity
 
 [timing]
-duration_threshold = "15s"
-idle_duration = "30s"
-cooldown_duration = "30s"
+duration_threshold = "15s"   # Shorter threshold — gamers prefer instant response
+cooldown_duration = "30s"    # Quick cooldown between game sessions
+
+[inhibitor]
+what = "shutdown:idle:sleep:suspend"
+mode = "block"
 ```
 
 ## See Also
