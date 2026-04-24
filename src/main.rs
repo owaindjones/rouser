@@ -26,11 +26,14 @@ struct Args {
     #[arg(long)]
     validate_config: bool,
 
-    /// Dry run mode (don't actually inhibit sleep)
+   /// Dry run mode (don't actually inhibit sleep)
     #[arg(long)]
     dry_run: bool,
 
- 
+    /// Log level (RUST_LOG env var takes precedence)
+   /// Log level (RUST_LOG env var takes precedence)
+    #[arg(long, short = 'l', default_value_t)]
+    log_level: String,
 
 }
 
@@ -47,9 +50,10 @@ struct Args {
     let config_result = config_loader.clone().load();
     let should_validate = args.validate_config;
 
-    // Initialize tracing subscriber with RUST_LOG or default to info
-    let log_level = if let Ok(val) = std::env::var("RUST_LOG") {
+   let log_level = if let Ok(val) = std::env::var("RUST_LOG") {
         val
+    } else if !args.log_level.is_empty() {
+        format!("{}/rouser=debug", args.log_level)
     } else {
         match &config_result {
             Ok(cfg) => format!("{}/rouser=debug", cfg.log_level),
