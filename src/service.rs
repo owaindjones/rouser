@@ -311,20 +311,19 @@ impl DataManager {
                            config.timing.duration_threshold
                        );
                    } else {
- let _what = &config.inhibition.what;
+let _what = &config.inhibitor.what;
                         let who = std::env::var("USER").unwrap_or_else(|_| "rouser".to_string());
                        let description = "Rouser: system metrics exceed threshold".to_string();
                        
                        match self.state.acquire(
-                             &config.inhibition.what,
+                            &config.inhibitor.what,
                              &who,
                              &description,
-                             &config.inhibition.mode,
+                             &config.inhibitor.mode,
                         ).await {
                          Ok(_) => {
-                             self.metrics_below_threshold_since = None;
-                             self.metrics_above_threshold_since = Some(std::time::SystemTime::now());
-                             self.cooldown_start_time = None;
+                           self.metrics_below_threshold_since = None;
+                            self.cooldown_start_time = None;
                          }
                          Err(e) => {
                              warn!("Failed to acquire inhibition: {}", e);
@@ -408,7 +407,7 @@ mod tests {
                 duration_threshold: std::time::Duration::from_secs(30),
                 cooldown_duration: std::time::Duration::from_secs(60),
             },
-            inhibition: crate::config::InhibitionConfig {
+            inhibitor: crate::config::InhibitionConfig {
                 what: "sleep".to_string(),
                 mode: "block".to_string(),
             },

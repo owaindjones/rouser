@@ -4,7 +4,7 @@
 
 name = "rouser"
 update_interval = "1s"
-log_level = "debug"
+log_level = "info"
 
 # Per-metric configuration with thresholds and EMA smoothing parameters
 [metrics.cpu]

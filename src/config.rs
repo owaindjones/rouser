@@ -14,7 +14,7 @@ pub struct Config {
     pub log_level: String,
     pub metrics: Metrics,
     pub timing: TimingConfig,
-    pub inhibition: InhibitionConfig,
+    pub inhibitor: InhibitionConfig,
 }
 
 fn default_name() -> String {
@@ -278,7 +278,7 @@ impl ConfigLoader {
                 duration_threshold: default_duration_threshold(),
                 cooldown_duration: default_cooldown_duration(),
             },
-            inhibition: InhibitionConfig {  
+            inhibitor: InhibitionConfig {  
                 what: default_what(), 
                 mode: default_mode(),
             },
