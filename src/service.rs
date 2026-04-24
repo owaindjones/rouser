@@ -116,6 +116,8 @@ pub struct DataManager {
     gpu_smoothing: Vec<SmoothingState>,
     network_smooth: SmoothingState,
     disk_smooth: SmoothingState,
+    #[allow(dead_code)] // tracked in tick() for state-change detection
+    previous_inhibited_state: bool,
 }
 
 pub struct DataService {
@@ -171,6 +173,7 @@ impl DataManager {
             disk: DiskCollector::new(config.metrics.disk.exclude_device_prefixes.clone()),
             last_collection: None,
             is_dry_run,
+            previous_inhibited_state: false,
             cpu_smooth: SmoothingState::new(config.metrics.cpu.ema_alpha),
             gpu_smoothing: (0..num_gpus).map(|_| SmoothingState::new(config.metrics.gpu.ema_alpha)).collect(),
             network_smooth: SmoothingState::new(config.metrics.network.ema_alpha),
@@ -185,8 +188,14 @@ impl DataManager {
         // Apply EMA smoothing to raw metrics
         let smoothed_cpu = self.cpu_smooth.update(metrics.cpu_usage, config.metrics.cpu.ema_alpha);
         
-        // Smooth each GPU individually and collect smoothed values
-        let mut gpu_smoothed_values: Vec<f64> = vec![0.0; metrics.gpu_usage.len()];
+       // Smooth each GPU individually and collect smoothed values
+        let num_devices = metrics.gpu_usage.len();
+        while self.gpu_smoothing.len() < num_devices {
+            self.gpu_smoothing.push(SmoothingState::new(config.metrics.gpu.ema_alpha));
+        }
+        self.gpu_smoothing.truncate(num_devices);
+
+        let mut gpu_smoothed_values: Vec<f64> = vec![0.0; num_devices];
         for (i, gpu) in metrics.gpu_usage.iter().enumerate() {
             if i < self.gpu_smoothing.len() {
                 gpu_smoothed_values[i] = self.gpu_smoothing[i].update(gpu.usage, config.metrics.gpu.ema_alpha);
@@ -196,13 +205,12 @@ impl DataManager {
         let smoothed_network = self.network_smooth.update(metrics.network_io, config.metrics.network.ema_alpha);
         let smoothed_disk = self.disk_smooth.update(metrics.disk_activity, config.metrics.disk.ema_alpha);
 
-        // Build GPU debug string with individual values
-        let gpu_debug: String = if !metrics.gpu_usage.is_empty() {
-            metrics.gpu_usage.iter().enumerate()
-                .map(|(i, g)| format!("{}: {:.1}%", g.vendor_type, g.usage))
+       let gpu_debug: String = if !metrics.gpu_usage.is_empty() {
+            metrics.gpu_usage.iter().map(|g| format!("{}({}): {:.1}%", g.device_id, g.driver_name, g.usage))
                 .collect::<Vec<_>>()
                 .join(", ")
         } else {
+
             "None".to_string()
         };
 
@@ -222,7 +230,9 @@ impl DataManager {
 
         self.update_state(should_inhibit, config).await?;
 
-        if self.state.is_inhibited() {
+        let was_inhibited = self.previous_inhibited_state;
+        
+        if !was_inhibited && self.state.is_inhibited() {
             info!("Sleep inhibited: at least one metric above threshold");
         } else if let Some(below_since) = self.metrics_below_threshold_since {
             let elapsed = std::time::SystemTime::now()
@@ -239,6 +249,8 @@ impl DataManager {
                 self.cooldown_start_time = None;
             }
         }
+
+         self.previous_inhibited_state = self.state.is_inhibited();
 
         Ok(())
     }

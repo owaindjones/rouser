@@ -381,3 +381,55 @@ All documentation has been updated to reflect this change.
 **Phase 3 Start**: Begin implementation after project setup is complete.
 
 Estimated completion: 2-4 weeks depending on complexity.
+
+---
+
+## Feature Implementation Queue
+
+### F1: State-change-only sleep inhibition logging (MINOR)
+
+**Problem:** `info!("Sleep inhibited: at least one metric above threshold")` fires every polling cycle while inhibited (~every 5s), spamming logs.
+
+**Plan:**
+- Add `previous_inhibited_state: bool` field to `DataManager`
+- At end of `tick()`, compare current vs previous inhibition state, only log on transition
+- Remove the per-tick INFO log at line ~226 in `service.rs`
+- Keep release logging behavior (already fires once on cooldown completion)
+
+**Files:** `src/service.rs`
+**Risk:** Low — simple field + conditional logic change
+
+---
+
+### F2: Per-device GPU usage reporting (MEDIUM)
+
+**Problem:** GPU usage aggregated to driver-level averages: `GPU: NVIDIA: 0.0%, AMD/Intel: 0.0%`. Should report per-GPU device: `GPU0(nvidia): 45.2%, card1(amdgpu): 78.1%`.
+
+**Plan (multi-step):**
+1. **Extend GpuData struct:** Change from `{ vendor_type: &'static str, usage: f64 }` to `{ device_id: String, driver_name: String, usage: f64 }`
+2. **Per-device NVIDIA collection:** Modify `collect_nvidia_all()` → query per-GPU index + utilization via nvidia-smi, return Vec<GpuData> with one entry per GPU (device_id="GPU{n}", driver_name="nvidia")
+3. **Per-device AMD/Intel sysfs collection:** Iterate `/sys/class/drm/cardN` individually instead of averaging; detect driver from symlink at `device/driver` target (amdgpu/i915/xe)
+4. **Update service.rs debug string formatting:** `{device_id}({driver_name}): {usage}%` format
+5. **Handle EMA smoothing for variable GPU counts:** Resize gpu_smoothing Vec dynamically after first collection
+
+**Files:** `src/metrics/gpu.rs`, `src/service.rs`
+**Risk:** Medium — struct API change affects all consumers; sysfs driver detection may vary on unusual hardware
+
+---
+
+### F3: Investigate direct NVIDIA GPU access (MAJOR)
+
+**Problem:** Current implementation spawns `nvidia-smi` subprocess for every polling cycle. User wants to know if direct kernel/driver API access is feasible.
+
+**Research findings and decision:**
+- **sysfs `/sys/bus/pci/devices/`:** No real-time utilization % exposed — not viable
+- **NVML (libnvidia-ml.so):** Only available with proprietary drivers; `nvml-rs` crate unmaintained since 2019; bindgen + FFI approach adds significant build complexity and new dependencies (`bindgen`, `libclang-dev`)
+- **/proc/driver/nvidia/:** No per-GPU utilization stats exposed
+- **X11 libXNVCtrl:** Desktop-only, requires running display server
+
+**Decision: Keep nvidia-smi subprocess.** It's already a required dependency (checked via `which` crate). Per-device parsing via subprocess is functionally equivalent to direct API access for this use case. Process spawn overhead (~1-5ms) is negligible compared to polling interval (typically 5s). No well-maintained Rust NVML binding exists that would justify the added complexity.
+
+**Deliverable:** Decision documented as comment in `src/metrics/gpu.rs` and reflected in AGENTS.MD.
+
+**Files:** `src/metrics/gpu.rs`, `AGENTS.md`
+**Risk:** None — documentation-only task, no code changes to functionality

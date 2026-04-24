@@ -27,34 +27,6 @@ No human wrote or edited code during this development session. The agent:
 - Wrote documentation from scratch
 - Ran tests and verified correctness
 
-### Tools Used
-
-| Tool | Purpose |
-|------|---------|
-| `read` | Read file contents |
-| `write` | Create/modify files |
-| `edit` | Perform text replacements |
-| `bash` | Execute shell commands |
-| `glob` | Search for files by pattern |
-| `grep` | Search file contents |
-| `task` | Track multi-step tasks |
-
-### Session Summary
-
-The agent completed the following tasks:
-
-1. **Built documentation folder** (`docs/`) with 8 comprehensive markdown documents covering:
-   - Introduction to rouser
-   - Quick start guide
-   - Configuration reference
-   - Command line arguments
-   - Systemd user service setup
-   - Metrics overview
-   - Averaging and threshold calculations
-   - Developer guide
-
-2. **Refactored VIBECODED.md** to serve as agent attribution document
-
 All work was performed autonomously using the opencode toolchain without human intervention in code writing or editing.
 
 ---
