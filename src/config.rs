@@ -183,6 +183,9 @@ impl ConfigLoader {
         }
     }
 
+  // Validation is now done by load() which fully deserializes into Config,
+    // catching all serde errors (wrong field names, invalid values).
+    #[allow(dead_code)]
     pub fn validate(&self) -> Result<()> {
         if !self.config_path.exists() {
             anyhow::bail!(
@@ -194,39 +197,11 @@ impl ConfigLoader {
         let content = fs::read_to_string(&self.config_path)
             .with_context(|| format!("Failed to read config file: {}", self.config_path.display()))?;
 
-        let config: toml::Value = toml::from_str(&content)
+        // Fully deserialize into Config struct to catch all serde errors
+        let _config: Config = toml::from_str(&content)
             .with_context(|| "Failed to parse TOML configuration")?;
 
-        self.validate_thresholds(&config)?;
-
         info!("Configuration validation passed");
-        Ok(())
-    }
-
-    fn validate_thresholds(&self, config: &toml::Value) -> Result<()> {
-        if let Some(thresholds) = config.get("thresholds") {
-            if let Some(cpu_usage) = thresholds.get("cpu_usage") {
-                if let Some(cpu) = cpu_usage.as_str().and_then(|s| s.parse::<f64>().ok()) {
-                    if cpu < 0.0 || cpu > 100.0 {
-                        anyhow::bail!(
-                            "cpu_usage threshold must be between 0.0 and 100.0, got: {}",
-                            cpu
-                        );
-                    }
-                }
-            }
-
-            if let Some(gpu_usage) = thresholds.get("gpu_usage") {
-                if let Some(gpu) = gpu_usage.as_str().and_then(|s| s.parse::<f64>().ok()) {
-                    if gpu < 0.0 || gpu > 100.0 {
-                        anyhow::bail!(
-                            "gpu_usage threshold must be between 0.0 and 100.0, got: {}",
-                            gpu
-                        );
-                    }
-                }
-            }
-        }
         Ok(())
     }
 

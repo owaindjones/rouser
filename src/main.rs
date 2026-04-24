@@ -26,14 +26,13 @@ struct Args {
     #[arg(long)]
     validate_config: bool,
 
-   /// Dry run mode (don't actually inhibit sleep)
+  /// Dry run mode (don't actually inhibit sleep)
     #[arg(long)]
     dry_run: bool,
 
-    /// Log level (RUST_LOG env var takes precedence)
-   /// Log level (RUST_LOG env var takes precedence)
-    #[arg(long, short = 'l', default_value_t)]
-    log_level: String,
+     /// Log level filter; RUST_LOG env var takes precedence. Overrides config.log_level if set.
+    #[arg(long, short = 'l')]
+    log_level: Option<String>,
 
 }
 
@@ -50,20 +49,24 @@ struct Args {
     let config_result = config_loader.clone().load();
     let should_validate = args.validate_config;
 
-   let log_level = if let Ok(val) = std::env::var("RUST_LOG") {
+  // Resolve log level with precedence: RUST_LOG > CLI -l/--log-level > config.log_level > "info"
+    let log_level = if let Ok(val) = std::env::var("RUST_LOG") {
         val
-    } else if !args.log_level.is_empty() {
-        format!("{}/rouser=debug", args.log_level)
+    } else if let Some(ref cli_val) = args.log_level {
+        cli_val.clone()
     } else {
         match &config_result {
-            Ok(cfg) => format!("{}/rouser=debug", cfg.log_level),
-            Err(_) => "info/rouser=debug".to_string(),
+            Ok(cfg) => cfg.log_level.clone(),
+            Err(_) => "info".to_string(),
         }
     };
 
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::new(log_level),
+            tracing_subscriber::EnvFilter::try_new(&log_level).unwrap_or_else(|e| {
+                eprintln!("Invalid log level '{}': {}. Using 'info'.", log_level, e);
+                tracing_subscriber::EnvFilter::new("info")
+            }),
         )
         .with_target(true)
         .with_level(true)
@@ -73,11 +76,11 @@ struct Args {
 
     info!("rouser starting...");
 
-    // Validate configuration if requested (before full config load for validation message)
+   // Validate configuration if requested — use full load() to catch serde errors
     if should_validate {
-        match config_loader.validate() {
+        match config_loader.load() {
             Ok(_) => {
-                info!("Configuration is valid");
+                info!("Configuration validation passed");
                 return ExitCode::SUCCESS;
             }
             Err(e) => {
@@ -87,7 +90,7 @@ struct Args {
         }
     }
 
-    // Load configuration (reload now that logging is initialized)
+    // Load configuration for normal/dry-run operation (reload now that logging is initialized)
     let config = config_loader.load().unwrap_or_else(|e| {
         eprintln!("Failed to load configuration: {}", e);
         std::process::exit(1);
