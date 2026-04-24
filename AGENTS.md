@@ -8,6 +8,12 @@
 - **Follow existing patterns first**: Before proposing new patterns or structures, search for and follow established conventions in the codebase. When in doubt, match what's already there.
 - **Graceful degradation over panics**: Metric collectors return `Result` types and fall back to zero values on failure. The daemon continues operating even when individual metrics are unavailable.
 
+## Binary Artifacts
+
+- **Never copy the compiled `rouser` binary** into the repo root or any tracked directory. The `.gitignore` already covers `/target/`; do not create standalone copies like `cp target/debug/rouser rouser`.
+- Run binaries directly from their build output: `./target/debug/rouser` for debug, `./target/release/rouser` for release builds.
+- Never commit binary artifacts (compiled executables, `.rlib`, etc.) to git.
+
 ## Git Commit Conventions
 
 ### Format
@@ -139,7 +145,7 @@ Driver detection functions must recognize ALL driver types present on target sys
 
 ### Manual QA with Debug Logging on Real Hardware
 
-Unit tests cannot verify actual subprocess output parsing or real hardware detection. Always run `RUST_LOG=debug rouser --config <path> --dry-run` to see what collectors actually produce before considering a change complete. This catches format mismatches, missing drivers, and sysfs path issues that unit tests miss.
+Unit tests cannot verify actual subprocess output parsing or real hardware detection. Always run `RUST_LOG=debug ./target/debug/rouser --config <path> --dry-run` to see what collectors actually produce before considering a change complete. This catches format mismatches, missing drivers, and sysfs path issues that unit tests miss.
 
 ### Fail-Fast with Diagnostics for External Tools
 
