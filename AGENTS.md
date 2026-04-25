@@ -126,16 +126,16 @@ Each physical device should be reported individually. Aggregation across devices
 
 | Vendor | Data source | Device identification | Driver detection |
 |--------|------------|----------------------|------------------|
-| NVIDIA | `nvidia-smi` subprocess query per-GPU | Index from `--query-gpu=index,...` output → `GPU{n}` | Always `"nvidia"` (binary implies driver) |
+| NVIDIA | NVML library (`libnvidia-ml.so`) via `nvml-wrapper` crate | Matched to sysfs card via PCI bus ID from uevent file → `"cardN"` | Always `"nvidia"` (NVML implies proprietary driver) |
 | AMD    | `/sys/class/drm/cardN/device/gpu_busy_percent` | Sysfs card path (`card0`, `card1`) | Symlink at `device/driver` target |
 | Intel  | Same sysfs path as AMD | Sysfs card path | Symlink: `i915` or `xe` driver |
 
 **GpuData struct fields:**
-- `device_id: String` — human-readable device identifier (e.g., `"GPU0"`, `"card1"`)
+- `device_id: String` — human-readable device identifier (e.g., `"card0"`, `"card1"`)
 - `driver_name: String` — kernel driver name (e.g., `"nvidia"`, `"amdgpu"`, `"i915"`, `"xe"`, `"unknown"`)
 - `usage: f64` — utilization percentage (0.0–100.0)
 
-**NVIDIA subprocess constraint:** The nvidia-smi binary is required for NVIDIA GPU monitoring on proprietary drivers. This is an unavoidable external dependency since the driver package ships it. No well-maintained Rust NVML binding crate exists in crates.io that would reduce this to a library call (`nvml-rs` has been unmaintained since 2019). Per-device parsing of nvidia-smi CSV output via subprocess is the correct approach — process spawn overhead (~1–5ms) is negligible compared to the typical 5-second polling interval.
+**NVIDIA NVML approach:** NVIDIA GPU monitoring uses the NVML library (`libnvidia-ml.so`) loaded dynamically at runtime via the `nvml-wrapper` Rust crate. The same API is used by `nvidia-smi`, nvtop, and other NVIDIA tools. Device enumeration uses `device_by_index()`, matching to sysfs cards via PCI bus ID comparison between NVML's `pci_info.bus_id` and `/sys/class/drm/cardN/device/uevent` (`PCI_SLOT_NAME`). This eliminates subprocess spawning overhead entirely.
 
 ## Code Structure Conventions
 
@@ -149,7 +149,7 @@ src/
 └── metrics/
     ├── mod.rs       # Metrics struct + module re-exports
     ├── cpu.rs       # /proc/stat CPU collection
-    ├── gpu.rs       # nvidia-smi (NVIDIA) + sysfs (AMD/Intel) GPU collection
+    ├── gpu.rs       # NVML (NVIDIA via nvml-wrapper) + sysfs (AMD/Intel) GPU collection
     ├── network.rs   # /proc/net/dev network I/O
     └── disk.rs      # /proc/diskstats disk activity
 ```
@@ -175,9 +175,13 @@ cargo doc --no-deps        # Documentation compiles (if public API changed)
 
 ## Lessons Learned
 
-### GPU Collection — Verify External Binary Output Format
+### NVML Library Loading Is Dynamic — Handle Initialization Failures Gracefully
 
-When parsing output from subprocesses like `nvidia-smi`, always verify the actual output format before implementing parsers. The query `--query-gpu=index,utilization.gpu` returns **CSV** (`"0, 7"` per line), not a single value. Parsing the entire line as one float silently produces zero results — no GPU data appears in logs with no error indication.
+The `nvml-wrapper` crate dynamically loads `libnvidia-ml.so` at runtime. On systems without NVIDIA drivers, `Nvml::init()` returns an error rather than panicking. Always check the result and fall back gracefully (e.g., return 0% utilization) instead of failing the entire metrics collection. NVML initialization is thread-safe — calling it multiple times reuses the same loaded library instance internally.
+
+### PCI Bus ID Format Mismatch Between NVML and Sysfs
+
+NVML reports bus IDs in 8-digit domain format (`"00000000:09:00.0"`) while sysfs uevent files use 4-digit domain format (`"0000:09:00.0"`). When matching NVML devices to sysfs cards, always check if the shorter sysfs PCI slot is a substring of the NVML bus ID rather than requiring exact string equality.
 
 ### Driver Detection Must Cover All Vendors
 
@@ -185,15 +189,11 @@ Driver detection functions must recognize ALL driver types present on target sys
 
 ### Manual QA with Debug Logging on Real Hardware
 
-Unit tests cannot verify actual subprocess output parsing or real hardware detection. Always run `RUST_LOG=debug ./target/debug/rouser --config <path> --dry-run` to see what collectors actually produce before considering a change complete. This catches format mismatches, missing drivers, and sysfs path issues that unit tests miss.
+Unit tests cannot verify actual GPU detection or real hardware interaction. Always run `RUST_LOG=debug ./target/debug/rouser --config <path> --dry-run` to see what collectors actually produce before considering a change complete. This catches NVML initialization failures, PCI matching issues, and sysfs path problems that unit tests miss.
 
-### Fail-Fast with Diagnostics for External Tools
+### Fail-Fast with Diagnostics for GPU Collection Failures
 
-When an external binary (nvidia-smi) is available but returns zero results while hardware exists in sysfs, log a `warn!` message rather than silently returning empty data. This helps operators distinguish between "no GPUs" and "GPU monitoring tool failed." Add sysfs fallback collection as emergency recovery when primary methods fail entirely.
-
-### nvidia-smi Subprocess Is the Correct Approach for NVIDIA GPUs
-
-Direct GPU access alternatives were evaluated (NVML via FFI, sysfs under `/sys/bus/pci/devices/`, X11 libXNVCtrl). The conclusion: `nvidia-smi` subprocess is acceptable and preferred because it is already required as an external binary on NVIDIA systems, no well-maintained Rust NVML binding exists (`nvml-rs` crate is unmaintained since 2019), and per-device parsing via CSV output achieves the same information with negligible process spawn overhead (~1-5ms vs. typical 5s polling interval).
+When NVML is available but returns zero utilization results while hardware exists in sysfs, log a `warn!` message rather than silently returning empty data. This helps operators distinguish between "no GPUs" and "GPU monitoring tool failed." Keep sysfs as the canonical device enumeration source — NVML devices are matched to sysfs cards by PCI bus ID, not vice versa.
 
 ### Deprecated FreeDesktop PowerManagement API Must Not Be Used
 
@@ -202,6 +202,6 @@ The old `/org/freedesktop/PowerManagement.Inhibit` API is obsolete (deprecated ~
 ## Dependency Policy
 
 - Prefer stdlib and crate ecosystem over external binary dependencies where possible.
-- For hardware-specific access (NVIDIA GPUs), subprocess to shipped binaries is acceptable (`nvidia-smi` from driver package, sysfs for AMD/Intel kernel interfaces).
+- For hardware-specific access (NVIDIA GPUs), use the NVML library (`libnvidia-ml.so`) loaded dynamically at runtime via `nvml-wrapper` — no separate binary dependency required since it ships with NVIDIA drivers alongside nvidia-smi itself.
 - When adding a new dependency: justify in the commit message, prefer widely-packaged crates, avoid unmaintained crates.
-- Current external binary dependencies: `nvidia-smi` (NVIDIA proprietary drivers only), no other binaries.
+- Current external dependencies: `libnvidia-ml.so` (NVIDIA proprietary drivers only, loaded dynamically at runtime), no separate binary dependencies.
