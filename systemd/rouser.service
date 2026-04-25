@@ -1,6 +1,6 @@
 [Unit]
 Description=Rouser System Metrics Daemon
-Documentation=https://github.com/yourusername/rouser
+Documentation=https://github.com/owaindjones/rouser
 After=network.target systemd-user-sessions.target
 Wants=network.target
 
@@ -16,7 +16,6 @@ SyslogIdentifier=rouser
 ProtectHome=read-only
 PrivateTmp=true
 NoNewPrivileges=false
-ReadWritePaths=%t/rouser
 
 [Install]
 WantedBy=default.target

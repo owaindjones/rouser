@@ -2,9 +2,6 @@ use std::collections::HashMap;
 use std::fs;
 use tracing::debug;
 
-
-
-
 #[derive(Debug, Clone)]
 pub struct DiskStats {
     #[allow(dead_code)] // Reserved for future use
@@ -30,7 +27,12 @@ impl DiskCollector {
         }
     }
 
-pub async fn collect(&mut self) -> Result<f64, DiskError> {
+    #[allow(dead_code)]
+    pub fn name(&self) -> &str {
+        "disk"
+    }
+
+    pub async fn collect(&mut self) -> Result<f64, DiskError> {
         let current_time = std::time::SystemTime::now();
         let current_stats = self.read_disk_stats()?;
 
@@ -67,13 +69,16 @@ pub async fn collect(&mut self) -> Result<f64, DiskError> {
         self.last_stats = current_stats;
         self.last_collection_time = Some(current_time);
 
-        debug!("Disk usage: {:.2} MB/s (interval: {:.2}s)", throughput_mb_s, interval_seconds);
+        debug!(
+            "Disk usage: {:.2} MB/s (interval: {:.2}s)",
+            throughput_mb_s, interval_seconds
+        );
         Ok(throughput_mb_s)
     }
 
     fn read_disk_stats(&self) -> Result<HashMap<String, DiskStats>, DiskError> {
-        let content = fs::read_to_string("/proc/diskstats")
-            .map_err(|e| DiskError::IoError(e.to_string()))?;
+        let content =
+            fs::read_to_string("/proc/diskstats").map_err(|e| DiskError::IoError(e.to_string()))?;
 
         let mut stats_map = HashMap::new();
 
@@ -95,11 +100,14 @@ pub async fn collect(&mut self) -> Result<f64, DiskError> {
             let sectors_read = parts[6].parse().unwrap_or(0);
             let sectors_written = parts[10].parse().unwrap_or(0);
 
-            stats_map.insert(name.to_string(), DiskStats {
-                name: name.to_string(),
-                sectors_read,
-                sectors_written,
-            });
+            stats_map.insert(
+                name.to_string(),
+                DiskStats {
+                    name: name.to_string(),
+                    sectors_read,
+                    sectors_written,
+                },
+            );
         }
 
         if stats_map.is_empty() {
@@ -110,7 +118,10 @@ pub async fn collect(&mut self) -> Result<f64, DiskError> {
     }
 
     fn should_monitor(&self, name: &str) -> bool {
-        !self.exclude_prefixes.iter().any(|prefix| name.starts_with(prefix))
+        !self
+            .exclude_prefixes
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
     }
 }
 
@@ -128,8 +139,6 @@ impl Default for DiskCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use tempfile::TempDir;
 
     #[test]
     fn test_disk_error_display() {
@@ -156,4 +165,3 @@ impl std::fmt::Display for DiskError {
 }
 
 impl std::error::Error for DiskError {}
-

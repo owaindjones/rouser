@@ -35,7 +35,6 @@ fn resolve_config_path(args: &Args) -> (PathBuf, Vec<String>) {
     (fallback, searched)
 }
 
-
 /// rouser - A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded
 #[derive(Parser)]
 #[command(name = "rouser")]
@@ -49,19 +48,18 @@ struct Args {
     #[arg(long)]
     validate_config: bool,
 
-  /// Dry run mode (don't actually inhibit sleep)
+    /// Dry run mode (don't actually inhibit sleep)
     #[arg(long)]
     dry_run: bool,
 
-/// Log level filter; overrides config.log_level and RUST_LOG env var.
+    /// Log level filter; overrides config.log_level and RUST_LOG env var.
     #[arg(long, short = 'l')]
     log_level: Option<String>,
-
 }
 
 #[tokio::main]
 async fn main() -> ExitCode {
-let args = Args::parse();
+    let args = Args::parse();
 
     // Load configuration to get log_level
     let (config_path, searched_paths) = resolve_config_path(&args);
@@ -104,7 +102,7 @@ let args = Args::parse();
 
     info!("rouser starting...");
 
-   // Validate configuration if requested — use full load() to catch serde errors
+    // Validate configuration if requested — use full load() to catch serde errors
     if should_validate {
         match config_loader.load() {
             Ok(_) => {
@@ -124,7 +122,6 @@ let args = Args::parse();
         std::process::exit(1);
     });
 
- 
     if args.dry_run {
         match run_dry_run(&config).await {
             Ok(_) => {
@@ -154,12 +151,30 @@ let args = Args::parse();
 async fn run_dry_run(config: &config::Config) -> Result<()> {
     info!("Running in dry-run mode indefinitely");
     info!("Configuration:");
-    info!("  - CPU threshold: {}%, EMA alpha: {:.2}", config.metrics.cpu.threshold, config.metrics.cpu.ema_alpha);
-    info!("  - GPU threshold: {}%, EMA alpha: {:.2}", config.metrics.gpu.threshold, config.metrics.gpu.ema_alpha);
-    info!("  - Network threshold: {} Mbps, EMA alpha: {:.2}", config.metrics.network.threshold, config.metrics.network.ema_alpha);
-    info!("  - Disk threshold: {} MB/s, EMA alpha: {:.2}", config.metrics.disk.threshold, config.metrics.disk.ema_alpha);
-    info!("  - Duration threshold: {:?}", config.timing.duration_threshold);
-    info!("  - Cooldown duration: {:?}", config.timing.cooldown_duration);
+    info!(
+        "  - CPU threshold: {}%, EMA alpha: {:.2}",
+        config.metrics.cpu.threshold, config.metrics.cpu.ema_alpha
+    );
+    info!(
+        "  - GPU threshold: {}%, EMA alpha: {:.2}",
+        config.metrics.gpu.threshold, config.metrics.gpu.ema_alpha
+    );
+    info!(
+        "  - Network threshold: {} Mbps, EMA alpha: {:.2}",
+        config.metrics.network.threshold, config.metrics.network.ema_alpha
+    );
+    info!(
+        "  - Disk threshold: {} MB/s, EMA alpha: {:.2}",
+        config.metrics.disk.threshold, config.metrics.disk.ema_alpha
+    );
+    info!(
+        "  - Duration threshold: {:?}",
+        config.timing.duration_threshold
+    );
+    info!(
+        "  - Cooldown duration: {:?}",
+        config.timing.cooldown_duration
+    );
 
     let mut service = DataService::new(config, true).await?;
 

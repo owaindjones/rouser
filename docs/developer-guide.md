@@ -854,7 +854,7 @@ cargo doc --open
 ### Getting Started
 
 1. Fork the repository
-2. Clone locally: `git clone https://github.com/yourusername/rouser.git`
+2. Clone locally: `git clone https://github.com/owaindjones/rouser.git`
 3. Create a branch: `git checkout -b feature/your-feature`
 4. Make changes and write tests
 5. Run `cargo test && cargo fmt && cargo clippy -- -D warnings`

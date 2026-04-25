@@ -7,18 +7,12 @@ use tracing::{info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    #[allow(dead_code)] // Reserved for future use
-    pub name: String,
     #[serde(with = "humantime_serde")]
     pub update_interval: Duration,
     pub log_level: String,
     pub metrics: Metrics,
     pub timing: TimingConfig,
     pub inhibitor: InhibitionConfig,
-}
-
-fn default_name() -> String {
-    "rouser".to_string()
 }
 
 fn default_update_interval() -> Duration {
@@ -45,6 +39,7 @@ fn default_disk_activity() -> f64 {
     50.0
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Thresholds {
     #[serde(default = "default_cpu_usage")]
@@ -57,6 +52,7 @@ pub struct Thresholds {
     pub disk_activity: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricsConfig {
     #[serde(default = "default_ema_alpha_cpu")]
@@ -162,14 +158,12 @@ fn default_mode() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InhibitionConfig {  
-    #[serde(default = "default_what")]  
-    pub what: String, 
-    #[serde(default = "default_mode")] 
-    pub mode: String, 
+pub struct InhibitionConfig {
+    #[serde(default = "default_what")]
+    pub what: String,
+    #[serde(default = "default_mode")]
+    pub mode: String,
 }
-
-
 
 #[derive(Clone)]
 pub struct ConfigLoader {
@@ -183,7 +177,7 @@ impl ConfigLoader {
         }
     }
 
-  // Validation is now done by load() which fully deserializes into Config,
+    // Validation is now done by load() which fully deserializes into Config,
     // catching all serde errors (wrong field names, invalid values).
     #[allow(dead_code)]
     pub fn validate(&self) -> Result<()> {
@@ -194,12 +188,13 @@ impl ConfigLoader {
             );
         }
 
-        let content = fs::read_to_string(&self.config_path)
-            .with_context(|| format!("Failed to read config file: {}", self.config_path.display()))?;
+        let content = fs::read_to_string(&self.config_path).with_context(|| {
+            format!("Failed to read config file: {}", self.config_path.display())
+        })?;
 
         // Fully deserialize into Config struct to catch all serde errors
-        let _config: Config = toml::from_str(&content)
-            .with_context(|| "Failed to parse TOML configuration")?;
+        let _config: Config =
+            toml::from_str(&content).with_context(|| "Failed to parse TOML configuration")?;
 
         info!("Configuration validation passed");
         Ok(())
@@ -214,18 +209,18 @@ impl ConfigLoader {
             return self.load_defaults();
         }
 
-        let content = fs::read_to_string(&self.config_path)
-            .with_context(|| format!("Failed to read config file: {}", self.config_path.display()))?;
+        let content = fs::read_to_string(&self.config_path).with_context(|| {
+            format!("Failed to read config file: {}", self.config_path.display())
+        })?;
 
-        let config: Config = toml::from_str(&content)
-            .with_context(|| "Failed to parse TOML configuration")?;
+        let config: Config =
+            toml::from_str(&content).with_context(|| "Failed to parse TOML configuration")?;
 
         Ok(config)
     }
 
     fn load_defaults(&self) -> Result<Config> {
         let config = Config {
-            name: default_name(),
             update_interval: default_update_interval(),
             log_level: default_log_level(),
             metrics: Metrics {
@@ -246,15 +241,20 @@ impl ConfigLoader {
                 disk: DiskConfig {
                     threshold: default_disk_activity(),
                     ema_alpha: default_ema_alpha_disk(),
-                    exclude_device_prefixes: vec!["loop".to_string(), "fd".to_string(), "sr".to_string(), "cdrom".to_string()],
+                    exclude_device_prefixes: vec![
+                        "loop".to_string(),
+                        "fd".to_string(),
+                        "sr".to_string(),
+                        "cdrom".to_string(),
+                    ],
                 },
             },
             timing: TimingConfig {
                 duration_threshold: default_duration_threshold(),
                 cooldown_duration: default_cooldown_duration(),
             },
-            inhibitor: InhibitionConfig {  
-                what: default_what(), 
+            inhibitor: InhibitionConfig {
+                what: default_what(),
                 mode: default_mode(),
             },
         };
@@ -273,10 +273,10 @@ mod tests {
     fn test_default_config_values() {
         let dir = TempDir::new().unwrap();
         let config_path = dir.path().join("config.toml");
-        
+
         // Create an empty config file
         fs::write(&config_path, "").unwrap();
-        
+
         let config_path = config_path.to_path_buf();
         assert!(config_path.exists());
     }
@@ -304,7 +304,7 @@ mod tests {
                 exclude_device_prefixes: vec![],
             },
         };
-        
+
         assert_eq!(metrics.cpu.threshold, 80.0);
         assert_eq!(metrics.gpu.threshold, 90.0);
         assert_eq!(metrics.network.threshold, 100.0);
@@ -321,7 +321,7 @@ mod tests {
             duration_threshold: default_duration_threshold(),
             cooldown_duration: default_cooldown_duration(),
         };
-        
+
         assert_eq!(timing.duration_threshold.as_secs(), 30);
         assert_eq!(timing.cooldown_duration.as_secs(), 60);
     }

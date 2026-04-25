@@ -19,7 +19,6 @@
 /// regardless of vendor. This ensures consistent labeling across mixed-vendor systems:
 /// `GPU log output shows "card0(nvidia): 45%", "card1(amdgpu): 78%"` instead of
 /// the previous inconsistent mix of "GPU0(nvidia)" and "card1(amdgpu)".
-
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -52,6 +51,11 @@ impl GpuCollector {
         Self
     }
 
+    #[allow(dead_code)]
+    pub fn name(&self) -> &str {
+        "gpu"
+    }
+
     /// Returns true if any physical GPU cards exist on this system.
     pub fn has_gpus(&self) -> bool {
         self.enumerate_gpus().is_empty()
@@ -71,7 +75,6 @@ impl GpuCollector {
             return Ok(vec![]);
         }
 
-        
         let mut all_gpus: Vec<GpuData> = Vec::with_capacity(cards.len());
 
         for card in &cards {
@@ -151,10 +154,7 @@ impl GpuCollector {
             });
         }
 
-        debug!(
-            "Enumerated {} GPU card(s) from /sys/class/drm",
-            cards.len()
-        );
+        debug!("Enumerated {} GPU card(s) from /sys/class/drm", cards.len());
 
         cards
     }
@@ -166,13 +166,16 @@ impl GpuCollector {
     /// 1. Reading the GPU UUID from `/sys/class/drm/cardN/device/uevent`
     /// 2. Matching it against nvidia-smi output
     fn collect_nvidia_for_card(card_name: &str) -> Option<f64> {
-        debug!("Collecting NVIDIA utilization for {} via nvidia-smi", card_name);
+        debug!(
+            "Collecting NVIDIA utilization for {} via nvidia-smi",
+            card_name
+        );
 
         // Read the GPU UUID from sysfs uevent to match with nvidia-smi.
         let expected_uuid = Self::read_nvidia_uuid(card_name);
 
         let output = Command::new("nvidia-smi")
-            .args(&[
+            .args([
                 "--query-gpu=index,gpu_bus_id,utilization.gpu",
                 "--format=csv,noheader,nounits",
             ])
@@ -243,7 +246,11 @@ impl GpuCollector {
                 );
             }
         } else {
-            debug!("No sysfs PCI slot name found for {}, nvidia-smi query returned {} entries", card_name, best_match.as_ref().map(|_| 1).unwrap_or(0));
+            debug!(
+                "No sysfs PCI slot name found for {}, nvidia-smi query returned {} entries",
+                card_name,
+                best_match.as_ref().map(|_| 1).unwrap_or(0)
+            );
         }
 
         // Return 0 rather than failing — the card exists but nvidia-smi couldn't provide data.
@@ -342,6 +349,7 @@ impl Default for GpuCollector {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum GpuError {
     CommandFailed(String),
@@ -401,7 +409,7 @@ mod tests {
 
     #[test]
     fn test_gpu_data_multiple_devices() {
-        let gpus = vec![
+        let gpus = [
             GpuData {
                 device_id: "card0".to_string(),
                 driver_name: "nvidia".to_string(),
@@ -549,7 +557,10 @@ mod tests {
             }
 
             if !GpuCollector::new().enumerate_gpus().is_empty() {
-                assert!(found_nvidia || found_amd, "Should detect at least one GPU type in sysfs");
+                assert!(
+                    found_nvidia || found_amd,
+                    "Should detect at least one GPU type in sysfs"
+                );
             }
         }
     }
@@ -579,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_detect_driver_returns_nvidia_not_unknown() {
-        let driver = GpuCollector::detect_driver(&Path::new("/sys/class/drm/fake"));
+        let driver = GpuCollector::detect_driver(Path::new("/sys/class/drm/fake"));
         // For non-existent paths, detect_driver returns "unknown" — that's expected.
         assert!(!driver.is_empty());
     }
@@ -621,7 +632,10 @@ mod enumerate_tests {
         let device_dir = card_path.join("device");
         fs::create_dir_all(&device_dir).unwrap();
 
-         let driver_target_base = base.parent().unwrap().join(format!("drivers/{}", driver_name));
+        let driver_target_base = base
+            .parent()
+            .unwrap()
+            .join(format!("drivers/{}", driver_name));
         fs::create_dir_all(&driver_target_base).unwrap();
         symlink(&driver_target_base, card_path.join("device/driver")).ok();
     }
@@ -695,12 +709,21 @@ mod enumerate_tests {
         let base_path = base.path();
 
         // Create device/ dirs for all so only name-based filtering applies
-        for name in ["card0", "card1-HDMI-A-1", "renderD128", "drm-card-amdgpu-dce", "card42"] {
+        for name in [
+            "card0",
+            "card1-HDMI-A-1",
+            "renderD128",
+            "drm-card-amdgpu-dce",
+            "card42",
+        ] {
             fs::create_dir_all(base_path.join(name).join("device")).unwrap();
         }
 
         // Valid cards
-        assert!(GpuCollector::is_valid_gpu_card("card0", &base_path.join("card0")));
+        assert!(GpuCollector::is_valid_gpu_card(
+            "card0",
+            &base_path.join("card0")
+        ));
         assert!(GpuCollector::is_valid_gpu_card(
             "card42",
             &base_path.join("card42")
@@ -727,26 +750,17 @@ mod enumerate_tests {
         // Missing device/ subdir → false
         let no_device = base.path().join("card99");
         fs::create_dir_all(&no_device).ok();
-        assert!(!GpuCollector::is_valid_gpu_card(
-            "card99",
-            &no_device
-        ));
+        assert!(!GpuCollector::is_valid_gpu_card("card99", &no_device));
 
         // Edge cases: "card" alone (no digits) → false
         let card_no_num = base.path().join("card");
         fs::create_dir_all(card_no_num.join("device")).ok();
-        assert!(!GpuCollector::is_valid_gpu_card(
-            "card",
-            &card_no_num
-        ));
+        assert!(!GpuCollector::is_valid_gpu_card("card", &card_no_num));
 
         // Edge case: letters after digits → false
         let card_letter = base.path().join("card0x");
         fs::create_dir_all(card_letter.join("device")).ok();
-        assert!(!GpuCollector::is_valid_gpu_card(
-            "card0x",
-            &card_letter
-        ));
+        assert!(!GpuCollector::is_valid_gpu_card("card0x", &card_letter));
 
         // Edge case: empty string → false
         let empty = base.path().join("");

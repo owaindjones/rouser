@@ -1,11 +1,11 @@
 [package]
 name = "rouser"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 description = "A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded"
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/yourusername/rouser"
+repository = "https://github.com/owaindjones/rouser"
 keywords = ["daemon", "systemd", "sleep", "inhibit", "metrics"]
 categories = ["os::unix-apis", "os::pda-apis"]
 

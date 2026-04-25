@@ -1,0 +1,21 @@
+site_name: rouser
+docs_dir: docs
+repo_url: https://github.com/owaindjones/rouser
+repo_name: owaindjones/rouser
+use_directory_urls: false
+nav:
+  - Overview: index.md
+  - Introduction: introduction.md
+  - Quick Start: quickstart.md
+  - Quick Start: quickstart.md
+  - Configuration: configuration.md
+  - Command Line: command-line.md
+  - Systemd User Service: systemd-user-service.md
+  - Metrics Overview: metrics-overview.md
+  - Averaging & EMA Smoothing: averaging.md
+  - D-Bus Inhibition: d-bus-inhibition.md
+  - Security: security.md
+  - Developer Guide: developer-guide.md
+  - CI Workflow: ci-workflow.md
+theme:
+  name: material

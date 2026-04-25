@@ -1,38 +1,49 @@
 # rouser - Agent Guidelines
 
+These guidelines are specific to **AI/LLM agents** working on this codebase. Human developers should follow [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Core Principles
 
 - **Build before committing**: The code MUST compile (`cargo build`), pass all tests (`cargo test`), and be clean under clippy (`cargo clippy -- -D warnings`) before any git commit. Never ship broken code.
 - **Conventional commits**: All git commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope): description`. See section below.
 - **Commit frequently when stable**: Make atomic, logical commits whenever the codebase is in a working state (builds, tests pass). Do not batch unrelated changes into a single commit. Each commit should represent one coherent unit of change.
+  - **Before every commit**, ensure all changed files are in a good state — no half-written code, incomplete docs, or skipped tests. Code must at minimum compile before committing; full functionality is ideal but a working build is the absolute floor.
+  - **Upon finishing each task**, immediately commit all changes with a descriptive message. Do not defer commits across tasks.
+  - For larger units of work (major refactoring, big new feature), split into small, manageable commits rather than one massive commit to preserve history granularity and make rollbacks easier.
 - **Follow existing patterns first**: Before proposing new patterns or structures, search for and follow established conventions in the codebase. When in doubt, match what's already there.
 - **Graceful degradation over panics**: Metric collectors return `Result` types and fall back to zero values on failure. The daemon continues operating even when individual metrics are unavailable.
+
+### Agent-Specific Rules (do NOT apply to human developers)
+
 - **No background tasks**: All work must be performed by subagents or in the foreground. Background tasks are not allowed because they often time out or exhaust the context window before completing.
 - **Subagents and subtasks allowed (foreground only)**: Delegating to subagents is encouraged for parallelizable work, but all spawned agents MUST run with `run_in_background=false` (synchronous mode). This ensures agent output is available in-session and prevents context loss from timed-out background tasks. Never spawn a task and forget about it — always collect results before proceeding.
 
 ## Versioning Policy
 
 - **Semantic Versioning (SemVer)** is strictly enforced. All version bumps follow `MAJOR.MINOR.PATCH` format per [semver.org](https://semver.org/).
-- Current version: `v0.0.0` (unreleased pre-release state). Do NOT release until explicitly asked by the user.
-- **Pre-release rule**: Until first stable release, only patch-level changes are expected. Minor releases introduce new features; patches fix bugs without behavior change.
+- Current version: `v1.0.0` (stable release).
+- **Pre-release rule**: Until first stable release, only patch-level changes are expected between minor releases.
   - `v0.0.1`, `v0.0.2`... — bug fixes and minor improvements while pre-1.0
   - `v0.1.0` — first feature release (when ready)
   - `vX.Y.Z` post-1.0: MAJOR for breaking changes, MINOR for new features, PATCH for bugfixes
 
 ### Version Bump Rules
+
 | Change Type | Version Bump | Examples |
-|---|---|---|
+|-------------|-------------|----------|
 | Breaking API change (config format, CLI args) | MAJOR or MINOR (pre-1.0: MINOR) | `v0.1.0 → v0.2.0` |
 | New feature / capability | MINOR (pre-1.0: minor patch) | `v0.0.3 → v0.0.4` |
 | Bug fix, no behavior change | PATCH | `v0.0.4 → v0.0.5` |
-| CI/CD, packaging, docs-only | No version bump needed (unless it affects user-visible behavior) |
+| CI/CD, packaging, docs-only | No version bump needed (unless it affects user-visible behavior) | — |
 
 ### Version Management in Cargo.toml
-- Update `[package] version = "..."` before any release tag
-- Never commit a version bump without an associated release PR or explicit user request
-- The `--version` flag is derived from Cargo.toml by clap's automatic version handling — no manual sync needed
+
+- Update `[package] version = "..."` before any release tag.
+- Never commit a version bump without an associated release PR or explicit user request.
+- The `--version` flag is derived from Cargo.toml by clap's automatic version handling — no manual sync needed.
 
 ### Git Tagging Convention
+
 - Pre-release: `v0.0.X` (e.g., `git tag -a v0.0.1 -m "Patch: fix config path resolution"`)
 - Release candidates: `v0.1.0-rc.1`, etc.
 - Stable releases: `vX.Y.Z` with annotated tags and release notes
@@ -64,14 +75,14 @@ type(scope): description
 
 ### Types
 
-| Type | When to use |
-|------|-------------|
-| `feat` | New functionality (e.g., `feat(gpu): add per-device GPU reporting`) |
-| `fix` | Bug fixes that restore expected behavior (e.g., `fix(service): correct log level parsing`) |
-| `refactor` | Code changes with no external behavior change (e.g., `refactor(gpu): restructure collection methods`) |
-| `test` | Adding or modifying tests only (e.g., `test(service): add EMA convergence tests`) |
-| `docs` | Documentation-only changes (e.g., `docs(readme): update GPU monitoring section`) |
-| `chore` | Build/config/tooling changes that don't affect source code (e.g., `chore(deps): bump toml to 0.8`) |
+| Type | When to use | Example |
+|------|-------------|---------|
+| `feat` | New functionality | `feat(gpu): add per-device GPU reporting` |
+| `fix` | Bug fixes restoring expected behavior | `fix(service): correct log level parsing` |
+| `refactor` | Code changes with no external behavior change | `refactor(gpu): restructure collection methods` |
+| `test` | Adding or modifying tests only | `test(service): add EMA convergence tests` |
+| `docs` | Documentation-only changes | `docs(readme): update GPU monitoring section` |
+| `chore` | Build/config/tooling changes that don't affect source code | `chore(deps): bump toml to 0.8` |
 
 ### Scope Guidelines
 
@@ -79,30 +90,28 @@ Use the affected module as scope: `service`, `config`, `gpu`, `cpu`, `network`, 
 
 ## Logging Conventions
 
-- Use the `tracing` crate (`debug!`, `info!`, `warn!`, `error!` macros)
-- Log levels: DEBUG for collection details, INFO for state transitions (not per-tick noise), WARN for recoverable issues, ERROR for unrecoverable failures
-- Include contextual identifiers in log messages (GPU device IDs, interface names, threshold values)
+- Use the `tracing` crate (`debug!`, `info!`, `warn!`, `error!` macros).
 - **State-change-only logging**: When tracking persistent states (inhibition, connection status), only emit INFO logs on actual state transitions. Do not log every polling cycle when state is unchanged. Track previous state and compare at the end of each tick/loop iteration.
 
 ## Error Handling Conventions
 
-- Use `thiserror` for library-facing error types with descriptive variants
-- Use `anyhow::Result<T>` for binary-level entry points (`main.rs`)
-- Metric collectors return `Result<value, CollectorError>` — callers handle errors gracefully (fallback to zero)
-- Never silently swallow errors: log them at minimum via `warn!` or `error!`
+- Use `thiserror` for library-facing error types with descriptive variants.
+- Use `anyhow::Result<T>` for binary-level entry points (`main.rs`).
+- Metric collectors return `Result<value, CollectorError>` — callers handle errors gracefully (fallback to zero).
+- Never silently swallow errors: log them at minimum via `warn!` or `error!`.
 
 ## Async / Tokio Conventions
 
-- All I/O-bound operations are async; CPU-bound work should be spawned blocking (`tokio::task::spawn_blocking`)
-- Use `tokio::time::sleep` for polling intervals, never blocking `std::thread::sleep` in async contexts
-- The main loop uses `tokio::select!` for shutdown signal handling
+- All I/O-bound operations are async; CPU-bound work should be spawned blocking (`tokio::task::spawn_blocking`).
+- Use `tokio::time::sleep` for polling intervals, never blocking `std::thread::sleep` in async contexts.
+- The main loop uses `tokio::select!` for shutdown signal handling.
 
 ## Configuration Conventions
 
-- TOML format via the `toml` crate with serde derive macros
-- All config values have sensible defaults defined as `fn default_*() -> T` helper functions
-- Optional fields use `#[serde(default)]`; required overrides use `#[serde(default = "default_fn")]`
-- Duration parsing uses `humantime_serde` for human-readable format (e.g., `"5s"`, `"30m"`)
+- TOML format via the `toml` crate with serde derive macros.
+- All config values have sensible defaults defined as `fn default_*() -> T` helper functions.
+- Optional fields use `#[serde(default)]`; required overrides use `#[serde(default = "default_fn")]`.
+- Duration parsing uses `humantime_serde` for human-readable format (e.g., `"5s"`, `"30m"`).
 
 ## Metrics Collection Conventions
 
@@ -113,7 +122,7 @@ Each physical device should be reported individually. Aggregation across devices
 - Per-device EMA smoothing for stable readings
 - Better diagnostics when one device is anomalous
 
-### GPU metrics specifically
+### GPU metrics — data sources by vendor
 
 | Vendor | Data source | Device identification | Driver detection |
 |--------|------------|----------------------|------------------|
@@ -126,7 +135,7 @@ Each physical device should be reported individually. Aggregation across devices
 - `driver_name: String` — kernel driver name (e.g., `"nvidia"`, `"amdgpu"`, `"i915"`, `"xe"`, `"unknown"`)
 - `usage: f64` — utilization percentage (0.0–100.0)
 
-**NVIDIA subprocess constraint:** The nvidia-smi binary is required for NVIDIA GPU monitoring on proprietary drivers. This is an unavoidable external dependency since the driver package ships it. No well-maintained Rust NVML binding crate exists in crates.io that would reduce this to a library call. Per-device parsing of `nvidia-smi` output (rather than averaging) is the correct approach.
+**NVIDIA subprocess constraint:** The nvidia-smi binary is required for NVIDIA GPU monitoring on proprietary drivers. This is an unavoidable external dependency since the driver package ships it. No well-maintained Rust NVML binding crate exists in crates.io that would reduce this to a library call (`nvml-rs` has been unmaintained since 2019). Per-device parsing of nvidia-smi CSV output via subprocess is the correct approach — process spawn overhead (~1–5ms) is negligible compared to the typical 5-second polling interval.
 
 ## Code Structure Conventions
 
@@ -147,10 +156,10 @@ src/
 
 ## Testing Conventions
 
-- Unit tests in the same file under `#[cfg(test)] mod tests { ... }` modules
-- Test function names follow: `test_<module>_<scenario>_expected_behavior`
-- Run full test suite before any commit: `cargo test --all-targets`
-- Mock external I/O where possible (file paths, command outputs)
+- Unit tests in the same file under `#[cfg(test)] mod tests { ... }` modules.
+- Test function names follow: `test_<module>_<scenario>_expected_behavior`.
+- Run full test suite before any commit: `cargo test --all-targets`.
+- Mock external I/O where possible (file paths, command outputs).
 
 ## Build & CI Checklist
 
@@ -192,7 +201,7 @@ The old `/org/freedesktop/PowerManagement.Inhibit` API is obsolete (deprecated ~
 
 ## Dependency Policy
 
-- Prefer stdlib and crate ecosystem over external binary dependencies where possible
-- For hardware-specific access (NVIDIA GPUs), subprocess to shipped binaries is acceptable (`nvidia-smi` from driver package, sysfs for AMD/Intel kernel interfaces)
-- When adding a new dependency: justify in the commit message, prefer widely-packaged crates, avoid unmaintained crates
-- Current external binary dependencies: `nvidia-smi` (NVIDIA proprietary drivers only), no other binaries
+- Prefer stdlib and crate ecosystem over external binary dependencies where possible.
+- For hardware-specific access (NVIDIA GPUs), subprocess to shipped binaries is acceptable (`nvidia-smi` from driver package, sysfs for AMD/Intel kernel interfaces).
+- When adding a new dependency: justify in the commit message, prefer widely-packaged crates, avoid unmaintained crates.
+- Current external binary dependencies: `nvidia-smi` (NVIDIA proprietary drivers only), no other binaries.

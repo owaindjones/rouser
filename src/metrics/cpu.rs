@@ -1,7 +1,6 @@
 use std::fs;
 use tracing::debug;
 
-
 #[derive(Debug, Clone)]
 pub struct CpuStats {
     pub user: u64,
@@ -22,6 +21,12 @@ pub struct CpuCollector {
     last_time: Option<std::time::SystemTime>,
 }
 
+impl Default for CpuCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CpuCollector {
     pub fn new() -> Self {
         Self {
@@ -30,13 +35,18 @@ impl CpuCollector {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn name(&self) -> &str {
+        "cpu"
+    }
+
     pub async fn collect(&mut self) -> Result<f64, CpuError> {
         let stats = self.read_stats()?;
         let now = std::time::SystemTime::now();
 
         match (&self.last_stats, &self.last_time) {
             (Some(prev_stats), Some(prev_time)) => {
-                let usage = self.calculate_usage(&prev_stats, &stats, *prev_time, now);
+                let usage = self.calculate_usage(prev_stats, &stats, *prev_time, now);
                 self.last_stats = Some(stats);
                 self.last_time = Some(now);
                 Ok(usage)
@@ -50,13 +60,16 @@ impl CpuCollector {
     }
 
     fn read_stats(&self) -> Result<CpuStats, CpuError> {
-        let content = fs::read_to_string("/proc/stat")
-            .map_err(|e| CpuError::IoError(e.to_string()))?;
+        let content =
+            fs::read_to_string("/proc/stat").map_err(|e| CpuError::IoError(e.to_string()))?;
 
-        let first_line = content.lines().find(|l| l.starts_with("cpu "))
+        let first_line = content
+            .lines()
+            .find(|l| l.starts_with("cpu "))
             .ok_or(CpuError::InvalidFormat)?;
 
-        let fields: Vec<u64> = first_line.split_whitespace()
+        let fields: Vec<u64> = first_line
+            .split_whitespace()
             .skip(1)
             .map(|s| s.parse().unwrap_or(0))
             .collect();
@@ -79,19 +92,39 @@ impl CpuCollector {
         })
     }
 
-    fn calculate_usage(&self, prev: &CpuStats, curr: &CpuStats, prev_time: std::time::SystemTime, curr_time: std::time::SystemTime) -> f64 {
+    fn calculate_usage(
+        &self,
+        prev: &CpuStats,
+        curr: &CpuStats,
+        prev_time: std::time::SystemTime,
+        curr_time: std::time::SystemTime,
+    ) -> f64 {
         use std::time::Duration;
 
-        let interval = curr_time.duration_since(prev_time).unwrap_or(Duration::from_secs(1));
+        let interval = curr_time
+            .duration_since(prev_time)
+            .unwrap_or(Duration::from_secs(1));
         let interval_secs = interval.as_secs() as f64;
 
-        let prev_total = prev.user as f64 + prev.nice as f64 + prev.system as f64
-            + prev.idle as f64 + prev.iowait as f64 + prev.irq as f64
-            + prev.softirq as f64 + prev.steal as f64 + prev.guest as f64;
+        let prev_total = prev.user as f64
+            + prev.nice as f64
+            + prev.system as f64
+            + prev.idle as f64
+            + prev.iowait as f64
+            + prev.irq as f64
+            + prev.softirq as f64
+            + prev.steal as f64
+            + prev.guest as f64;
 
-        let curr_total = curr.user as f64 + curr.nice as f64 + curr.system as f64
-            + curr.idle as f64 + curr.iowait as f64 + curr.irq as f64
-            + curr.softirq as f64 + curr.steal as f64 + curr.guest as f64;
+        let curr_total = curr.user as f64
+            + curr.nice as f64
+            + curr.system as f64
+            + curr.idle as f64
+            + curr.iowait as f64
+            + curr.irq as f64
+            + curr.softirq as f64
+            + curr.steal as f64
+            + curr.guest as f64;
 
         let prev_idle = prev.idle as f64 + prev.iowait as f64;
         let curr_idle = curr.idle as f64 + curr.iowait as f64;

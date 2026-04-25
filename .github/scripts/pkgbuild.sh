@@ -6,7 +6,7 @@ set -euo pipefail
 ACTION="${1:-help}"
 OUTPUT_FILE="${2:-PKGBUILD}"
 VERSION="${3:-0.1.0}"
-OWNER="yourusername"
+OWNER="owaindjones"
 REPO="rouser"
 
 # Strip leading 'v' if present

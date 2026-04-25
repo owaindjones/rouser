@@ -72,7 +72,7 @@ Create `~/.config/systemd/user/rouser.service`:
 ```ini
 [Unit]
 Description=Rouser - User Sleep Inhibition Daemon
-Documentation=https://github.com/yourusername/rouser
+Documentation=https://github.com/owaindjones/rouser
 After=graphical-session.target
 Wants=network-online.target
 
@@ -198,7 +198,7 @@ Create `/etc/systemd/system/rouser.service`:
 ```ini
 [Unit]
 Description=Rouser - System Sleep Inhibition Daemon
-Documentation=https://github.com/yourusername/rouser
+Documentation=https://github.com/owaindjones/rouser
 After=network.target
 
 [Service]

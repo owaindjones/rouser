@@ -338,3 +338,45 @@ jobs:
           name: rouser-arch-pkgbuild
           path: PKGBUILD
           retention-days: 30
+
+  deploy-pages:
+    if: github.event_name == 'release'
+    needs: [package-arch-pkgbuild]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install MkDocs and theme
+        run: pip install mkdocs-material
+
+      - name: Build static site from docs/
+        run: mkdocs build
+
+      - name: Upload built site as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-docs-site
+          path: site/
+          retention-days: 30
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload static site to GitHub Pages
+        id: deployment
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site

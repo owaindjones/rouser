@@ -1,31 +1,31 @@
-# VIBECODEC.md
+# VIBECODED.md
 
 ## Agent Attribution
 
-This document credits the AI agent responsible for code written during this development session.
+This document credits the AI agent responsible for code written during development.
 
 ### Agent Statistics
 
-| Attribute | Value |
-|-----------|-------|
-| **Agent Name** | Sisyphus (OhMyOpenCode Orchestrator) |
-| **Underlying Model** | Qwen3 (UD variant, mixture-of-experts) |
-| **Environment** | opencode CLI — OhMyOpenCode platform |
-| **Model File** | Qwen3.6-35B-A3B-UD-IQ4_XS.gguf (~17 GB, IQ4_XS quantization) |
+| Attribute | Value                                                                 |
+|-----------|-----------------------------------------------------------------------|
+| **Agent Name** | Sisyphus (OhMyOpenCode Orchestrator)                                  |
+| **Underlying Model** | Qwen3.6 (UD variant, mixture-of-experts)                              |
+| **Environment** | opencode CLI — OhMyOpenCode platform                                  |
+| **Model File** | Qwen3.6-35B-A3B-UD-IQ4_XS.gguf (~17 GB, IQ4_XS quantization)          |
 | **Inference Engine** | llama.cpp (ghcr.io/ggml-org/llama.cpp:server-vulkan Docker container) |
-| **Model Parameters** | 35B total / 3B active per token (MoE architecture) |
-| **Context Window** | 262,144 tokens trained; 150,000 server context size |
-| **Vocabulary Size** | 248,320 |
+| **Model Parameters** | 35B total / 3B active per token (MoE architecture)                    |
+| **Context Window** | 262,144 tokens trained; 150,000 server context size                   |
+| **Vocabulary Size** | 248,320                                                               |
 
 ### Hardware Specifications
 
-| Component | Specification |
-|-----------|--------------|
-| **CPU** | AMD Ryzen 9 5950X (16-core / 32-thread) @ ~3.87 GHz |
-| **RAM** | 64 GB DDR4 total (~30 GB available idle) |
-| **GPU 1 (Compute)** | NVIDIA GeForce RTX 4070 Ti SUPER (AD103, Ada Lovelace) |
-| **GPU 2 (Display)** | AMD Radeon RX 7900 XT/XTX/GRE (Navi 31, RDNA 3) |
-| **Storage** | WDC SN580 1TB NVMe + WD Blue SN570 2TB NVMe |
+| Component           | Specification |
+|---------------------|--------------|
+| **CPU**             | AMD Ryzen 9 5950X (16-core / 32-thread) @ ~3.87 GHz |
+| **RAM**             | 64 GB DDR4 total (~30 GB available idle) |
+| **GPU 1 (Display)** | NVIDIA GeForce RTX 4070 Ti SUPER (AD103, Ada Lovelace) |
+| **GPU 2 (Compute)** | AMD Radeon RX 7900 XT/XTX/GRE (Navi 31, RDNA 3) |
+| **Storage**         | WDC SN580 1TB NVMe + WD Blue SN570 2TB NVMe |
 
 ### Operating System
 

@@ -15,7 +15,7 @@ This guide will help you get `rouser` running on your Linux system within 5 minu
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/rouser.git
+git clone https://github.com/owaindjones/rouser.git
 cd rouser
 
 # Build release binary and install to ~/.local/bin
@@ -30,7 +30,7 @@ chmod +x ~/.local/bin/rouser
 The installer script fetches the latest release, installs the binary, config, and enables systemd user service automatically:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/rouser/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh | bash
 ```
 
 See `scripts/install.sh --help` for options.
@@ -41,7 +41,7 @@ Download pre-built archives from GitHub Releases matching your architecture:
 
 ```bash
 # Update URL with actual release version and arch (x86_64 or aarch64)
-curl -LO https://github.com/yourusername/rouser/releases/download/v0.1.0/rouser-v0.1.0-linux-x86_64.tar.gz
+curl -LO https://github.com/owaindjones/rouser/releases/download/v0.1.0/rouser-v0.1.0-linux-x86_64.tar.gz
 
 # Extract — contains binary + config + systemd service file
 tar -xzf rouser-v*.linux-*.tar.gz

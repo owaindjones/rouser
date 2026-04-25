@@ -15,5 +15,3 @@ pub struct Metrics {
     pub network_io: f64,
     pub disk_activity: f64,
 }
-
-

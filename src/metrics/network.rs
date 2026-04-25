@@ -29,13 +29,19 @@ impl NetworkCollector {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn name(&self) -> &str {
+        "network"
+    }
+
     pub async fn collect(&mut self) -> Result<f64, NetworkError> {
         let current_stats = self.read_interface_stats()?;
         let now = SystemTime::now();
 
         match &self.last_time {
             Some(prev_time) => {
-                let interval = now.duration_since(*prev_time)
+                let interval = now
+                    .duration_since(*prev_time)
                     .unwrap_or(Duration::from_secs(1));
 
                 let mut total_delta = 0u64;
@@ -50,8 +56,8 @@ impl NetworkCollector {
 
                 // Convert bytes to megabits per second
                 // (bytes * 8 bits) / (seconds * 1,000,000)
-                let throughput_mbps = (total_delta as f64 * 8.0)
-                    / (interval.as_secs_f64() * 1_000_000.0);
+                let throughput_mbps =
+                    (total_delta as f64 * 8.0) / (interval.as_secs_f64() * 1_000_000.0);
 
                 self.last_stats = current_stats;
                 self.last_time = Some(now);
@@ -98,15 +104,22 @@ impl NetworkCollector {
                 .map(|s| s.parse().unwrap_or(0))
                 .collect();
 
-           if values.len() < 16 {
-            debug!("Invalid /proc/net/dev line: {} (expected 16 values, got {})", name, values.len());
-            continue;
-        }
+            if values.len() < 16 {
+                debug!(
+                    "Invalid /proc/net/dev line: {} (expected 16 values, got {})",
+                    name,
+                    values.len()
+                );
+                continue;
+            }
 
-            stats_map.insert(name, NetworkStats {
-                rx_bytes: values[0],
-                tx_bytes: values[8],
-            });
+            stats_map.insert(
+                name,
+                NetworkStats {
+                    rx_bytes: values[0],
+                    tx_bytes: values[8],
+                },
+            );
         }
 
         if stats_map.is_empty() {
@@ -141,8 +154,8 @@ mod tests {
 
     #[test]
     fn test_network_collector_creation() {
-        let _collector = NetworkCollector::new(vec!["lo".to_string()]);
-        assert!(true);
+        let collector = NetworkCollector::new(vec!["lo".to_string()]);
+        assert_eq!(collector.name(), "network");
     }
 
     #[test]

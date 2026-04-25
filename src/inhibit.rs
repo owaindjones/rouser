@@ -1,5 +1,5 @@
 use dbus::blocking::Connection;
-use tracing::{debug, info};
+use tracing::debug;
 
 /// Sleep inhibitor using lower-level dbus crate
 /// The dbus crate properly handles file descriptors (h: UNIX_FD type)
@@ -8,20 +8,12 @@ pub struct SleepInhibitor {
     conn: Connection,
     #[allow(dead_code)] // Keep the fd alive for inhibition
     _fd: dbus::arg::OwnedFd,
-    #[allow(dead_code)]
-    what: String,
-    description: String,
 }
 
 impl SleepInhibitor {
-  pub async fn new(
-        what: &str,
-        who: &str,
-        why: &str,
-        mode: &str,
-    ) -> anyhow::Result<Self> {
+    pub async fn new(what: &str, who: &str, why: &str, mode: &str) -> anyhow::Result<Self> {
         let dbus_mode = mode;
-        
+
         // Connect to system D-Bus
         let conn = Connection::new_system()
             .map_err(|e| anyhow::anyhow!("Failed to connect to system D-Bus: {}", e))?;
@@ -37,33 +29,22 @@ impl SleepInhibitor {
         // The dbus crate handles file descriptors properly via OwnedFd
         let result: (dbus::arg::OwnedFd,) = proxy
             .method_call(
-                "org.freedesktop.login1.Manager", 
-                "Inhibit", 
-                (what.to_string(), who.to_string(), why.to_string(), dbus_mode.to_string())
+                "org.freedesktop.login1.Manager",
+                "Inhibit",
+                (
+                    what.to_string(),
+                    who.to_string(),
+                    why.to_string(),
+                    dbus_mode.to_string(),
+                ),
             )
             .map_err(|e| anyhow::anyhow!("Failed to call Inhibit: {}", e))?;
 
         // Keep the file descriptor alive for the lifetime of the inhibition
         // The fd is what keeps the inhibition active - it must not be dropped
         let fd = result.0;
-        
-        info!("Inhibition acquired successfully");
 
-        Ok(Self {
-            conn,
-            _fd: fd,
-            what: what.to_string(),
-            description: why.to_string(),
-        })
-    }
-
-    #[allow(dead_code)]
-    pub fn what(&self) -> &str {
-        &self.what
-    }
-
-    pub fn description(&self) -> &str {
-        &self.description
+        Ok(Self { conn, _fd: fd })
     }
 }
 
@@ -122,9 +103,7 @@ impl InhibitionState {
 }
 
 impl Drop for SleepInhibitor {
-    fn drop(&mut self) {
-        info!("Sleep inhibition released for: {}", self.description());
-    }
+    fn drop(&mut self) {}
 }
 
 impl Default for InhibitionState {

@@ -50,7 +50,7 @@ Version:        @VERSION@
 Release:        1%{?dist}
 Summary:        System metrics daemon with sleep inhibition
 License:        MIT
-URL:            https://github.com/yourusername/rouser
+URL:            https://github.com/owaindjones/rouser
 Source0:        %{name}-source.tar.gz
 
 BuildRequires:  systemd-devel >= 240

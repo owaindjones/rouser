@@ -1,12 +1,10 @@
 # rouser
 
-<p align="center">
-  <a href="#readme"><img src="docs/rouser-logo.svg" alt="rouser logo — eye/radar with animated metric bars" width="600"></a>
-</p>
+![rouser logo — eye/radar with animated metric bars](docs/rouser-logo.svg)
 
 A Linux daemon that monitors system metrics (CPU, GPU, network, disk) and inhibits sleep when activity thresholds are exceeded.
 
-[![CI](https://github.com/yourusername/rouser/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/rouser/actions/workflows/ci.yml)
+[![CI](https://github.com/owaindjones/rouser/actions/workflows/ci.yml/badge.svg)](https://github.com/owaindjones/rouser/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat&logo=rust)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
 
@@ -14,15 +12,15 @@ A Linux daemon that monitors system metrics (CPU, GPU, network, disk) and inhibi
 
 | Target | CI Status | Package Format |
 |--------|-----------|----------------|
-| x86_64 Linux | ![CI build](https://github.com/yourusername/rouser/actions/workflows/ci.yml/badge.svg?event=release) | Tarball + DEB + RPM |
-| aarch64 Linux | ![CI cross-build](https://github.com/yourusername/rouser/actions/workflows/ci.yml/badge.svg?event=release) | Tarball + DEB (arm64) + RPM (aarch64) |
+| x86_64 Linux | ![CI build](https://github.com/owaindjones/rouser/actions/workflows/ci.yml/badge.svg?event=release) | Tarball + DEB + RPM |
+| aarch64 Linux | ![CI cross-build](https://github.com/owaindjones/rouser/actions/workflows/ci.yml/badge.svg?event=release) | Tarball + DEB (arm64) + RPM (aarch64) |
 | Arch / Bazzite | — | PKGBUILD archive on release |
-
-> **Pre-release**: rouser is at `v0.0.0` (unreleased). No official releases yet. See [AGENTS.md](AGENTS.md) for versioning policy.
 
 ## Overview
 
 `rouser` is designed for headless servers and desktop systems that need to automatically sleep when idle and stay awake during active use. It monitors multiple system metrics and uses systemd's login1 D-Bus API to prevent unwanted suspend or hibernation.
+
+**Note: Rouser does not put your machine into sleep or hibernation, it just prevents other things from doing so, via the SystemD Inhibition DBUS API.  You should configure automatic sleep via your desktop environment (ie. in KDE or GNOME settings) or via some other means.**
 
 ### Key Features
 
@@ -47,7 +45,7 @@ Allow a system to:
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/rouser.git
+git clone https://github.com/owaindjones/rouser.git
 cd rouser
 cargo build --release
 cp target/release/rouser ~/.local/bin/
@@ -58,9 +56,9 @@ cp target/release/rouser ~/.local/bin/
 The provided installer script fetches the latest release from GitHub and sets up systemd:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/rouser/main/scripts/install.sh | bash -s -- --help
+curl -fsSL https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh | bash -s -- --help
 # Then run without flags to install:
-curl -fsSL https://raw.githubusercontent.com/yourusername/rouser/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh | bash
 ```
 
 The installer will:
@@ -152,7 +150,6 @@ journalctl --user -u rouser -f
 Create a config file at one of the default search paths (see Quick Start above) or pass `-c /path/to/config.toml`. The TOML format uses **nested metric sections** over flat threshold keys for clarity and per-metric EMA smoothing:
 
 ```toml
-name = "rouser"
 update_interval = "5s"
 log_level = "info"
 
