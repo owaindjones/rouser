@@ -67,6 +67,12 @@ jobs:
           rustup update stable && rustup default stable
           rustup component add clippy
 
+      - name: Install system dependencies
+        if: matrix.arch == 'x86_64'
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            libsystemd-dev libdbus-1-dev pkg-config
+
       - name: Cache dependencies and build
         uses: Swatinem/rust-cache@v2
         with:
@@ -124,6 +130,12 @@ jobs:
         run: |
           rustup update stable && rustup default stable
           rustup component add clippy
+
+      - name: Install system dependencies
+        if: matrix.arch == 'x86_64'
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            libsystemd-dev libdbus-1-dev pkg-config
 
       - name: Cache dependencies and build
         uses: Swatinem/rust-cache@v2
