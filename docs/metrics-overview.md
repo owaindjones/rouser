@@ -157,7 +157,7 @@ rocm-smi --showgpuutilization
 **Implementation**:
 - Scans `/sys/class/drm/` directory for GPU devices
 - Reads `gpu_busy_percent` from each device
-- Calculates average across all detected GPUs
+- Reports per-device utilization independently (no averaging)
 - Falls back to 0% if no GPUs detected
 
 ### Aggregation Strategy — Per-Device Reporting Over Averaging
@@ -165,7 +165,7 @@ rocm-smi --showgpuutilization
 rouser reports each physical GPU **individually** rather than aggregating across devices. Each detected GPU is compared independently against the configured threshold:
 
 ```
-GPU0(nvidia): 95%   ← above 90% threshold → inhibits sleep
+card0(nvidia): 95%   ← above 90% threshold → inhibits sleep
 card1(amdgpu): 78%  ← below 90% threshold → does not inhibit alone
 ```
 

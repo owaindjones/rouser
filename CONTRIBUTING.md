@@ -133,7 +133,7 @@ use tracing::{debug, info, warn, error};
 
 **State-change-only logging**: When tracking persistent states (inhibition, connection status), only emit `info!` logs on actual state transitions. Track previous state and compare at the end of each tick/loop iteration — do not log every polling cycle when state is unchanged.
 
-Include contextual identifiers in log messages: GPU device IDs (`GPU0(nvidia)`), interface names, threshold values.
+Include contextual identifiers in log messages: GPU device IDs (`card0(nvidia)`), interface names, threshold values.
 
 ### Async / Tokio Conventions
 
@@ -156,7 +156,7 @@ Include contextual identifiers in log messages: GPU device IDs (`GPU0(nvidia)`),
 
 Each physical device should be reported individually. Aggregation across devices happens at the **threshold-checking layer**, not during collection. This enables:
 
-- Accurate per-GPU logging (`GPU0(nvidia): 45.2%, card1(amdgpu): 78.1%`)
+- Accurate per-GPU logging (`card0(nvidia): 45.2%, card1(amdgpu): 78.1%`)
 - Per-device EMA smoothing for stable readings
 - Better diagnostics when one device is anomalous
 
@@ -197,7 +197,7 @@ src/
 └── metrics/
     ├── mod.rs       # Metrics struct + module re-exports
     ├── cpu.rs       # /proc/stat CPU collection
-    ├── gpu.rs       # nvidia-smi (NVIDIA) + sysfs (AMD/Intel) GPU collection
+    ├── gpu.rs       # NVML (NVIDIA via nvml-wrapper) + sysfs (AMD/Intel) GPU collection
     ├── network.rs   # /proc/net/dev network I/O
     └── disk.rs      # /proc/diskstats disk activity
 ```

@@ -125,7 +125,7 @@ threshold = 90.0    # Applies to ALL detected GPUs
 ema_alpha = 0.2     # Applied per-device, not globally averaged
 ```
 
-This means GPU0(nvidia) at 95% and card1(amdgpu) at 87% are each compared against the same threshold independently — one exceeding it triggers inhibition regardless of the other's state.
+This means card0(nvidia) at 95% and card1(amdgpu) at 87% are each compared against the same threshold independently — one exceeding it triggers inhibition regardless of the other's state.
 
 ## Threshold Evaluation
 

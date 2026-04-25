@@ -118,7 +118,7 @@ Use the affected module as scope: `service`, `config`, `gpu`, `cpu`, `network`, 
 ### Per-device reporting over aggregation
 
 Each physical device should be reported individually. Aggregation across devices happens at the threshold-checking layer, not during collection. This enables:
-- Accurate per-GPU logging (`GPU0(nvidia): 45.2%, card1(amdgpu): 78.1%`)
+- Accurate per-GPU logging (`card0(nvidia): 45.2%, card1(amdgpu): 78.1%`)
 - Per-device EMA smoothing for stable readings
 - Better diagnostics when one device is anomalous
 

@@ -206,7 +206,7 @@ By default, rouser logs to stdout. Log format includes level, timestamp, and tar
 ```bash
 rouser -l debug --dry-run
 # Sample output:
-# 2026-04-24T10:00:00.123Z INFO  rouser::service [service.rs:45] Tick 1: CPU=45.2%, GPU0(nvidia)=92.1%, net=12.3Mbps, disk=0.5MB/s
+# 2026-04-24T10:00:00.123Z INFO  rouser::service [service.rs:45] Tick 1: CPU=45.2%, card0(nvidia)=92.1%, net=12.3Mbps, disk=0.5MB/s
 # 2026-04-24T10:00:00.124Z INFO  rouser::inhibit [inhibit.rs:78] Sleep inhibited: GPU at 92% (threshold: 90%)
 ```
 
