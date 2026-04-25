@@ -62,10 +62,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install stable toolchain and cross target
+      - name: Install stable toolchain and clippy
         run: |
           rustup update stable && rustup default stable
-          rustup component rustfmt clippy
+          rustup component add clippy
 
       - name: Cache dependencies and build
         uses: Swatinem/rust-cache@v2
@@ -120,10 +120,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install stable toolchain and rustfmt/clippy
+      - name: Install stable toolchain and clippy
         run: |
           rustup update stable && rustup default stable
-          rustup component rustfmt clippy
+          rustup component add clippy
 
       - name: Cache dependencies and build
         uses: Swatinem/rust-cache@v2
