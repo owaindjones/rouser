@@ -238,9 +238,9 @@ rouser --dry-run -l debug
 # Output includes: No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
 ```
 
-### Missing External Tools (non-fatal)
+### Missing GPU Libraries (non-fatal)
 
-When `nvidia-smi` is not available but NVIDIA hardware exists in sysfs, rouser logs a warning and continues with other metrics. No error exit occurs — the daemon degrades gracefully.
+When NVML (`libnvidia-ml.so`) is not available but NVIDIA hardware exists in sysfs, rouser logs a warning and continues with other metrics. No error exit occurs — the daemon degrades gracefully.
 
 ## Argument Precedence for Config Resolution
 

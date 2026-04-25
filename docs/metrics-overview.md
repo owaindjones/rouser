@@ -9,7 +9,7 @@ rouser monitors four main categories of system metrics:
 | Metric | Source | Polling | Description |
 |--------|--------|---------|-------------|
 | **CPU Usage** | `/proc/stat` | Configurable (default: 5s) | Aggregate CPU usage across all cores |
-| **GPU Usage** | `nvidia-smi` or `/sys/class/drm/` | Configurable (default: 5s) | GPU utilization percentage |
+| **GPU Usage** | NVML (`libnvidia-ml.so`) or `/sys/class/drm/` | Configurable (default: 5s) | GPU utilization percentage per device |
 | **Network I/O** | `/proc/net/dev` | Configurable (default: 5s) | Network throughput in Mbps |
 | **Disk Activity** | `/proc/diskstats` | Configurable (default: 5s) | Disk read/write in MB/s |
 
@@ -123,22 +123,19 @@ rouser supports multiple GPU vendors with different data sources.
 
 #### NVIDIA GPUs
 
-**Primary Source**: `nvidia-smi` command-line tool
+**Primary Source**: NVML library (`libnvidia-ml.so`) — the same API used by `nvidia-smi` and [nvtop](https://github.com/Syllo/nvtop)
 
 ```bash
-# Query all GPUs
-nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits
-
-# Sample output:
-# 95%
-# 78%
+# NVML is loaded dynamically from the NVIDIA driver package
+# No separate binary required — accessed via libnvidia-ml.so.1
+ldconfig -p | grep libnvidia-ml
 ```
 
 **Implementation**:
-- Runs `nvidia-smi` command and parses output
-- Extracts percentage values from each GPU
-- Calculates average across all detected GPUs
-- Falls back to 0% if `nvidia-smi` unavailable
+- Dynamically loads `libnvidia-ml.so` at runtime (graceful fallback if unavailable)
+- Enumerates GPUs by index, matches to sysfs cards via PCI bus ID
+- Uses `nvmlDeviceGetUtilizationRates()` for per-GPU compute utilization
+- Falls back to 0% if NVML is unavailable or GPU not supported
 
 #### AMD/Intel GPUs
 
@@ -148,7 +145,7 @@ nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits
 # Check GPU usage (if available)
 cat /sys/class/drm/card0/device/gpu_busy_percent
 
-# Or use rocm-smi tool (similar to nvidia-smi)
+# AMD: rocm-smi provides similar data via ROCm tools
 rocm-smi --showgpuutilization
 ```
 
@@ -387,7 +384,7 @@ error!("No disk devices available");
 | Metric | Memory Impact | CPU Impact | Disk I/O |
 |--------|--------------|------------|----------|
 | CPU | ~100 bytes | Negligible | None (/proc) |
-| GPU | ~1 KB | Low (nvidia-smi spawn) | None |
+| GPU | ~1 KB | Very low (NVML library call, no subprocess) | None |
 | Network | ~100 bytes per interface | Negligible | None (/proc) |
 | Disk | ~50 bytes per device | Negligible | None (/proc) |
 

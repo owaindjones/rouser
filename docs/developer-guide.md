@@ -91,7 +91,7 @@ impl Service {
 Modular collectors for different system metrics:
 
 - `cpu.rs` - CPU usage from `/proc/stat`
-- `gpu.rs` - GPU usage from `nvidia-smi` or sysfs
+- `gpu.rs` - GPU utilization via NVML (NVIDIA) or sysfs (AMD/Intel)
 - `network.rs` - Network I/O from `/proc/net/dev`
 - `disk.rs` - Disk activity from `/proc/diskstats`
 

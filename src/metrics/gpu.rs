@@ -10,7 +10,8 @@
 /// ## Driver-Based Routing
 ///
 /// Each card is routed to the appropriate utilization collector based on its driver:
-/// - **`nvidia` / `nouveau`** → nvidia-smi subprocess query, matched via GPU UUID
+/// - **`nvidia` / `nouveau`** → NVML library (`libnvidia-ml.so`) via `nvml-wrapper` crate
+///   (same approach used by [nvtop](https://github.com/Syllo/nvtop))
 /// - **`amdgpu`, `xe`, `i915`** → direct read of `gpu_busy_percent` from sysfs
 ///
 /// ## Consistent Device Identifiers
@@ -19,21 +20,10 @@
 /// regardless of vendor. This ensures consistent labeling across mixed-vendor systems:
 /// `GPU log output shows "card0(nvidia): 45%", "card1(amdgpu): 78%"` instead of
 /// the previous inconsistent mix of "GPU0(nvidia)" and "card1(amdgpu)".
+use nvml_wrapper::Nvml;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 use tracing::{debug, warn};
-
-// Design decision: nvidia-smi subprocess is the correct approach for NVIDIA GPU monitoring.
-// Alternatives evaluated and rejected:
-//  - sysfs /sys/bus/pci/devices/: no real-time utilization % exposed by NVIDIA driver
-//  - NVML (libnvidia-ml.so): only available with proprietary drivers; nvml-rs crate unmaintained since 2019;
-//    bindgen + FFI approach adds significant build complexity and new dependencies (bindgen, libclang-dev)
-//  - /proc/driver/nvidia/: no per-GPU utilization stats exposed
-//  - X11 libXNVCtrl: desktop-only, requires running display server, not suitable for headless servers
-// The nvidia-smi binary is already a required dependency (checked via which::which). Per-device parsing
-// of its CSV output provides the same information as direct API access. Process spawn overhead (~1-5ms)
-// is negligible compared to typical polling intervals (e.g., 5s). No well-maintained Rust NVML binding exists.
 
 /// Represents a discovered GPU card with driver info from sysfs enumeration.
 #[derive(Debug)]
@@ -46,7 +36,6 @@ pub struct GpuCollector;
 
 impl GpuCollector {
     pub fn new() -> Self {
-        // No state needed — all detection is done at collection time via sysfs.
         debug!("GPU collector initialized (sysfs-first enumeration)");
         Self
     }
@@ -65,7 +54,7 @@ impl GpuCollector {
     ///
     /// Enumerates all GPU cards via `/sys/class/drm/`, detects each card's driver,
     /// and routes to the appropriate collection method:
-    /// - NVIDIA/Nouveau → nvidia-smi subprocess (matched by UUID)
+    /// - NVIDIA/Nouveau → NVML library (`libnvidia-ml.so`) matched by PCI bus ID
     /// - AMD/Intel → direct sysfs `gpu_busy_percent` read
     pub async fn collect(&self) -> Result<Vec<GpuData>, GpuError> {
         let cards = self.enumerate_gpus();
@@ -80,7 +69,9 @@ impl GpuCollector {
         for card in &cards {
             match card.driver_name.as_str() {
                 "nvidia" | "nouveau" => {
-                    if let Some(usage) = Self::collect_nvidia_for_card(&card.device_id) {
+                    if let Some(usage) =
+                        Self::collect_nvidia_for_card(&card.device_id, &card.driver_name)
+                    {
                         all_gpus.push(GpuData {
                             device_id: card.device_id.clone(),
                             driver_name: card.driver_name.clone(),
@@ -106,9 +97,9 @@ impl GpuCollector {
             }
         }
 
-        if all_gpus.is_empty() {
-            warn!("No valid GPU data collected; check that nvidia-smi is working and drivers are loaded");
-        } else {
+        if all_gpus.is_empty() && !cards.is_empty() {
+            warn!("No valid GPU data collected; check that NVIDIA drivers are loaded");
+        } else if !all_gpus.is_empty() {
             for gpu in &all_gpus {
                 debug!(
                     "GPU {} ({}): {:.1}%",
@@ -121,12 +112,8 @@ impl GpuCollector {
     }
 
     /// Enumerate all GPU cards from `/sys/class/drm/`.
-    ///
-    /// Filters out display connectors (`card0-HDMI-A-1`), render nodes (`renderD128`),
-    /// and other non-card entries. Returns a vector of `(device_id, driver_name)` tuples.
     fn enumerate_gpus(&self) -> Vec<EnumGpu> {
         let mut cards = Vec::new();
-
         let drm_dir = Path::new("/sys/class/drm");
         let entries = match fs::read_dir(drm_dir) {
             Ok(entries) => entries,
@@ -155,116 +142,97 @@ impl GpuCollector {
         }
 
         debug!("Enumerated {} GPU card(s) from /sys/class/drm", cards.len());
-
         cards
     }
 
-    /// Collect utilization for an NVIDIA/Nouveau card via nvidia-smi.
+    /// Collect utilization for an NVIDIA/Nouveau card via NVML.
     ///
-    /// Runs a single nvidia-smi query to get all GPUs with their UUIDs and utilizations,
-    /// then matches the requested sysfs card name against the returned data by:
-    /// 1. Reading the GPU UUID from `/sys/class/drm/cardN/device/uevent`
-    /// 2. Matching it against nvidia-smi output
-    fn collect_nvidia_for_card(card_name: &str) -> Option<f64> {
-        debug!(
-            "Collecting NVIDIA utilization for {} via nvidia-smi",
-            card_name
-        );
+    /// Uses the NVML library (same approach as nvtop). Matches NVML devices to sysfs
+    /// cards by comparing PCI bus IDs from `/sys/class/drm/cardN/device/uevent` with
+    /// `nvmlDeviceGetPciInfo`. This avoids spawning subprocesses and provides lower-level
+    /// GPU access via the official NVIDIA management library.
+    fn collect_nvidia_for_card(card_name: &str, _driver_name: &str) -> Option<f64> {
+        let pci_slot = Self::read_pci_slot_from_uevent(card_name);
 
-        // Read the GPU UUID from sysfs uevent to match with nvidia-smi.
-        let expected_uuid = Self::read_nvidia_uuid(card_name);
-
-        let output = Command::new("nvidia-smi")
-            .args([
-                "--query-gpu=index,gpu_bus_id,utilization.gpu",
-                "--format=csv,noheader,nounits",
-            ])
-            .output()
-            .ok();
-
-        let output = match output {
-            Some(o) => o,
-            None => return Some(0.0),
-        };
-
-        if !output.status.success() {
+        if pci_slot.is_empty() {
             debug!(
-                "nvidia-smi returned non-zero exit code for {}; skipping",
+                "Could not determine PCI slot for sysfs card {}, skipping NVML query",
                 card_name
             );
             return Some(0.0);
         }
 
-        let output_str = String::from_utf8_lossy(&output.stdout);
-        let mut best_match: Option<(String, f64)> = None; // (uuid, usage)
-
-        for line in output_str.lines() {
-            let parts: Vec<&str> = line.split(',').collect();
-            if parts.len() < 3 {
-                debug!("Skipping malformed nvidia-smi line: {}", line.trim());
-                continue;
-            }
-
-            let bus_id = parts[1].trim().to_string();
-            let usage_str = parts[2].trim().strip_suffix('%').unwrap_or(parts[2].trim());
-            let usage = match usage_str.parse::<f64>() {
-                Ok(u) => u,
-                Err(_) => continue,
-            };
-
-            // Match by normalized PCI address. sysfs reports 5-digit hex (0000:09:00.0) while
-            // nvidia-smi reports 8-digit hex (00000000:09:00.0). Normalize both to compare.
-            let normalize_pci = |s: &str| {
-                s.trim()
-                    .replace("0000", "")
-                    .trim_start_matches(':')
-                    .to_string()
-            };
-
-            if expected_uuid.is_empty() || normalize_pci(&expected_uuid) == normalize_pci(&bus_id) {
+        let nvml = match Nvml::init() {
+            Ok(n) => n,
+            Err(e) => {
                 debug!(
-                    "Matched {} to nvidia-smi GPU index 0 via PCI bus ID",
-                    card_name
+                    "NVML not available (NVIDIA driver stack may be missing): {}",
+                    e
                 );
-                return Some(usage);
+                return Some(0.0);
             }
+        };
 
-            // Keep track of all results for fallback logging.
-            best_match = Some((bus_id.clone(), usage));
+        let count = match nvml.device_count() {
+            Ok(c) => c,
+            Err(e) => {
+                debug!("NVML device enumeration failed: {}", e);
+                return Some(0.0);
+            }
+        };
+
+        for idx in 0..count {
+            if let Ok(device) = nvml.device_by_index(idx) {
+                if let Ok(pci_info) = device.pci_info() {
+                    // NVML bus_id format: "00000000:09:00.0" (8-digit domain prefix)
+                    // sysfs uevent PCI_SLOT_NAME format: "0000:09:00.0" (4-digit domain prefix)
+                    if pci_info.bus_id.contains(&pci_slot) {
+                        match device.utilization_rates() {
+                            Ok(util) => {
+                                let dev_name = match device.name() {
+                                    Ok(s) => s,
+                                    Err(_) => "unknown".into(),
+                                };
+                                debug!(
+                                    "Matched sysfs card '{}' (PCI: {}) to NVML GPU '{}', usage: {}%",
+                                    card_name,
+                                    pci_slot,
+                                    dev_name,
+                                    util.gpu
+                                );
+                                return Some(util.gpu as f64);
+                            }
+                            Err(e) => {
+                                let dev_name = match device.name() {
+                                    Ok(s) => s,
+                                    Err(_) => "unknown".into(),
+                                };
+                                debug!(
+                                    "NVML utilization not available for matched GPU '{}': {}",
+                                    dev_name, e
+                                );
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        if !expected_uuid.is_empty() {
-            debug!(
-                "No nvidia-smi match found for sysfs card '{}' (PCI slot: {})",
-                card_name, expected_uuid
-            );
-
-            if let Some((ref bus_id, _)) = best_match {
-                warn!(
-                    "nvidia-smi reported GPUs with PCI addresses [{}] but no match for {}; check driver status",
-                    bus_id, card_name
-                );
-            }
-        } else {
-            debug!(
-                "No sysfs PCI slot name found for {}, nvidia-smi query returned {} entries",
-                card_name,
-                best_match.as_ref().map(|_| 1).unwrap_or(0)
-            );
-        }
-
-        // Return 0 rather than failing — the card exists but nvidia-smi couldn't provide data.
+        warn!(
+            "NVML initialized but no NVIDIA GPU found matching sysfs card '{}' (PCI: {})",
+            card_name, pci_slot
+        );
         Some(0.0)
     }
 
-    /// Read the GPU UUID from a sysfs NVIDIA card's uevent file.
-    fn read_nvidia_uuid(card_name: &str) -> String {
+    /// Read the PCI slot name from a sysfs card's uevent file.
+    fn read_pci_slot_from_uevent(card_name: &str) -> String {
         let uevent_path = format!("/sys/class/drm/{}/device/uevent", card_name);
         match fs::read_to_string(&uevent_path) {
             Ok(content) => {
                 for line in content.lines() {
-                    if let Some(uuid) = line.strip_prefix("PCI_SLOT_NAME=") {
-                        return uuid.trim().to_string();
+                    if let Some(slot) = line.strip_prefix("PCI_SLOT_NAME=") {
+                        return slot.trim().to_string();
                     }
                 }
             }
@@ -272,8 +240,6 @@ impl GpuCollector {
                 debug!("Could not read uevent for {}: {}", card_name, e);
             }
         }
-
-        // Fallback: use a placeholder that won't match any nvidia-smi output.
         String::new()
     }
 
@@ -323,11 +289,6 @@ impl GpuCollector {
     }
 
     /// Returns true if `name` looks like a real GPU card directory in sysfs.
-    ///
-    /// Validates two conditions:
-    /// 1. Name matches the pattern "card" followed by one or more digits only
-    ///    (rejects connector entries like "card0-HDMI-A-1", render nodes like "renderD128")
-    /// 2. A `device/` subdirectory exists at that path and is a directory
     pub fn is_valid_gpu_card(name: &str, card_path: &Path) -> bool {
         if !name.starts_with("card") {
             return false;
@@ -338,8 +299,7 @@ impl GpuCollector {
             return false;
         }
 
-        let device_dir = card_path.join("device");
-        device_dir.is_dir()
+        card_path.join("device").is_dir()
     }
 }
 
@@ -422,7 +382,6 @@ mod tests {
             },
         ];
         assert_eq!(gpus.len(), 2);
-        // Both use consistent cardN naming now
         assert!(gpus[0].device_id.starts_with("card"));
         assert_eq!(gpus[1].device_id, "card1");
     }
@@ -520,17 +479,16 @@ mod tests {
             for entry in entries.flatten() {
                 let path = entry.path();
                 let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                // Only match cardN directories that have a driver symlink (real GPU cards)
                 if !name.starts_with("card") || !path.is_dir() {
                     continue;
                 }
                 let device_path = path.join("device");
                 if !device_path.exists() {
-                    continue; // connector entries like card2-DP-4 have no device/ dir
+                    continue;
                 }
                 let driver_link = device_path.join("driver");
                 if !fs::exists(&driver_link).unwrap_or(false) && !driver_link.is_symlink() {
-                    continue; // not a GPU card
+                    continue;
                 }
                 let driver = GpuCollector::detect_driver(&path);
                 assert_ne!(driver, "unknown", "{} should have a known driver", name);
@@ -583,7 +541,6 @@ mod tests {
         ];
 
         let debug_str = format!("{:?}", gpus);
-        // Both use consistent cardN naming
         assert!(debug_str.contains("card0"));
         assert!(debug_str.contains("nvidia"));
         assert!(debug_str.contains("card1"));
@@ -593,7 +550,6 @@ mod tests {
     #[test]
     fn test_detect_driver_returns_nvidia_not_unknown() {
         let driver = GpuCollector::detect_driver(Path::new("/sys/class/drm/fake"));
-        // For non-existent paths, detect_driver returns "unknown" — that's expected.
         assert!(!driver.is_empty());
     }
 
@@ -602,7 +558,6 @@ mod tests {
         let collector = GpuCollector::new();
         let cards = collector.enumerate_gpus();
 
-        // Every returned card must have a valid name pattern.
         for card in &cards {
             assert!(
                 card.device_id.starts_with("card"),
@@ -612,7 +567,6 @@ mod tests {
             assert!(!card.driver_name.is_empty(), "Driver should not be empty");
         }
 
-        // On this system, we expect at least one GPU.
         if !cards.is_empty() {
             println!("Enumerated GPUs: {:?}", cards);
         }
@@ -710,7 +664,6 @@ mod enumerate_tests {
         let base = tempfile::tempdir().unwrap();
         let base_path = base.path();
 
-        // Create device/ dirs for all so only name-based filtering applies
         for name in [
             "card0",
             "card1-HDMI-A-1",
@@ -721,7 +674,6 @@ mod enumerate_tests {
             fs::create_dir_all(base_path.join(name).join("device")).unwrap();
         }
 
-        // Valid cards
         assert!(GpuCollector::is_valid_gpu_card(
             "card0",
             &base_path.join("card0")
@@ -731,40 +683,33 @@ mod enumerate_tests {
             &base_path.join("card42")
         ));
 
-        // Connector entries: have hyphen after cardN
         assert!(!GpuCollector::is_valid_gpu_card(
             "card1-HDMI-A-1",
             &base_path.join("card1-HDMI-A-1")
         ));
 
-        // Render nodes don't start with "card"
         assert!(!GpuCollector::is_valid_gpu_card(
             "renderD128",
             &base_path.join("renderD128")
         ));
 
-        // Doesn't match cardN pattern at all
         assert!(!GpuCollector::is_valid_gpu_card(
             "drm-card-amdgpu-dce",
             &base_path.join("drm-card-amdgpu-dce")
         ));
 
-        // Missing device/ subdir → false
         let no_device = base.path().join("card99");
         fs::create_dir_all(&no_device).ok();
         assert!(!GpuCollector::is_valid_gpu_card("card99", &no_device));
 
-        // Edge cases: "card" alone (no digits) → false
         let card_no_num = base.path().join("card");
         fs::create_dir_all(card_no_num.join("device")).ok();
         assert!(!GpuCollector::is_valid_gpu_card("card", &card_no_num));
 
-        // Edge case: letters after digits → false
         let card_letter = base.path().join("card0x");
         fs::create_dir_all(card_letter.join("device")).ok();
         assert!(!GpuCollector::is_valid_gpu_card("card0x", &card_letter));
 
-        // Edge case: empty string → false
         let empty = base.path().join("");
         fs::create_dir_all(empty.join("device")).ok();
         assert!(!GpuCollector::is_valid_gpu_card("", &empty));

@@ -111,11 +111,11 @@ GPU monitoring is optional; rouser operates fully without any GPU. When GPUs are
 
 | Vendor | Driver / Data Source | Notes |
 |--------|---------------------|-------|
-| NVIDIA | Proprietary driver with `nvidia-smi` binary (from driver package) | Per-GPU utilization via subprocess query (`--query-gpu=index,utilization.gpu`) |
+| NVIDIA | Proprietary driver with NVML library (`libnvidia-ml.so`) | Per-GPU utilization via NVML API (same approach as nvtop) |
 | AMD    | Open-source `amdgpu` kernel module | Sysfs path `/sys/class/drm/cardN/device/gpu_busy_percent` |
 | Intel  | `i915` or `xe` kernel module | Same sysfs path as AMD; driver detected via `device/driver` symlink target |
 
-No NVML library binding is used — rouser calls the `nvidia-smi` binary shipped with NVIDIA drivers. AMD and Intel GPUs require no external binaries beyond standard kernel interfaces.
+NVIDIA GPU monitoring uses the NVML library (`libnvidia-ml.so`) loaded dynamically at runtime — no separate binary required. The NVML library is included with NVIDIA proprietary drivers and is also used by tools like `nvidia-smi` and nvtop. AMD and Intel GPUs require no external binaries beyond standard kernel interfaces.
 
 ## Performance Characteristics
 

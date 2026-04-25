@@ -118,7 +118,7 @@ mode = "block"
 
 ### `[metrics.gpu]` — GPU Usage Threshold
 
-Per-device GPU collection (NVIDIA via `nvidia-smi`, AMD/Intel via sysfs). Each detected GPU is compared independently against this threshold.
+Per-device GPU collection (NVIDIA via NVML, AMD/Intel via sysfs). Each detected GPU is compared independently against this threshold.
 
 | Key | Type | Default (0–100) | Description |
 |-----|------|-----------------|-------------|

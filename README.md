@@ -73,7 +73,7 @@ The installer will:
 
 - Rust 1.70+ (for source builds)
 - Systemd with D-Bus (login1 API, typically available on any modern distro)
-- Optional: NVIDIA drivers with `nvidia-smi` for GPU monitoring
+- Optional: NVIDIA drivers with NVML library (`libnvidia-ml.so`) for GPU monitoring
 - Linux kernel with `/sys/class/drm` for AMD/Intel GPU monitoring
 
 ## Quick Start
@@ -332,7 +332,7 @@ journalctl --user -u rouser -f
 ### Metrics Collection
 
 - **CPU**: `/proc/stat` (system-wide)
-- **GPU**: `nvidia-smi` (NVIDIA) or `/sys/class/drm/device/gpu_busy_percent` (AMD/Intel)
+- **GPU**: NVML library (`libnvidia-ml.so`) for NVIDIA, `/sys/class/drm/device/gpu_busy_percent` for AMD/Intel
 - **Network**: `/proc/net/dev`
 - **Disk**: `/proc/diskstats`
 
