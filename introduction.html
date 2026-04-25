@@ -1599,8 +1599,8 @@
 <tbody>
 <tr>
 <td>NVIDIA</td>
-<td>Proprietary driver with <code>nvidia-smi</code> binary (from driver package)</td>
-<td>Per-GPU utilization via subprocess query (<code>--query-gpu=index,utilization.gpu</code>)</td>
+<td>Proprietary driver with NVML library (<code>libnvidia-ml.so</code>)</td>
+<td>Per-GPU utilization via NVML API (same approach as nvtop)</td>
 </tr>
 <tr>
 <td>AMD</td>
@@ -1614,7 +1614,7 @@
 </tr>
 </tbody>
 </table>
-<p>No NVML library binding is used — rouser calls the <code>nvidia-smi</code> binary shipped with NVIDIA drivers. AMD and Intel GPUs require no external binaries beyond standard kernel interfaces.</p>
+<p>NVIDIA GPU monitoring uses the NVML library (<code>libnvidia-ml.so</code>) loaded dynamically at runtime — no separate binary required. The NVML library is included with NVIDIA proprietary drivers and is also used by tools like <code>nvidia-smi</code> and nvtop. AMD and Intel GPUs require no external binaries beyond standard kernel interfaces.</p>
 <h2 id="performance-characteristics">Performance Characteristics</h2>
 <h3 id="resource-usage-typical">Resource Usage (Typical)</h3>
 <table>

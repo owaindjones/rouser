@@ -660,10 +660,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#missing-external-tools-non-fatal" class="md-nav__link">
+  <a href="#missing-gpu-libraries-non-fatal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Missing External Tools (non-fatal)
+        Missing GPU Libraries (non-fatal)
       
     </span>
   </a>
@@ -1166,10 +1166,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#missing-external-tools-non-fatal" class="md-nav__link">
+  <a href="#missing-gpu-libraries-non-fatal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Missing External Tools (non-fatal)
+        Missing GPU Libraries (non-fatal)
       
     </span>
   </a>
@@ -1460,7 +1460,7 @@ RUST_LOG=rouser::metrics=debug,rouser::service=warn rouser --dry-run
 <p>By default, rouser logs to stdout. Log format includes level, timestamp, and target module:</p>
 <pre><code class="language-bash">rouser -l debug --dry-run
 # Sample output:
-# 2026-04-24T10:00:00.123Z INFO  rouser::service [service.rs:45] Tick 1: CPU=45.2%, GPU0(nvidia)=92.1%, net=12.3Mbps, disk=0.5MB/s
+# 2026-04-24T10:00:00.123Z INFO  rouser::service [service.rs:45] Tick 1: CPU=45.2%, card0(nvidia)=92.1%, net=12.3Mbps, disk=0.5MB/s
 # 2026-04-24T10:00:00.124Z INFO  rouser::inhibit [inhibit.rs:78] Sleep inhibited: GPU at 92% (threshold: 90%)
 </code></pre>
 <h3 id="journalctl-systemd-user-service">Journalctl (systemd user service)</h3>
@@ -1478,8 +1478,8 @@ RUST_LOG=rouser::metrics=debug,rouser::service=warn rouser --dry-run
 <pre><code class="language-bash">rouser --dry-run -l debug
 # Output includes: No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
 </code></pre>
-<h3 id="missing-external-tools-non-fatal">Missing External Tools (non-fatal)</h3>
-<p>When <code>nvidia-smi</code> is not available but NVIDIA hardware exists in sysfs, rouser logs a warning and continues with other metrics. No error exit occurs — the daemon degrades gracefully.</p>
+<h3 id="missing-gpu-libraries-non-fatal">Missing GPU Libraries (non-fatal)</h3>
+<p>When NVML (<code>libnvidia-ml.so</code>) is not available but NVIDIA hardware exists in sysfs, rouser logs a warning and continues with other metrics. No error exit occurs — the daemon degrades gracefully.</p>
 <h2 id="argument-precedence-for-config-resolution">Argument Precedence for Config Resolution</h2>
 <p>Config path resolution follows this order (highest to lowest):</p>
 <ol>

@@ -1963,9 +1963,9 @@
 </tr>
 <tr>
 <td><strong>GPU Usage</strong></td>
-<td><code>nvidia-smi</code> or <code>/sys/class/drm/</code></td>
+<td>NVML (<code>libnvidia-ml.so</code>) or <code>/sys/class/drm/</code></td>
 <td>Configurable (default: 5s)</td>
-<td>GPU utilization percentage</td>
+<td>GPU utilization percentage per device</td>
 </tr>
 <tr>
 <td><strong>Network I/O</strong></td>
@@ -2102,25 +2102,22 @@ impl CpuCollector {
 <h3 id="data-sources-by-gpu-type">Data Sources by GPU Type</h3>
 <p>rouser supports multiple GPU vendors with different data sources.</p>
 <h4 id="nvidia-gpus">NVIDIA GPUs</h4>
-<p><strong>Primary Source</strong>: <code>nvidia-smi</code> command-line tool</p>
-<pre><code class="language-bash"># Query all GPUs
-nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits
-
-# Sample output:
-# 95%
-# 78%
+<p><strong>Primary Source</strong>: NVML library (<code>libnvidia-ml.so</code>) — the same API used by <code>nvidia-smi</code> and <a href="https://github.com/Syllo/nvtop">nvtop</a></p>
+<pre><code class="language-bash"># NVML is loaded dynamically from the NVIDIA driver package
+# No separate binary required — accessed via libnvidia-ml.so.1
+ldconfig -p | grep libnvidia-ml
 </code></pre>
 <p><strong>Implementation</strong>:
-- Runs <code>nvidia-smi</code> command and parses output
-- Extracts percentage values from each GPU
-- Calculates average across all detected GPUs
-- Falls back to 0% if <code>nvidia-smi</code> unavailable</p>
+- Dynamically loads <code>libnvidia-ml.so</code> at runtime (graceful fallback if unavailable)
+- Enumerates GPUs by index, matches to sysfs cards via PCI bus ID
+- Uses <code>nvmlDeviceGetUtilizationRates()</code> for per-GPU compute utilization
+- Falls back to 0% if NVML is unavailable or GPU not supported</p>
 <h4 id="amdintel-gpus">AMD/Intel GPUs</h4>
 <p><strong>Primary Source</strong>: <code>/sys/class/drm/cardX/device/gpu_busy_percent</code></p>
 <pre><code class="language-bash"># Check GPU usage (if available)
 cat /sys/class/drm/card0/device/gpu_busy_percent
 
-# Or use rocm-smi tool (similar to nvidia-smi)
+# AMD: rocm-smi provides similar data via ROCm tools
 rocm-smi --showgpuutilization
 </code></pre>
 <p><strong>Requirements</strong>:
@@ -2130,11 +2127,11 @@ rocm-smi --showgpuutilization
 <p><strong>Implementation</strong>:
 - Scans <code>/sys/class/drm/</code> directory for GPU devices
 - Reads <code>gpu_busy_percent</code> from each device
-- Calculates average across all detected GPUs
+- Reports per-device utilization independently (no averaging)
 - Falls back to 0% if no GPUs detected</p>
 <h3 id="aggregation-strategy-per-device-reporting-over-averaging">Aggregation Strategy — Per-Device Reporting Over Averaging</h3>
 <p>rouser reports each physical GPU <strong>individually</strong> rather than aggregating across devices. Each detected GPU is compared independently against the configured threshold:</p>
-<pre><code>GPU0(nvidia): 95%   ← above 90% threshold → inhibits sleep
+<pre><code>card0(nvidia): 95%   ← above 90% threshold → inhibits sleep
 card1(amdgpu): 78%  ← below 90% threshold → does not inhibit alone
 </code></pre>
 <p>A single GPU exceeding its threshold triggers inhibition regardless of other GPUs' states. This provides accurate per-GPU logging and prevents one low-usage card from masking a high-usage card's activity.</p>
@@ -2367,7 +2364,7 @@ error!(&quot;No disk devices available&quot;);
 <tr>
 <td>GPU</td>
 <td>~1 KB</td>
-<td>Low (nvidia-smi spawn)</td>
+<td>Very low (NVML library call, no subprocess)</td>
 <td>None</td>
 </tr>
 <tr>

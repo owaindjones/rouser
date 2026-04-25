@@ -1868,7 +1868,7 @@ impl Service {
 <p>Modular collectors for different system metrics:</p>
 <ul>
 <li><code>cpu.rs</code> - CPU usage from <code>/proc/stat</code></li>
-<li><code>gpu.rs</code> - GPU usage from <code>nvidia-smi</code> or sysfs</li>
+<li><code>gpu.rs</code> - GPU utilization via NVML (NVIDIA) or sysfs (AMD/Intel)</li>
 <li><code>network.rs</code> - Network I/O from <code>/proc/net/dev</code></li>
 <li><code>disk.rs</code> - Disk activity from <code>/proc/diskstats</code></li>
 </ul>
