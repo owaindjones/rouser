@@ -1,0 +1,2653 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="security.html">
+      
+      
+        <link rel="next" href="ci-workflow.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Developer Guide - rouser</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#developer-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="rouser" class="md-header__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rouser
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Developer Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="rouser" class="md-nav__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rouser
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="configuration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systemd-user-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systemd User Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metrics-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="averaging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Averaging & EMA Smoothing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="d-bus-inhibition.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D-Bus Inhibition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="developer-guide.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-level-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-Level Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#config-loader-srcconfigrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config Loader (src/config.rs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#core-logic-srcservicers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Logic (src/service.rs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metric-collectors-srcmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metric Collectors (src/metrics/)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#threshold-manager-srcservicers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threshold Manager (src/service.rs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhibitor-srcinhibitrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibitor (src/inhibit.rs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Project Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-new-metrics-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding New Metrics Modules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding New Metrics Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-create-the-collector-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Create the Collector Module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-add-to-module-exports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Add to Module Exports
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-update-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Update Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-update-core-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Update Core Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-update-threshold-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Update Threshold Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementing-new-inhibitor-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementing New Inhibitor Modules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementing New Inhibitor Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-define-the-inhibitor-trait" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Define the Inhibitor Trait
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-implement-a-new-inhibitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Implement a New Inhibitor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-update-configuration_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Update Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-factory-pattern-for-inhibitors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Factory Pattern for Inhibitors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coding-standards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coding Standards
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Coding Standards">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#code-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Style
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Code Style">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formatting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#naming-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming Conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asyncawait" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async/Await
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-and-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build and Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build and Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#releasing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Contributing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Started
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pull-request-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pull Request Guidelines
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ci-workflow.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-level-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-Level Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#config-loader-srcconfigrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config Loader (src/config.rs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#core-logic-srcservicers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Logic (src/service.rs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metric-collectors-srcmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metric Collectors (src/metrics/)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#threshold-manager-srcservicers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threshold Manager (src/service.rs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhibitor-srcinhibitrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibitor (src/inhibit.rs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Project Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-new-metrics-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding New Metrics Modules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding New Metrics Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-create-the-collector-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Create the Collector Module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-add-to-module-exports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Add to Module Exports
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-update-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Update Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-update-core-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Update Core Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-update-threshold-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Update Threshold Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementing-new-inhibitor-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementing New Inhibitor Modules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementing New Inhibitor Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-define-the-inhibitor-trait" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Define the Inhibitor Trait
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-implement-a-new-inhibitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Implement a New Inhibitor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-update-configuration_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Update Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-factory-pattern-for-inhibitors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Factory Pattern for Inhibitors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coding-standards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coding Standards
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Coding Standards">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#code-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Style
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Code Style">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formatting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#naming-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming Conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asyncawait" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async/Await
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-and-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build and Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build and Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#releasing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Contributing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Started
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pull-request-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pull Request Guidelines
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="developer-guide">Developer Guide</h1>
+<p>This guide covers architecture, extending rouser, and coding standards for contributors.</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#architecture-overview">Architecture Overview</a></li>
+<li><a href="#project-structure">Project Structure</a></li>
+<li><a href="#adding-new-metrics-modules">Adding New Metrics Modules</a></li>
+<li><a href="#implementing-new-inhibitor-modules">Implementing New Inhibitor Modules</a></li>
+<li><a href="#testing">Testing</a></li>
+<li><a href="#coding-standards">Coding Standards</a></li>
+<li><a href="#build-and-release">Build and Release</a></li>
+</ol>
+<h2 id="architecture-overview">Architecture Overview</h2>
+<h3 id="high-level-architecture">High-Level Architecture</h3>
+<pre><code>┌──────────────┐    ┌───────────┐    ┌───────────┐
+│ Config       │───▶│ Core      │◀───│ Metrics   │
+│ Loader       │    │ Logic     │    │ Collectors│
+└──────────────┘    └─────┬─────┘    └───────────┘
+                          │
+                     ┌────▼────┐
+                     │Threshold│
+                     │Manager  │
+                     └────┬────┘
+                          │
+                     ┌────▼────┐
+                     │Inhibitor│
+                     └────┬────┘
+                          │
+                     org.freedesktop.login1
+</code></pre>
+<h3 id="core-components">Core Components</h3>
+<h4 id="config-loader-srcconfigrs">Config Loader (<code>src/config.rs</code>)</h4>
+<p>Parses and validates TOML configuration:</p>
+<ul>
+<li>Reads configuration from file</li>
+<li>Applies environment variable overrides</li>
+<li>Validates all values against constraints</li>
+<li>Returns immutable <code>Config</code> struct</li>
+</ul>
+<pre><code class="language-rust">pub struct Config {
+    pub daemon: DaemonConfig,
+    pub thresholds: ThresholdsConfig,
+    pub timing: TimingConfig,
+    pub inhibition: InhibitionConfig,
+    // ... other sections
+}
+</code></pre>
+<h4 id="core-logic-srcservicers">Core Logic (<code>src/service.rs</code>)</h4>
+<p>Main event loop coordinating all components:</p>
+<ul>
+<li>Initializes metric collectors</li>
+<li>Runs periodic metric collection</li>
+<li>Checks thresholds and updates inhibition state</li>
+<li>Handles errors gracefully</li>
+</ul>
+<pre><code class="language-rust">pub struct Service {
+    config: Config,
+    cpu_collector: CpuCollector,
+    gpu_collector: GpuCollector,
+    network_collector: NetworkCollector,
+    disk_collector: DiskCollector,
+    threshold_manager: ThresholdManager,
+    inhibitor: Option&lt;Login1Inhibitor&gt;,
+}
+
+impl Service {
+    pub async fn run(&amp;mut self) -&gt; Result&lt;()&gt; {
+        loop {
+            let metrics = self.collect_all_metrics().await;
+            let should_inhibit = self.threshold_manager.check(&amp;metrics);
+            self.update_inhibition_state(should_inhibit).await?;
+        }
+    }
+}
+</code></pre>
+<h4 id="metric-collectors-srcmetrics">Metric Collectors (<code>src/metrics/</code>)</h4>
+<p>Modular collectors for different system metrics:</p>
+<ul>
+<li><code>cpu.rs</code> - CPU usage from <code>/proc/stat</code></li>
+<li><code>gpu.rs</code> - GPU usage from <code>nvidia-smi</code> or sysfs</li>
+<li><code>network.rs</code> - Network I/O from <code>/proc/net/dev</code></li>
+<li><code>disk.rs</code> - Disk activity from <code>/proc/diskstats</code></li>
+</ul>
+<p>Each collector implements the <code>MetricCollector</code> trait:</p>
+<pre><code class="language-rust">pub trait MetricCollector: Send + Sync {
+    async fn collect(&amp;self) -&gt; Result&lt;f64&gt;;
+    fn name(&amp;self) -&gt; &amp;str;
+}
+</code></pre>
+<h4 id="threshold-manager-srcservicers">Threshold Manager (<code>src/service.rs</code>)</h4>
+<p>Tracks metrics over time and determines inhibition state:</p>
+<ul>
+<li>Maintains smoothing state for each metric</li>
+<li>Applies asymmetric EMA smoothing</li>
+<li>Tracks duration above/below thresholds</li>
+<li>Manages cooldown periods</li>
+</ul>
+<pre><code class="language-rust">pub struct ThresholdManager {
+    cpu_state: SmoothingState,
+    gpu_state: SmoothingState,
+    network_state: SmoothingState,
+    disk_state: SmoothingState,
+    // ... per-GPU states
+    duration_threshold: Duration,
+    cooldown_duration: Duration,
+}
+</code></pre>
+<h4 id="inhibitor-srcinhibitrs">Inhibitor (<code>src/inhibit.rs</code>)</h4>
+<p>Interfaces with systemd login1 D-Bus API:</p>
+<ul>
+<li>Acquires sleep inhibition lock</li>
+<li>Releases lock when dropped (RAII pattern)</li>
+<li>Tracks inhibition cookie for debugging</li>
+</ul>
+<pre><code class="language-rust">pub struct Login1Inhibitor {
+    fd: Option&lt;RawFd&gt;,
+    cookie: Option&lt;String&gt;,
+}
+
+impl Login1Inhibitor {
+    pub async fn acquire(what: &amp;str, mode: &amp;str) -&gt; Result&lt;Self&gt; {
+        // Call org.freedesktop.login1.Manager.Inhibit
+    }
+}
+
+impl Drop for Login1Inhibitor {
+    fn drop(&amp;mut self) {
+        // Close fd to release inhibition
+    }
+}
+</code></pre>
+<h2 id="project-structure">Project Structure</h2>
+<pre><code>rouser/
+├── Cargo.toml              # Project manifest and dependencies
+├── README.md               # Project overview
+├── docs/                   # Documentation (this file)
+│   ├── introduction.md
+│   ├── quickstart.md
+│   ├── configuration.md
+│   ├── command-line.md
+│   ├── systemd-user-service.md
+│   ├── metrics-overview.md
+│   ├── averaging.md
+│   └── developer-guide.md
+├── etc/                    # Example configuration files
+│   └── rouser/
+│       └── config.toml.example
+├── src/
+│   ├── main.rs             # Entry point
+│   ├── config.rs           # Configuration parsing
+│   ├── service.rs          # Core service logic
+│   ├── inhibit.rs          # D-Bus inhibition
+│   └── metrics/            # Metric collectors
+│       ├── mod.rs          # Module exports
+│       ├── cpu.rs          # CPU metrics
+│       ├── gpu.rs          # GPU metrics
+│       ├── network.rs      # Network metrics
+│       └── disk.rs         # Disk metrics
+└── tests/                  # Integration tests (if any)
+</code></pre>
+<h3 id="key-files">Key Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/main.rs</code></td>
+<td>Application entry point, CLI parsing</td>
+</tr>
+<tr>
+<td><code>src/config.rs</code></td>
+<td>TOML configuration loading and validation</td>
+</tr>
+<tr>
+<td><code>src/service.rs</code></td>
+<td>Main service loop, threshold management</td>
+</tr>
+<tr>
+<td><code>src/inhibit.rs</code></td>
+<td>D-Bus inhibition implementation</td>
+</tr>
+<tr>
+<td><code>src/metrics/mod.rs</code></td>
+<td>Metric collector trait and exports</td>
+</tr>
+<tr>
+<td><code>src/metrics/*.rs</code></td>
+<td>Individual metric collectors</td>
+</tr>
+</tbody>
+</table>
+<h2 id="adding-new-metrics-modules">Adding New Metrics Modules</h2>
+<h3 id="step-1-create-the-collector-module">Step 1: Create the Collector Module</h3>
+<p>Create a new file in <code>src/metrics/</code>:</p>
+<pre><code class="language-rust">// src/metrics/memory.rs
+use crate::config::Config;
+use anyhow::Result;
+
+pub struct MemoryCollector {
+    // Configuration if needed
+}
+
+impl MemoryCollector {
+    pub fn new(_config: &amp;Config) -&gt; Self {
+        Self {}
+    }
+}
+
+#[async_trait::async_trait]
+impl super::MetricCollector for MemoryCollector {
+    async fn collect(&amp;self) -&gt; Result&lt;f64&gt; {
+        // Read from /proc/meminfo or other source
+        let content = tokio::fs::read_to_string(&quot;/proc/meminfo&quot;).await?;
+
+        // Parse memory values
+        let total = parse_meminfo_value(&amp;content, &quot;MemTotal:&quot;);
+        let available = parse_meminfo_value(&amp;content, &quot;MemAvailable:&quot;);
+
+        // Calculate usage percentage
+        if total &gt; 0 {
+            let used = total - available;
+            Ok((used as f64 / total as f64) * 100.0)
+        } else {
+            Ok(0.0)
+        }
+    }
+
+    fn name(&amp;self) -&gt; &amp;str {
+        &quot;memory&quot;
+    }
+}
+
+fn parse_meminfo_value(content: &amp;str, key: &amp;str) -&gt; u64 {
+    content
+        .lines()
+        .find(|line| line.starts_with(key))
+        .and_then(|line| {
+            line.split_whitespace()
+                .nth(1)
+                .and_then(|v| v.parse().ok())
+        })
+        .unwrap_or(0)
+}
+</code></pre>
+<h3 id="step-2-add-to-module-exports">Step 2: Add to Module Exports</h3>
+<p>Update <code>src/metrics/mod.rs</code>:</p>
+<pre><code class="language-rust">pub mod cpu;
+pub mod gpu;
+pub mod network;
+pub mod disk;
+pub mod memory;  // New module
+
+pub use cpu::CpuCollector;
+pub use gpu::GpuCollector;
+pub use network::NetworkCollector;
+pub use disk::DiskCollector;
+pub use memory::MemoryCollector;
+
+pub trait MetricCollector: Send + Sync {
+    async fn collect(&amp;self) -&gt; Result&lt;f64&gt;;
+    fn name(&amp;self) -&gt; &amp;str;
+}
+</code></pre>
+<h3 id="step-3-update-configuration">Step 3: Update Configuration</h3>
+<p>Add threshold configuration in <code>src/config.rs</code>:</p>
+<pre><code class="language-rust">#[derive(Debug, Deserialize)]
+pub struct ThresholdsConfig {
+    pub cpu_usage: f64,
+    pub gpu_usage: f64,
+    pub network_io: f64,
+    pub disk_activity: f64,
+    pub memory_usage: Option&lt;f64&gt;,  // Optional new metric
+}
+</code></pre>
+<h3 id="step-4-update-core-service">Step 4: Update Core Service</h3>
+<p>Add collector to <code>Service</code> in <code>src/service.rs</code>:</p>
+<pre><code class="language-rust">pub struct Service {
+    // ... existing fields
+    memory_collector: Option&lt;MemoryCollector&gt;,  // New field
+}
+
+impl Service {
+    pub fn new(config: Config) -&gt; Result&lt;Self&gt; {
+        Ok(Self {
+            // ... existing initializers
+            memory_collector: config.thresholds.memory_usage.map(|_| {
+                MemoryCollector::new(&amp;config)
+            }),
+        })
+    }
+
+    async fn collect_all_metrics(&amp;self) -&gt; Metrics {
+        let metrics = Metrics {
+            cpu: self.cpu_collector.collect().await,
+            gpu: self.gpu_collector.collect().await,
+            network: self.network_collector.collect().await,
+            disk: self.disk_collector.collect().await,
+            memory: self.memory_collector.as_ref()
+                .map(|c| futures::poll!(c.collect()))
+                .flatten()
+                .unwrap_or(0.0),  // Fallback if collector unavailable
+        };
+
+        debug!(&quot;Collected metrics: {:?}&quot;, metrics);
+        metrics
+    }
+}
+</code></pre>
+<h3 id="step-5-update-threshold-manager">Step 5: Update Threshold Manager</h3>
+<p>Add smoothing state for the new metric:</p>
+<pre><code class="language-rust">pub struct ThresholdManager {
+    // ... existing fields
+    memory_state: Option&lt;SmoothingState&gt;,
+}
+
+impl ThresholdManager {
+    pub fn new(config: &amp;Config) -&gt; Self {
+        Self {
+            // ... existing initializers
+            memory_state: config.thresholds.memory_usage.map(|_| {
+                SmoothingState::new(config.thresholds.memory_ema_alpha.unwrap_or(0.1))
+            }),
+        }
+    }
+
+    pub fn check(&amp;self, config: &amp;Config) -&gt; bool {
+        // Check each metric against its threshold using smoothed values
+        let cpu_ok = self.check_metric(&amp;self.cpu_state, metrics.cpu.usage(), config.metrics.cpu.threshold);
+        let gpu_ok = self.gpu_states.iter().all(|state| {
+            self.check_metric(state, /* GPU value */, config.metrics.gpu.threshold)
+        });
+        // ... similar for network and disk
+        cpu_ok || gpu_ok || /* others */ false
+    }
+}
+</code></pre>
+<h2 id="implementing-new-inhibitor-modules">Implementing New Inhibitor Modules</h2>
+<h3 id="step-1-define-the-inhibitor-trait">Step 1: Define the Inhibitor Trait</h3>
+<p>Create a trait for inhibitor implementations:</p>
+<pre><code class="language-rust">// src/inhibit.rs
+
+pub trait SleepInhibitor: Send + Sync {
+    /// Acquire the inhibition lock
+    async fn acquire(&amp;mut self, what: &amp;str, description: &amp;str) -&gt; Result&lt;()&gt;;
+
+    /// Release the inhibition lock
+    async fn release(&amp;mut self);
+
+    /// Check if currently inhibited
+    fn is_inhibited(&amp;self) -&gt; bool;
+}
+</code></pre>
+<h3 id="step-2-implement-a-new-inhibitor">Step 2: Implement a New Inhibitor</h3>
+<p>Example: Custom inhibitor for a specific use case:</p>
+<pre><code class="language-rust">// src/inhibit/custom.rs
+use super::SleepInhibitor;
+use anyhow::Result;
+
+pub struct CustomInhibitor {
+    inhibited: bool,
+    cookie: Option&lt;String&gt;,
+}
+
+impl CustomInhibitor {
+    pub fn new() -&gt; Self {
+        Self {
+            inhibited: false,
+            cookie: None,
+        }
+    }
+}
+
+impl Default for CustomInhibitor {
+    fn default() -&gt; Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl SleepInhibitor for CustomInhibitor {
+    async fn acquire(&amp;mut self, what: &amp;str, description: &amp;str) -&gt; Result&lt;()&gt; {
+        // Custom inhibition logic here
+        // Could write to a file, make HTTP request, etc.
+
+        self.inhibited = true;
+        self.cookie = Some(format!(&quot;custom-{}&quot;, Uuid::new_v4()));
+
+        info!(&quot;Acquired custom inhibition: {} - {}&quot;, what, description);
+        Ok(())
+    }
+
+    async fn release(&amp;mut self) {
+        if self.inhibited {
+            info!(&quot;Released custom inhibition: {}&quot;, self.cookie.as_ref().unwrap());
+            self.inhibited = false;
+            self.cookie = None;
+        }
+    }
+
+    fn is_inhibited(&amp;self) -&gt; bool {
+        self.inhibited
+    }
+}
+</code></pre>
+<h3 id="step-3-update-configuration_1">Step 3: Update Configuration</h3>
+<p>Add inhibitor selection to config:</p>
+<pre><code class="language-rust">#[derive(Debug, Deserialize)]
+pub struct InhibitionConfig {
+    #[serde(default = &quot;default_inhibitor_type&quot;)]
+    pub inhibitor_type: String,  // &quot;login1&quot;, &quot;custom&quot;, etc.
+
+    #[serde(default = &quot;default_what&quot;)]
+    pub what: String,
+
+    #[serde(default = &quot;default_mode&quot;)]
+    pub mode: String,
+}
+
+fn default_inhibitor_type() -&gt; String {
+    &quot;login1&quot;.to_string()
+}
+</code></pre>
+<h3 id="step-4-factory-pattern-for-inhibitors">Step 4: Factory Pattern for Inhibitors</h3>
+<p>Create a factory to instantiate inhibitors:</p>
+<pre><code class="language-rust">// src/inhibit.rs
+
+pub enum InhibitorType {
+    Login1,
+    Custom,
+}
+
+impl SleepInhibitorFactory {
+    pub fn create(config: &amp;InhibitionConfig) -&gt; Result&lt;Box&lt;dyn SleepInhibitor&gt;&gt; {
+        match config.inhibitor_type.as_str() {
+            &quot;login1&quot; =&gt; Ok(Box::new(Login1Inhibitor::new())),
+            &quot;custom&quot; =&gt; Ok(Box::new(CustomInhibitor::new())),
+            other =&gt; Err(anyhow!(&quot;Unknown inhibitor type: {}&quot;, other)),
+        }
+    }
+}
+</code></pre>
+<h2 id="testing">Testing</h2>
+<h3 id="unit-tests">Unit Tests</h3>
+<p>Write unit tests for individual components:</p>
+<pre><code class="language-rust">#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ema_smoothing_rising() {
+        let mut state = SmoothingState::new(0.1);
+
+        // Rising edge should respond quickly
+        let result = state.update(20.0);  // Initial
+        assert!((result - 20.0).abs() &lt; 0.01);
+
+        let result = state.update(100.0);  // Spike
+        assert!((result - 36.0).abs() &lt; 0.1);  // Should be ~36% (fast response)
+    }
+
+    #[test]
+    fn test_ema_smoothing_falling() {
+        let mut state = SmoothingState::new(0.1);
+
+        // Start at high value
+        for _ in 0..10 {
+            state.update(100.0);
+        }
+
+        // Falling edge should be slow
+        let result = state.update(20.0);
+        assert!(result &gt; 90.0);  // Should still be high
+    }
+
+    #[test]
+    fn test_threshold_manager_duration() {
+        let config = Config::default();
+        let mut manager = ThresholdManager::new(&amp;config);
+
+        // Feed values above threshold
+        for _ in 0..6 {  // 6 samples at 5s = 30s
+            manager.update_cpu(85.0);  // Above 80% threshold
+        }
+
+        assert!(manager.should_inhibit());
+    }
+}
+</code></pre>
+<h3 id="integration-tests">Integration Tests</h3>
+<p>Test the full service loop:</p>
+<pre><code class="language-rust">#[cfg(test)]
+mod integration_tests {
+    use tokio::time::{timeout, Duration};
+
+    #[tokio::test]
+    async fn test_service_runs() {
+        let config = Config {
+            daemon: DaemonConfig {
+                update_interval: Duration::from_millis(100),  // Fast for testing
+                ..Default::default()
+            },
+            metrics: MetricsConfig {
+                cpu: CpuConfig { threshold: 50.0, ..Default::default() },
+                gpu: GpuConfig::default(),
+                network: NetworkConfig::default(),
+                disk: DiskConfig::default(),
+            },
+            timing: TimingConfig {
+                duration_threshold: Duration::from_millis(200),
+                cooldown_duration: Duration::from_millis(100),
+            },
+            inhibition: InhibitionConfig {
+                what: &quot;sleep&quot;.to_string(),
+                mode: &quot;block&quot;.to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut service = Service::new(config).unwrap();
+
+        // Run for a short time with timeout
+        let result = timeout(
+            Duration::from_secs(5),
+            service.run()
+        ).await;
+
+        assert!(result.is_ok());
+    }
+}
+</code></pre>
+<h3 id="running-tests">Running Tests</h3>
+<pre><code class="language-bash"># Run all tests
+cargo test
+
+# Run specific test
+cargo test test_ema_smoothing_rising
+
+# Run with output
+cargo test -- --nocapture
+
+# Run integration tests only
+cargo test --test '*'
+</code></pre>
+<h2 id="coding-standards">Coding Standards</h2>
+<h3 id="code-style">Code Style</h3>
+<p>rouser follows Rust's official style guidelines with minor additions:</p>
+<h4 id="formatting">Formatting</h4>
+<pre><code class="language-bash"># Format code
+cargo fmt
+
+# Check formatting
+cargo fmt --check
+</code></pre>
+<h4 id="linting">Linting</h4>
+<pre><code class="language-bash"># Run clippy
+cargo clippy -- -D warnings
+
+# Fix auto-fixable warnings
+cargo clippy --fix
+</code></pre>
+<h3 id="naming-conventions">Naming Conventions</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Convention</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Structs</td>
+<td>PascalCase</td>
+<td><code>ThresholdManager</code>, <code>CpuCollector</code></td>
+</tr>
+<tr>
+<td>Types/Traits</td>
+<td>PascalCase</td>
+<td><code>MetricCollector</code>, <code>InhibitorType</code></td>
+</tr>
+<tr>
+<td>Functions</td>
+<td>snake_case</td>
+<td><code>collect_cpu_usage</code>, <code>should_inhibit</code></td>
+</tr>
+<tr>
+<td>Variables</td>
+<td>snake_case</td>
+<td><code>cpu_usage</code>, <code>duration_threshold</code></td>
+</tr>
+<tr>
+<td>Constants</td>
+<td>SCREAMING_SNAKE_CASE</td>
+<td><code>DEFAULT_ALPHA</code>, <code>MAX_RETRIES</code></td>
+</tr>
+<tr>
+<td>Modules</td>
+<td>snake_case</td>
+<td><code>threshold_manager</code>, <code>sleep_inhibitor</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="error-handling">Error Handling</h3>
+<p>Use <code>anyhow::Result</code> for error handling:</p>
+<pre><code class="language-rust">use anyhow::{Context, Result};
+
+fn parse_config(path: &amp;Path) -&gt; Result&lt;Config&gt; {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!(&quot;Failed to read config: {}&quot;, path.display()))?;
+
+    let config: Config = toml::from_str(&amp;content)
+        .context(&quot;Failed to parse TOML&quot;)?;
+
+    Ok(config)
+}
+</code></pre>
+<p>Use <code>thiserror</code> for custom error types:</p>
+<pre><code class="language-rust">use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum GpuError {
+    #[error(&quot;NVIDIA drivers not installed&quot;)]
+    NvidiaNotAvailable,
+
+    #[error(&quot;AMD/Intel sysfs not available&quot;)]
+    SysfsNotAvailable,
+
+    #[error(&quot;Failed to parse GPU usage: {0}&quot;)]
+    ParseError(String),
+}
+</code></pre>
+<h3 id="asyncawait">Async/Await</h3>
+<p>Use <code>async</code>/<code>await</code> for I/O operations:</p>
+<pre><code class="language-rust">// Good: Proper async/await usage
+pub async fn collect_metrics(&amp;self) -&gt; Result&lt;f64&gt; {
+    let content = tokio::fs::read_to_string(&quot;/proc/stat&quot;).await?;
+    Ok(parse_cpu_usage(&amp;content))
+}
+
+// Bad: Blocking in async context
+pub async fn collect_metrics_bad(&amp;self) -&gt; Result&lt;f64&gt; {
+    let content = std::fs::read_to_string(&quot;/proc/stat&quot;)?;  // Blocks!
+    Ok(parse_cpu_usage(&amp;content))
+}
+</code></pre>
+<p>Use <code>tokio::spawn</code> for parallel operations:</p>
+<pre><code class="language-rust">let (cpu, gpu) = tokio::join!(
+    cpu_collector.collect(),
+    gpu_collector.collect()
+);
+</code></pre>
+<h3 id="logging">Logging</h3>
+<p>Use the <code>tracing</code> crate for logging:</p>
+<pre><code class="language-rust">use tracing::{debug, info, warn, error};
+
+pub fn process_metrics(metrics: &amp;Metrics) {
+    debug!(&quot;Collected metrics: {:?}&quot;, metrics);
+
+    if metrics.cpu &gt; 90.0 {
+        warn!(&quot;High CPU usage: {:.1}%&quot;, metrics.cpu);
+    }
+
+    if should_inhibit {
+        info!(&quot;Inhibiting sleep due to high activity&quot;);
+    }
+
+    if error_occurred {
+        error!(&quot;Failed to collect GPU metrics: {}&quot;, error);
+    }
+}
+</code></pre>
+<h3 id="documentation">Documentation</h3>
+<p>Document public APIs:</p>
+<pre><code class="language-rust">/// CPU usage collector from /proc/stat
+pub struct CpuCollector {
+    last_stats: Option&lt;CpuStats&gt;,
+}
+
+impl CpuCollector {
+    /// Create a new CPU collector
+    pub fn new() -&gt; Self {
+        Self { last_stats: None }
+    }
+
+    /// Collect current CPU usage percentage (0-100)
+    /// 
+    /// # Returns
+    /// 
+    /// CPU usage as a percentage (0.0 to 100.0)
+    pub async fn collect(&amp;self) -&gt; Result&lt;f64&gt; {
+        // ... implementation
+    }
+}
+</code></pre>
+<h3 id="tests">Tests</h3>
+<p>Write tests for all public functions:</p>
+<pre><code class="language-rust">#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_input() {
+        // Test happy path
+    }
+
+    #[test]
+    fn test_edge_cases() {
+        // Test boundary values
+    }
+
+    #[test]
+    fn test_error_handling() {
+        // Test error cases
+    }
+}
+</code></pre>
+<h2 id="build-and-release">Build and Release</h2>
+<h3 id="building">Building</h3>
+<pre><code class="language-bash"># Debug build (default)
+cargo build
+
+# Release build
+cargo build --release
+
+# Cross-compile for Linux musl
+rustup target add x86_64-unknown-linux-musl
+cargo build --target x86_64-unknown-linux-musl --release
+</code></pre>
+<h3 id="running">Running</h3>
+<pre><code class="language-bash"># Run with default config
+cargo run
+
+# Run with custom config
+cargo run -- --config /path/to/config.toml
+
+# Dry run mode
+cargo run -- --dry-run --duration 60s
+
+# Validate config
+cargo run -- --validate-config /etc/rouser/config.toml
+</code></pre>
+<h3 id="testing_1">Testing</h3>
+<pre><code class="language-bash"># Run all tests
+cargo test
+
+# Run with coverage (requires cargo-tarpaulin)
+cargo tarpaulin --out Html
+
+# Integration tests
+cargo test --test integration
+</code></pre>
+<h3 id="code-quality">Code Quality</h3>
+<pre><code class="language-bash"># Format code
+cargo fmt
+
+# Lint with clippy
+cargo clippy -- -D warnings
+
+# Check documentation
+cargo doc --open
+</code></pre>
+<h3 id="releasing">Releasing</h3>
+<ol>
+<li>Update version in <code>Cargo.toml</code></li>
+<li>Update <code>CHANGELOG.md</code> with changes</li>
+<li>Tag release: <code>git tag v0.1.0 &amp;&amp; git push --tags</code></li>
+<li>Build release binary:
+   <code>bash
+   cargo build --release</code></li>
+<li>Create tarball:
+   <code>bash
+   tar -czvf rouser-0.1.0-x86_64-unknown-linux-gnu.tar.gz \
+       target/release/rouser README.md LICENSE</code></li>
+<li>Upload to GitHub releases</li>
+</ol>
+<h2 id="contributing">Contributing</h2>
+<h3 id="getting-started">Getting Started</h3>
+<ol>
+<li>Fork the repository</li>
+<li>Clone locally: <code>git clone https://github.com/owaindjones/rouser.git</code></li>
+<li>Create a branch: <code>git checkout -b feature/your-feature</code></li>
+<li>Make changes and write tests</li>
+<li>Run <code>cargo test &amp;&amp; cargo fmt &amp;&amp; cargo clippy -- -D warnings</code></li>
+<li>Commit and push: <code>git push origin feature/your-feature</code></li>
+<li>Open a pull request</li>
+</ol>
+<h3 id="pull-request-guidelines">Pull Request Guidelines</h3>
+<ul>
+<li>Follow the coding standards above</li>
+<li>Include tests for new functionality</li>
+<li>Update documentation as needed</li>
+<li>Keep PRs focused and small</li>
+<li>Write clear commit messages</li>
+</ul>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="quickstart.html">Quick Start Guide</a> - Getting started with rouser</li>
+<li><a href="configuration.html">Configuration Reference</a> - Configuration options</li>
+<li><a href="metrics-overview.html">Metrics Overview</a> - How metrics are collected</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

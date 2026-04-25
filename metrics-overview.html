@@ -1,0 +1,2460 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="systemd-user-service.html">
+      
+      
+        <link rel="next" href="averaging.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Metrics Overview - rouser</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#metrics-overview" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="rouser" class="md-header__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rouser
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Metrics Overview
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="rouser" class="md-nav__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rouser
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="configuration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systemd-user-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systemd User Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Overview
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="metrics-overview.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cpu-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CPU Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CPU Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-source-procstat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Source: /proc/stat
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Source: /proc/stat">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fields-verified-against-kernel-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fields (Verified Against Kernel Documentation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#calculation-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculation Method
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calculation Method">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formula
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#edge-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edge Cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Edge Cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#first-sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First Sample
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jiffies-overflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jiffies Overflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gpu-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GPU Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GPU Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-sources-by-gpu-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Sources by GPU Type
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Sources by GPU Type">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nvidia-gpus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NVIDIA GPUs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#amdintel-gpus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMD/Intel GPUs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aggregation-strategy-per-device-reporting-over-averaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggregation Strategy — Per-Device Reporting Over Averaging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network-io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network I/O
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Network I/O">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-source-procnetdev" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Source: /proc/net/dev
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Source: /proc/net/dev">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-format_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#calculation-method_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculation Method
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calculation Method">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formula_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formula
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interface-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interface Filtering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interface Filtering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exclude-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exclude Interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#include-only-specific-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Include Only Specific Interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#edge-cases_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edge Cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Edge Cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#interface-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interface Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-interfaces-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No Interfaces Available
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disk-activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disk Activity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Disk Activity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-source-procdiskstats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Source: /proc/diskstats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Source: /proc/diskstats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-format_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#calculation-method_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculation Method
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calculation Method">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formula_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formula
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#device-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Filtering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Device Filtering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#excluded-devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Excluded Devices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#included-devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Included Devices
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#edge-cases_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edge Cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Edge Cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#device-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-devices-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No Devices Available
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#collection-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collection Timing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Collection Timing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#polling-interval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Polling Interval
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asynchronous-collection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asynchronous Collection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#graceful-degradation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graceful Degradation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resource-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Tips
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="averaging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Averaging & EMA Smoothing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="d-bus-inhibition.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D-Bus Inhibition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ci-workflow.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cpu-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CPU Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CPU Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-source-procstat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Source: /proc/stat
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Source: /proc/stat">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fields-verified-against-kernel-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fields (Verified Against Kernel Documentation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#calculation-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculation Method
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calculation Method">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formula
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#edge-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edge Cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Edge Cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#first-sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First Sample
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jiffies-overflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jiffies Overflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gpu-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GPU Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GPU Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-sources-by-gpu-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Sources by GPU Type
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Sources by GPU Type">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nvidia-gpus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NVIDIA GPUs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#amdintel-gpus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMD/Intel GPUs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aggregation-strategy-per-device-reporting-over-averaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggregation Strategy — Per-Device Reporting Over Averaging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network-io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network I/O
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Network I/O">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-source-procnetdev" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Source: /proc/net/dev
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Source: /proc/net/dev">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-format_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#calculation-method_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculation Method
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calculation Method">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formula_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formula
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interface-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interface Filtering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interface Filtering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exclude-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exclude Interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#include-only-specific-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Include Only Specific Interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#edge-cases_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edge Cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Edge Cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#interface-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interface Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-interfaces-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No Interfaces Available
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disk-activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disk Activity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Disk Activity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-source-procdiskstats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Source: /proc/diskstats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Source: /proc/diskstats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-format_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#calculation-method_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculation Method
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calculation Method">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formula_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formula
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#device-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Filtering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Device Filtering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#excluded-devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Excluded Devices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#included-devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Included Devices
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#edge-cases_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edge Cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Edge Cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#device-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-devices-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No Devices Available
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#collection-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collection Timing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Collection Timing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#polling-interval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Polling Interval
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asynchronous-collection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asynchronous Collection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#graceful-degradation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graceful Degradation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resource-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Tips
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="metrics-overview">Metrics Overview</h1>
+<p>This document describes how <code>rouser</code> collects system metrics from various sources.</p>
+<h2 id="overview">Overview</h2>
+<p>rouser monitors four main categories of system metrics:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Source</th>
+<th>Polling</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CPU Usage</strong></td>
+<td><code>/proc/stat</code></td>
+<td>Configurable (default: 5s)</td>
+<td>Aggregate CPU usage across all cores</td>
+</tr>
+<tr>
+<td><strong>GPU Usage</strong></td>
+<td><code>nvidia-smi</code> or <code>/sys/class/drm/</code></td>
+<td>Configurable (default: 5s)</td>
+<td>GPU utilization percentage</td>
+</tr>
+<tr>
+<td><strong>Network I/O</strong></td>
+<td><code>/proc/net/dev</code></td>
+<td>Configurable (default: 5s)</td>
+<td>Network throughput in Mbps</td>
+</tr>
+<tr>
+<td><strong>Disk Activity</strong></td>
+<td><code>/proc/diskstats</code></td>
+<td>Configurable (default: 5s)</td>
+<td>Disk read/write in MB/s</td>
+</tr>
+</tbody>
+</table>
+<p>All metrics are collected asynchronously using Tokio's async runtime.</p>
+<h2 id="cpu-usage">CPU Usage</h2>
+<h3 id="data-source-procstat">Data Source: <code>/proc/stat</code></h3>
+<p>rouser reads CPU statistics from the virtual <code>/proc/stat</code> file, which provides system-wide CPU usage information.</p>
+<h4 id="file-format">File Format</h4>
+<pre><code>cpu  234567 12345 2345678 789012345 123456 1234 567 8901 0 0
+cpu0 23456 1234 234567 789012 12345 123 56 789 0 0
+cpu1 23456 1234 234567 789012 12345 123 56 789 0 0
+</code></pre>
+<p>The first line (starting with <code>cpu</code>) contains aggregate statistics for all cores. Subsequent lines (<code>cpu0</code>, <code>cpu1</code>, etc.) contain per-core statistics.</p>
+<h4 id="fields-verified-against-kernel-documentation">Fields (Verified Against Kernel Documentation)</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>user</code></td>
+<td>Normal processes executing in user mode (jiffies)</td>
+</tr>
+<tr>
+<td><code>nice</code></td>
+<td>Niced processes executing in user mode (jiffies)</td>
+</tr>
+<tr>
+<td><code>system</code></td>
+<td>Processes executing in kernel mode (jiffies)</td>
+</tr>
+<tr>
+<td><code>idle</code></td>
+<td>Time spent in idle task (jiffies)</td>
+</tr>
+<tr>
+<td><code>iowait</code></td>
+<td>Time waiting for I/O to complete (jiffies)</td>
+</tr>
+<tr>
+<td><code>irq</code></td>
+<td>Time servicing hardware interrupts (jiffies)</td>
+</tr>
+<tr>
+<td><code>softirq</code></td>
+<td>Time servicing software interrupts (jiffies)</td>
+</tr>
+<tr>
+<td><code>steal</code></td>
+<td>Stolen time in virtual machines (jiffies)</td>
+</tr>
+<tr>
+<td><code>guest</code></td>
+<td>Time spent running guest OS (jiffies)</td>
+</tr>
+<tr>
+<td><code>guest_nice</code></td>
+<td>Time spent running nice guest OS (jiffies, Linux 2.6.24+)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="calculation-method">Calculation Method</h3>
+<p>rouser uses a <strong>two-sample delta</strong> approach to calculate CPU usage:</p>
+<ol>
+<li>Read current values from <code>/proc/stat</code></li>
+<li>Wait for polling interval (default: 5 seconds)</li>
+<li>Read new values</li>
+<li>Calculate the difference between samples</li>
+<li>Compute usage percentage based on idle vs non-idle time</li>
+</ol>
+<h4 id="formula">Formula</h4>
+<pre><code>total_time = user + nice + system + idle + iowait + irq + softirq + steal + guest
+non_idle_time = user + nice + system + iowait + irq + softirq + steal + guest
+cpu_usage = (non_idle_time / total_time) * 100.0
+</code></pre>
+<p><strong>Note</strong>: <code>guest_nice</code> is not included as it represents time already counted in <code>guest</code>.</p>
+<h3 id="edge-cases">Edge Cases</h3>
+<h4 id="first-sample">First Sample</h4>
+<p>On the first read, there's no baseline for comparison. rouser:
+- Initializes with the first sample
+- Returns 0% usage for the first poll cycle
+- Begins actual calculation from the second sample</p>
+<h4 id="jiffies-overflow">Jiffies Overflow</h4>
+<p>On long-running systems, jiffies can overflow (wrap from <code>u64::MAX</code> back to 0). rouser handles this by:
+- Using <code>u64</code> for jiffies (can run ~580 years at 100 Hz before overflow)
+- Detecting wraparound via negative deltas
+- Applying correction: <code>correction = u64::MAX - b + a + 1</code></p>
+<h3 id="implementation">Implementation</h3>
+<pre><code class="language-rust">pub struct CpuCollector {
+    last_stats: Option&lt;CpuStats&gt;,
+    last_time: Option&lt;SystemTime&gt;,
+}
+
+impl CpuCollector {
+    pub async fn collect_cpu_usage(&amp;self) -&gt; f64 {
+        let stats = self.read_stats().await;
+        let now = SystemTime::now();
+
+        match (&amp;self.last_stats, &amp;self.last_time) {
+            (Some(prev), Some(prev_time)) =&gt; {
+                let delta_total = total_delta(&amp;stats, prev);
+                let delta_non_idle = non_idle_delta(&amp;stats, prev);
+
+                if delta_total &gt; 0 {
+                    (delta_non_idle as f64 / delta_total as f64) * 100.0
+                } else {
+                    0.0
+                }
+            }
+            _ =&gt; {
+                // First sample
+                0.0
+            }
+        }
+    }
+}
+</code></pre>
+<h2 id="gpu-usage">GPU Usage</h2>
+<h3 id="data-sources-by-gpu-type">Data Sources by GPU Type</h3>
+<p>rouser supports multiple GPU vendors with different data sources.</p>
+<h4 id="nvidia-gpus">NVIDIA GPUs</h4>
+<p><strong>Primary Source</strong>: <code>nvidia-smi</code> command-line tool</p>
+<pre><code class="language-bash"># Query all GPUs
+nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits
+
+# Sample output:
+# 95%
+# 78%
+</code></pre>
+<p><strong>Implementation</strong>:
+- Runs <code>nvidia-smi</code> command and parses output
+- Extracts percentage values from each GPU
+- Calculates average across all detected GPUs
+- Falls back to 0% if <code>nvidia-smi</code> unavailable</p>
+<h4 id="amdintel-gpus">AMD/Intel GPUs</h4>
+<p><strong>Primary Source</strong>: <code>/sys/class/drm/cardX/device/gpu_busy_percent</code></p>
+<pre><code class="language-bash"># Check GPU usage (if available)
+cat /sys/class/drm/card0/device/gpu_busy_percent
+
+# Or use rocm-smi tool (similar to nvidia-smi)
+rocm-smi --showgpuutilization
+</code></pre>
+<p><strong>Requirements</strong>:
+- AMD ROCm drivers or Intel i915 driver installed
+- <code>uvm</code> (Unified Virtual Memory) subsystem loaded
+- Access to <code>/sys/class/drm/cardX/device/</code></p>
+<p><strong>Implementation</strong>:
+- Scans <code>/sys/class/drm/</code> directory for GPU devices
+- Reads <code>gpu_busy_percent</code> from each device
+- Calculates average across all detected GPUs
+- Falls back to 0% if no GPUs detected</p>
+<h3 id="aggregation-strategy-per-device-reporting-over-averaging">Aggregation Strategy — Per-Device Reporting Over Averaging</h3>
+<p>rouser reports each physical GPU <strong>individually</strong> rather than aggregating across devices. Each detected GPU is compared independently against the configured threshold:</p>
+<pre><code>GPU0(nvidia): 95%   ← above 90% threshold → inhibits sleep
+card1(amdgpu): 78%  ← below 90% threshold → does not inhibit alone
+</code></pre>
+<p>A single GPU exceeding its threshold triggers inhibition regardless of other GPUs' states. This provides accurate per-GPU logging and prevents one low-usage card from masking a high-usage card's activity.</p>
+<p><strong>EMA Smoothing</strong>: Each device has independent EMA smoothing applied to its readings before comparison against the threshold. The <code>ema_alpha</code> value in <code>[metrics.gpu]</code> controls smoothing strength uniformly across all GPUs.</p>
+<h2 id="network-io">Network I/O</h2>
+<h3 id="data-source-procnetdev">Data Source: <code>/proc/net/dev</code></h3>
+<p>rouser reads network statistics from the virtual <code>/proc/net/dev</code> file.</p>
+<h4 id="file-format_1">File Format</h4>
+<pre><code>Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 1234567   12345    0    0    0     0          0         0  1234567   12345    0    0    0     0       0          0
+  eth0: 9876543  987654    0    0    0     0          0         0  8765432  876543    0    0    0     0       0          0
+</code></pre>
+<h3 id="calculation-method_1">Calculation Method</h3>
+<ol>
+<li>Read current byte/packet counts for each interface</li>
+<li>Wait for polling interval</li>
+<li>Read new values</li>
+<li>Calculate delta (bytes transferred during interval)</li>
+<li>Convert to Mbps: <code>(delta_bytes * 8) / interval_seconds / 1,000,000</code></li>
+</ol>
+<h4 id="formula_1">Formula</h4>
+<pre><code>bytes_transferred = current_bytes - previous_bytes
+interval_seconds = current_time - previous_time
+network_io_mbps = (bytes_transferred * 8.0) / interval_seconds / 1_000_000.0
+</code></pre>
+<h3 id="interface-filtering">Interface Filtering</h3>
+<p>rouser supports two filtering strategies:</p>
+<h4 id="exclude-interfaces">Exclude Interfaces</h4>
+<p>By default, loopback (<code>lo</code>) is excluded:</p>
+<pre><code class="language-toml">[network]
+exclude_interfaces = [&quot;lo&quot;]
+</code></pre>
+<h4 id="include-only-specific-interfaces">Include Only Specific Interfaces</h4>
+<p>Monitor only specified interfaces:</p>
+<pre><code class="language-toml">[network]
+include_interfaces = [&quot;eth0&quot;, &quot;ens192&quot;]
+</code></pre>
+<p><strong>Note</strong>: If both <code>include_interfaces</code> and <code>exclude_interfaces</code> are specified, <code>include_interfaces</code> takes precedence.</p>
+<h3 id="edge-cases_1">Edge Cases</h3>
+<h4 id="interface-changes">Interface Changes</h4>
+<p>If an interface disappears between polls:
+- rouser continues with available interfaces
+- Logs a warning at debug level
+- Does not fail the metric collection</p>
+<h4 id="no-interfaces-available">No Interfaces Available</h4>
+<p>If no interfaces are available (highly unlikely):
+- Returns 0 Mbps network usage
+- Logs an error
+- Continues operation</p>
+<h2 id="disk-activity">Disk Activity</h2>
+<h3 id="data-source-procdiskstats">Data Source: <code>/proc/diskstats</code></h3>
+<p>rouser reads disk statistics from the virtual <code>/proc/diskstats</code> file.</p>
+<h4 id="file-format_2">File Format</h4>
+<pre><code>259:0 md0 rw 1000 5000 100000 500000 0 0 0 0 100 2000 3000
+259:1 md1 rw 500 2500 50000 250000 0 0 0 0 50 1000 1500
+</code></pre>
+<p>Fields: <code>major minor name reads merged sectors writes merged sec_wait ected sectors</code></p>
+<h3 id="calculation-method_2">Calculation Method</h3>
+<ol>
+<li>Read current sector counts for each device</li>
+<li>Wait for polling interval</li>
+<li>Read new values</li>
+<li>Calculate delta (sectors transferred)</li>
+<li>Convert to MB/s: <code>(delta_sectors * 512) / interval_seconds / 1,000,000</code></li>
+</ol>
+<h4 id="formula_2">Formula</h4>
+<pre><code>sectors_transferred = current_sectors - previous_sectors
+bytes_transferred = sectors_transferred * 512  # 512 bytes per sector
+interval_seconds = current_time - previous_time
+disk_activity_mbps = (bytes_transferred as f64) / interval_seconds / 1_000_000.0
+</code></pre>
+<h3 id="device-filtering">Device Filtering</h3>
+<p>rouser excludes virtual/simulated devices by default:</p>
+<pre><code class="language-toml">[disk]
+exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]
+</code></pre>
+<h4 id="excluded-devices">Excluded Devices</h4>
+<table>
+<thead>
+<tr>
+<th>Prefix</th>
+<th>Type</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>loop</code></td>
+<td>Loop device</td>
+<td>Virtual block device for disk images</td>
+</tr>
+<tr>
+<td><code>fd</code></td>
+<td>File descriptor backend</td>
+<td>Virtual block device</td>
+</tr>
+<tr>
+<td><code>sr</code></td>
+<td>SCSI CD-ROM</td>
+<td>Optical drive (rarely active)</td>
+</tr>
+<tr>
+<td><code>cdrom</code></td>
+<td>CD-ROM</td>
+<td>Optical drive (rarely active)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="included-devices">Included Devices</h4>
+<table>
+<thead>
+<tr>
+<th>Prefix</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sdX</code></td>
+<td>SATA/SAS disk</td>
+<td>Real storage devices</td>
+</tr>
+<tr>
+<td><code>nvmeX</code></td>
+<td>NVMe SSD</td>
+<td>Real storage devices</td>
+</tr>
+<tr>
+<td><code>dm-X</code></td>
+<td>Device mapper/LVM</td>
+<td>LVM volumes (real storage)</td>
+</tr>
+<tr>
+<td><code>vdX</code></td>
+<td>VirtIO</td>
+<td>KVM/virtio block devices</td>
+</tr>
+</tbody>
+</table>
+<h3 id="edge-cases_2">Edge Cases</h3>
+<h4 id="device-changes">Device Changes</h4>
+<p>If a device disappears between polls:
+- rouser continues with available devices
+- Logs a warning at debug level
+- Does not fail the metric collection</p>
+<h4 id="no-devices-available">No Devices Available</h4>
+<p>If no devices are available (highly unlikely):
+- Returns 0 MB/s disk activity
+- Logs an error
+- Continues operation</p>
+<h2 id="collection-timing">Collection Timing</h2>
+<h3 id="polling-interval">Polling Interval</h3>
+<p>The polling interval is a top-level config field:</p>
+<pre><code class="language-toml">name = &quot;rouser&quot;
+update_interval = &quot;5s&quot;   # Default: 5 seconds — time between metric collection cycles
+log_level = &quot;info&quot;
+...
+</code></pre>
+<p><strong>Trade-offs</strong>:
+- Shorter interval: More responsive to activity, higher CPU usage
+- Longer interval: Lower CPU usage, less responsive</p>
+<h3 id="asynchronous-collection">Asynchronous Collection</h3>
+<p>rouser uses Tokio's async runtime to collect metrics concurrently:</p>
+<pre><code class="language-rust">// Collect all metrics concurrently
+let (cpu, gpu, network, disk) = tokio::join!(
+    cpu_collector.collect(),
+    gpu_collector.collect(),
+    network_collector.collect(),
+    disk_collector.collect()
+);
+</code></pre>
+<p>This approach minimizes the time spent collecting metrics, reducing the impact on system performance.</p>
+<h2 id="error-handling">Error Handling</h2>
+<h3 id="graceful-degradation">Graceful Degradation</h3>
+<p>If a metric source is unavailable:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Fallback Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>Always available via <code>/proc/stat</code></td>
+</tr>
+<tr>
+<td>GPU</td>
+<td>Returns 0% usage, logs warning</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>Monitors available interfaces, continues</td>
+</tr>
+<tr>
+<td>Disk</td>
+<td>Monitors available devices, continues</td>
+</tr>
+</tbody>
+</table>
+<h3 id="logging">Logging</h3>
+<p>Errors are logged at appropriate levels:</p>
+<pre><code class="language-rust">// Warning for non-critical issues
+warn!(&quot;GPU metrics unavailable, using 0%&quot;);
+
+// Error for critical issues
+error!(&quot;No disk devices available&quot;);
+</code></pre>
+<h2 id="performance-considerations">Performance Considerations</h2>
+<h3 id="resource-usage">Resource Usage</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Memory Impact</th>
+<th>CPU Impact</th>
+<th>Disk I/O</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>~100 bytes</td>
+<td>Negligible</td>
+<td>None (/proc)</td>
+</tr>
+<tr>
+<td>GPU</td>
+<td>~1 KB</td>
+<td>Low (nvidia-smi spawn)</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>~100 bytes per interface</td>
+<td>Negligible</td>
+<td>None (/proc)</td>
+</tr>
+<tr>
+<td>Disk</td>
+<td>~50 bytes per device</td>
+<td>Negligible</td>
+<td>None (/proc)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="optimization-tips">Optimization Tips</h3>
+<p>To reduce resource usage:</p>
+<pre><code class="language-toml"># Increase polling interval (default 5s)
+name = &quot;rouser&quot;
+update_interval = &quot;10s&quot;   # Less responsive but lower overhead
+
+[metrics.network]
+exclude_interfaces = [&quot;lo&quot;, &quot;docker0&quot;, &quot;virbr0&quot;]   # Exclude virtual interfaces
+
+[metrics.disk]
+exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;, &quot;nbd&quot;]  # Exclude more virtual devices
+</code></pre>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="averaging.html">Averaging Explained</a> - Understanding threshold calculations with EMA</li>
+<li><a href="configuration.html">Configuration Reference</a> - Configuration options for metrics</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

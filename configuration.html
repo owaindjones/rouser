@@ -1,0 +1,1574 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="quickstart.html">
+      
+      
+        <link rel="next" href="command-line.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Configuration - rouser</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#configuration-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="rouser" class="md-header__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rouser
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Configuration
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="rouser" class="md-nav__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rouser
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="configuration.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-file-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration File Discovery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-configuration-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Configuration Example
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Complete Configuration Example">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minimal-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimal Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#root-level-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root-Level Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Metrics Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#metricscpu-cpu-usage-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [metrics.cpu] — CPU Usage Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metricsgpu-gpu-usage-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [metrics.gpu] — GPU Usage Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metricsnetwork-network-throughput-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [metrics.network] — Network Throughput Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metricsdisk-disk-io-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [metrics.disk] — Disk I/O Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timing-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timing Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timing Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#timing-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [timing] Section
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inhibition-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inhibition Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inhibitor-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [inhibitor] Section
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-file-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration File Security
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validate-configuration-via-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Configuration via CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dry-run-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dry Run Testing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systemd-user-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systemd User Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metrics-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="averaging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Averaging & EMA Smoothing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="d-bus-inhibition.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D-Bus Inhibition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ci-workflow.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-file-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration File Discovery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-configuration-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Configuration Example
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Complete Configuration Example">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minimal-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimal Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#root-level-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root-Level Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Metrics Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#metricscpu-cpu-usage-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [metrics.cpu] — CPU Usage Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metricsgpu-gpu-usage-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [metrics.gpu] — GPU Usage Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metricsnetwork-network-throughput-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [metrics.network] — Network Throughput Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metricsdisk-disk-io-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [metrics.disk] — Disk I/O Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timing-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timing Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timing Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#timing-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [timing] Section
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inhibition-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inhibition Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inhibitor-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [inhibitor] Section
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-file-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration File Security
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validate-configuration-via-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Configuration via CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dry-run-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dry Run Testing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="configuration-reference">Configuration Reference</h1>
+<p>This document describes all available configuration options for <code>rouser</code>.</p>
+<h2 id="overview">Overview</h2>
+<p>rouser uses a TOML configuration file to define thresholds, timing parameters, and daemon behavior. It supports <strong>sequential config path resolution</strong>: when no <code>-c</code> flag is given, rouser looks for the first existing file in this order:</p>
+<ol>
+<li><code>./config/rouser.toml</code> (repo-packaged default)</li>
+<li><code>$HOME/.config/rouser/config.toml</code> (XDG user config)</li>
+<li><code>/etc/rouser/config.toml</code> (system-wide config)</li>
+</ol>
+<p><strong>TOML over YAML</strong>: rouser uses TOML instead of YAML because it is a pure Rust implementation with no C dependencies and avoids known vulnerabilities in YAML parsers.</p>
+<h2 id="configuration-file-discovery">Configuration File Discovery</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path / Flag</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLI override</td>
+<td><code>rouser --config /path/to/config.toml</code> or <code>-c /path/to/config.toml</code></td>
+</tr>
+<tr>
+<td>Default search (sequential)</td>
+<td><code>./config/rouser.toml</code> → <code>~/.config/rouser/config.toml</code> → <code>/etc/rouser/config.toml</code></td>
+</tr>
+</tbody>
+</table>
+<p>When none of the default paths exist, rouser uses built-in defaults and logs a warning:</p>
+<pre><code>No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
+</code></pre>
+<h2 id="complete-configuration-example">Complete Configuration Example</h2>
+<pre><code class="language-toml"># rouser config - see docs/configuration.md for full reference
+
+name = &quot;rouser&quot;
+update_interval = &quot;5s&quot;
+log_level = &quot;info&quot;
+
+[metrics.cpu]
+threshold = 80.0    # CPU usage percentage (0-100) above which to inhibit sleep
+ema_alpha = 0.3     # Exponential moving average smoothing factor (0.0–1.0, higher = less smoothed)
+
+[metrics.gpu]
+threshold = 90.0    # GPU usage percentage (0-100) above which to inhibit sleep
+ema_alpha = 0.3     # EMA smoothing for per-GPU readings
+
+[metrics.network]
+threshold = 100.0       # Network throughput in Mbps
+ema_alpha = 0.2         # EMA smoothing for network I/O
+exclude_interfaces = [&quot;lo&quot;]    # Exclude from monitoring (default: loopback)
+include_interfaces = []        # Only monitor these; empty means all
+
+[metrics.disk]
+threshold = 50.0              # Disk I/O in MB/s above which to inhibit sleep
+ema_alpha = 0.2               # EMA smoothing for disk activity
+exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]  # Exclude virtual devices
+
+[timing]
+duration_threshold = &quot;30s&quot;   # Min time metrics must exceed threshold before inhibiting
+cooldown_duration = &quot;60s&quot;    # Time after releasing inhibition before re-inhibiting possible
+
+[inhibitor]
+what = &quot;shutdown:idle&quot;       # Lock types to inhibit (colon-separated)
+mode = &quot;block&quot;               # Inhibition mode: block, delay, or block-weak
+</code></pre>
+<h3 id="minimal-configuration">Minimal Configuration</h3>
+<p>With no config file at all, rouser uses these built-in defaults:</p>
+<pre><code class="language-toml">name = &quot;rouser&quot;
+update_interval = &quot;5s&quot;
+log_level = &quot;info&quot;
+
+[metrics.cpu]
+threshold = 80.0
+ema_alpha = 0.3
+
+[metrics.gpu]
+threshold = 90.0
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 100.0
+ema_alpha = 0.2
+exclude_interfaces = [&quot;lo&quot;]
+include_interfaces = []
+
+[metrics.disk]
+threshold = 50.0
+ema_alpha = 0.2
+exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]
+
+[timing]
+duration_threshold = &quot;30s&quot;
+cooldown_duration = &quot;60s&quot;
+
+[inhibitor]
+what = &quot;shutdown:idle&quot;
+mode = &quot;block&quot;
+</code></pre>
+<h2 id="root-level-options">Root-Level Options</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>string</td>
+<td><code>"rouser"</code></td>
+<td>Daemon name for logging (reserved for future use)</td>
+</tr>
+<tr>
+<td><code>update_interval</code></td>
+<td>duration</td>
+<td><code>"5s"</code></td>
+<td>Time between metric collection cycles. Uses humantime format: <code>"1s"</code>, <code>"30s"</code>, <code>"5m"</code></td>
+</tr>
+<tr>
+<td><code>log_level</code></td>
+<td>string</td>
+<td><code>"info"</code></td>
+<td>Logging level: <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>. Can also be set via <code>-l/--log-level</code> CLI flag or <code>RUST_LOG</code> env var</td>
+</tr>
+</tbody>
+</table>
+<h2 id="metrics-configuration">Metrics Configuration</h2>
+<h3 id="metricscpu-cpu-usage-threshold"><code>[metrics.cpu]</code> — CPU Usage Threshold</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default (0–100)</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold</code></td>
+<td>f64</td>
+<td><code>80.0</code></td>
+<td>CPU usage percentage above which to inhibit sleep</td>
+</tr>
+<tr>
+<td><code>ema_alpha</code></td>
+<td>f64</td>
+<td><code>0.3</code></td>
+<td>EMA smoothing factor: higher = more responsive, lower = smoother readings</td>
+</tr>
+</tbody>
+</table>
+<h3 id="metricsgpu-gpu-usage-threshold"><code>[metrics.gpu]</code> — GPU Usage Threshold</h3>
+<p>Per-device GPU collection (NVIDIA via <code>nvidia-smi</code>, AMD/Intel via sysfs). Each detected GPU is compared independently against this threshold.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default (0–100)</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold</code></td>
+<td>f64</td>
+<td><code>90.0</code></td>
+<td>GPU usage percentage above which to inhibit sleep</td>
+</tr>
+<tr>
+<td><code>ema_alpha</code></td>
+<td>f64</td>
+<td><code>0.3</code></td>
+<td>EMA smoothing factor for per-GPU readings</td>
+</tr>
+</tbody>
+</table>
+<h3 id="metricsnetwork-network-throughput-threshold"><code>[metrics.network]</code> — Network Throughput Threshold</h3>
+<p>Network I/O is calculated as total bytes transferred (in + out) across monitored interfaces, converted to Mbps.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold</code></td>
+<td>f64</td>
+<td><code>100.0</code></td>
+<td>Network throughput in Mbps above which to inhibit sleep</td>
+</tr>
+<tr>
+<td><code>ema_alpha</code></td>
+<td>f64</td>
+<td><code>0.2</code></td>
+<td>EMA smoothing factor for network I/O</td>
+</tr>
+<tr>
+<td><code>exclude_interfaces</code></td>
+<td>array of strings</td>
+<td><code>["lo"]</code></td>
+<td>Interface names to exclude from monitoring</td>
+</tr>
+<tr>
+<td><code>include_interfaces</code></td>
+<td>array of strings</td>
+<td><code>[]</code></td>
+<td>If non-empty, only monitor these interfaces; empty means all available interfaces</td>
+</tr>
+</tbody>
+</table>
+<h3 id="metricsdisk-disk-io-threshold"><code>[metrics.disk]</code> — Disk I/O Threshold</h3>
+<p>Disk activity is calculated as total bytes transferred across monitored devices (read + write sectors × 512 bytes), converted to MB/s.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold</code></td>
+<td>f64</td>
+<td><code>50.0</code></td>
+<td>Disk I/O in MB/s above which to inhibit sleep</td>
+</tr>
+<tr>
+<td><code>ema_alpha</code></td>
+<td>f64</td>
+<td><code>0.2</code></td>
+<td>EMA smoothing factor for disk activity</td>
+</tr>
+<tr>
+<td><code>exclude_device_prefixes</code></td>
+<td>array of strings</td>
+<td><code>["loop", "fd", "sr", "cdrom"]</code></td>
+<td>Device name prefixes to exclude (e.g., <code>loop*</code>, <code>fd*</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="timing-configuration">Timing Configuration</h2>
+<h3 id="timing-section"><code>[timing]</code> Section</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>duration_threshold</code></td>
+<td>duration</td>
+<td><code>"30s"</code></td>
+<td>Minimum continuous time metrics must exceed threshold before inhibiting sleep. Prevents brief spikes from triggering inhibition.</td>
+</tr>
+<tr>
+<td><code>cooldown_duration</code></td>
+<td>duration</td>
+<td><code>"60s"</code></td>
+<td>Time after releasing inhibition during which the daemon won't re-inhibit even if thresholds are exceeded again. Helps with bursty workloads.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note</strong>: There is no <code>idle_duration</code> field — the cooldown mechanism replaces it. A metric exceeding threshold for at least <code>duration_threshold</code> triggers inhibition; all metrics below their respective thresholds for at least <code>cooldown_duration</code> releases inhibition.</p>
+<h2 id="inhibition-configuration">Inhibition Configuration</h2>
+<h3 id="inhibitor-section"><code>[inhibitor]</code> Section</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>what</code></td>
+<td>string</td>
+<td><code>"shutdown:idle"</code></td>
+<td>Lock types to inhibit (colon-separated). Values: <code>idle</code>, <code>sleep</code>, <code>suspend</code>, <code>shutdown</code>. Multiple values combined with colons, e.g., <code>"sleep:suspend"</code>.</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td>string</td>
+<td><code>"block"</code></td>
+<td>Inhibition mode. Values: <code>block</code> (completely blocks sleep), <code>delay</code> (delays sleep for duration of inhibition), <code>block-weak</code> (blocks but can be overridden by privileged processes).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configuration-file-security">Configuration File Security</h2>
+<p>The configuration file may contain sensitive information depending on your deployment. When installed via the system-wide path <code>/etc/rouser/config.toml</code>, restrict permissions:</p>
+<pre><code class="language-bash">sudo chmod 0600 /etc/rouser/config.toml
+</code></pre>
+<p>User-level config files (<code>~/.config/rouser/config.toml</code>) inherit standard home directory permissions.</p>
+<h2 id="validation">Validation</h2>
+<h3 id="validate-configuration-via-cli">Validate Configuration via CLI</h3>
+<pre><code class="language-bash"># With default paths (sequential search)
+rouser --validate-config
+
+# With explicit path
+rouser -c /etc/rouser/config.toml --validate-config
+</code></pre>
+<p>Output on success: <code>Configuration validation passed</code>
+Output on failure: <code>Configuration validation failed: &lt;error details&gt;</code></p>
+<h3 id="dry-run-testing">Dry Run Testing</h3>
+<p>Test configuration with live metric collection without inhibiting sleep:</p>
+<pre><code class="language-bash"># Collect metrics indefinitely in dry-run mode
+rouser -c /etc/rouser/config.toml --dry-run
+
+# With debug logging to see per-device readings
+RUST_LOG=debug rouser -c /etc/rouser/config.toml --dry-run
+</code></pre>
+<h2 id="environment-variables">Environment Variables</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Precedence Over</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RUST_LOG</code></td>
+<td>Logging level filter (e.g., <code>"debug"</code>, <code>"info"</code>)</td>
+<td>config.log_level and <code>-l/--log-level</code> is higher priority than both</td>
+</tr>
+<tr>
+<td><code>-l, --log-level &lt;LEVEL&gt;</code></td>
+<td>CLI log level override</td>
+<td>config.log_level only</td>
+</tr>
+</tbody>
+</table>
+<p>There are no <code>ROUSER_*</code> environment variable overrides for configuration values — all settings must come from the TOML file or be overridden at runtime via CLI flags.</p>
+<h2 id="best-practices">Best Practices</h2>
+<ol>
+<li><strong>Start with conservative thresholds</strong>: Begin with higher CPU/GPU thresholds (90%) and lower network/disk thresholds</li>
+<li><strong>Use EMA smoothing</strong>: Default alpha values (0.3 for CPU/GPU, 0.2 for network/disk) provide a good balance between responsiveness and noise filtering</li>
+<li><strong>Test before production</strong>: Always use <code>--dry-run</code> mode to verify thresholds before deploying in daemon mode</li>
+<li><strong>Review logs regularly</strong>: Use debug logging (<code>RUST_LOG=debug</code>) to understand your system's baseline activity before finalizing thresholds</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

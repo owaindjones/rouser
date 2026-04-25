@@ -1,0 +1,2077 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="quickstart.html">
+      
+      
+        <link rel="next" href="configuration.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Quick Start - rouser</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#quick-start-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="rouser" class="md-header__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rouser
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Quick Start
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="rouser" class="md-nav__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rouser
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="quickstart.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation Options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-build-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1: Build from Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-via-installer-script-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2: Via Installer Script (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-manual-download-from-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 3: Manual Download from Release
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#config-file-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config File Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create Configuration File
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validate-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dry-run-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dry Run Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Daemon
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running the Daemon">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manual-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#systemd-user-service-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Systemd User Service (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#service-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifying-inhibition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying Inhibition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verifying Inhibition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#service-wont-start-after-logout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Won't Start After Logout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-bus-permission-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D-Bus Permission Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhibition-not-working-on-kde-plasma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Not Working on KDE Plasma
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debug Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Configurations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Configurations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#home-server-low-activity-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Home Server (low activity baseline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#development-workstation-high-activity-tolerance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Workstation (high activity tolerance)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="quickstart.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation Options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-build-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1: Build from Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-via-installer-script-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2: Via Installer Script (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-manual-download-from-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 3: Manual Download from Release
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#config-file-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config File Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create Configuration File
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validate-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dry-run-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dry Run Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Daemon
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running the Daemon">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manual-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#systemd-user-service-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Systemd User Service (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#service-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifying-inhibition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying Inhibition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verifying Inhibition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#service-wont-start-after-logout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Won't Start After Logout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-bus-permission-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D-Bus Permission Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhibition-not-working-on-kde-plasma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Not Working on KDE Plasma
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debug Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Configurations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Configurations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#home-server-low-activity-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Home Server (low activity baseline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#development-workstation-high-activity-tolerance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Workstation (high activity tolerance)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="configuration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systemd-user-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systemd User Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metrics-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="averaging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Averaging & EMA Smoothing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="d-bus-inhibition.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D-Bus Inhibition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ci-workflow.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation Options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-build-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1: Build from Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-via-installer-script-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2: Via Installer Script (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-manual-download-from-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 3: Manual Download from Release
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#config-file-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config File Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create Configuration File
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validate-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dry-run-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dry Run Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-daemon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Daemon
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running the Daemon">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manual-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#systemd-user-service-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Systemd User Service (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#service-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifying-inhibition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying Inhibition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verifying Inhibition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#service-wont-start-after-logout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Won't Start After Logout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-bus-permission-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D-Bus Permission Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhibition-not-working-on-kde-plasma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Not Working on KDE Plasma
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debug Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Configurations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Configurations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#home-server-low-activity-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Home Server (low activity baseline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#development-workstation-high-activity-tolerance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Workstation (high activity tolerance)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="quick-start-guide">Quick Start Guide</h1>
+<p>This guide will help you get <code>rouser</code> running on your Linux system within 5 minutes.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Linux system with systemd (systemd user instance)</li>
+<li>Your user logged in and active session (<code>loginctl enable-linger $USER</code> recommended for persistence after logout)</li>
+<li>Rust 1.70+ (for building from source only — pre-built binaries available on releases)</li>
+<li>D-Bus session bus available</li>
+</ul>
+<h2 id="installation-options">Installation Options</h2>
+<h3 id="option-1-build-from-source">Option 1: Build from Source</h3>
+<pre><code class="language-bash"># Clone repository
+git clone https://github.com/owaindjones/rouser.git
+cd rouser
+
+# Build release binary and install to ~/.local/bin
+cargo build --release
+mkdir -p ~/.local/bin
+cp target/release/rouser ~/.local/bin/rouser
+chmod +x ~/.local/bin/rouser
+</code></pre>
+<h3 id="option-2-via-installer-script-recommended">Option 2: Via Installer Script (Recommended)</h3>
+<p>The installer script fetches the latest release, installs the binary, config, and enables systemd user service automatically:</p>
+<pre><code class="language-bash">curl -fsSL https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh | bash
+</code></pre>
+<p>See <code>scripts/install.sh --help</code> for options.</p>
+<h3 id="option-3-manual-download-from-release">Option 3: Manual Download from Release</h3>
+<p>Download pre-built archives from GitHub Releases matching your architecture:</p>
+<pre><code class="language-bash"># Update URL with actual release version and arch (x86_64 or aarch64)
+curl -LO https://github.com/owaindjones/rouser/releases/download/v0.1.0/rouser-v0.1.0-linux-x86_64.tar.gz
+
+# Extract — contains binary + config + systemd service file
+tar -xzf rouser-v*.linux-*.tar.gz
+
+# Install components manually:
+cp rouser ~/.local/bin/rouser
+mkdir -p ~/.config/rouser
+cp config/rouser.toml ~/.config/rouser/config.toml
+systemctl --user daemon-reload  # if installing service file
+</code></pre>
+<h2 id="configuration">Configuration</h2>
+<h3 id="config-file-discovery">Config File Discovery</h3>
+<p>When no <code>-c</code> flag is given, rouser searches <strong>sequentially</strong> for the first existing config:</p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>./config/rouser.toml</code></td>
+<td>Repo-packaged default in current directory</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>~/.config/rouser/config.toml</code></td>
+<td>XDG user config (installed by installer script)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>/etc/rouser/config.toml</code></td>
+<td>System-wide config (requires root to create)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="create-configuration-file">Create Configuration File</h3>
+<p>Copy the repo default into your XDG path:</p>
+<pre><code class="language-bash">mkdir -p ~/.config/rouser
+cp ./config/rouser.toml ~/.config/rouser/config.toml
+</code></pre>
+<p><strong>Example configuration</strong>:</p>
+<pre><code class="language-toml">name = &quot;rouser&quot;
+update_interval = &quot;5s&quot;
+log_level = &quot;info&quot;
+
+[metrics.cpu]
+threshold = 80.0       # CPU usage % above which to inhibit sleep
+ema_alpha = 0.3        # EMA smoothing: higher = more responsive
+
+[metrics.gpu]
+threshold = 90.0       # GPU usage % per device
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 100.0      # Network throughput in Mbps
+ema_alpha = 0.2        # EMA smoothing for network I/O
+exclude_interfaces = [&quot;lo&quot;]    # Exclude loopback from monitoring
+include_interfaces = []        # Empty = monitor all interfaces
+
+[metrics.disk]
+threshold = 50.0       # Disk I/O in MB/s above which to inhibit sleep
+ema_alpha = 0.2        # EMA smoothing for disk activity
+exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]  # Exclude virtual devices
+
+[timing]
+duration_threshold = &quot;30s&quot;   # Min time metrics must exceed threshold before inhibiting
+cooldown_duration = &quot;60s&quot;    # Time after releasing inhibition before re-inhibiting possible
+
+[inhibitor]
+what = &quot;shutdown:idle&quot;       # Lock types to inhibit (colon-separated)
+mode = &quot;block&quot;               # Inhibition mode: block, delay, or block-weak
+</code></pre>
+<p>See <a href="configuration.html">Configuration Reference</a> for full option descriptions.</p>
+<h2 id="testing-configuration">Testing Configuration</h2>
+<h3 id="validate-configuration">Validate Configuration</h3>
+<pre><code class="language-bash"># Uses sequential default config search
+rouser --validate-config
+
+# With explicit path
+rouser -c ~/.config/rouser/config.toml --validate-config
+</code></pre>
+<h3 id="dry-run-mode">Dry Run Mode</h3>
+<p>Collect metrics and log readings without inhibiting sleep:</p>
+<pre><code class="language-bash"># Runs indefinitely until Ctrl+C
+rouser --dry-run
+
+# With debug logging to see per-device GPU readings
+RUST_LOG=debug rouser -c ~/.config/rouser/config.toml --dry-run -l debug
+</code></pre>
+<p>Sample output in dry-run mode:</p>
+<pre><code>CPU threshold: 80%, EMA alpha: 0.30
+GPU threshold: 90%, EMA alpha: 0.30
+Network threshold: 100 Mbps, EMA alpha: 0.20
+Disk threshold: 50 MB/s, EMA alpha: 0.20
+Duration threshold: 30s
+Cooldown duration: 60s
+</code></pre>
+<h2 id="running-the-daemon">Running the Daemon</h2>
+<h3 id="manual-execution">Manual Execution</h3>
+<pre><code class="language-bash"># Run with default config search path
+rouser
+
+# Custom config path
+rouser -c /path/to/config.toml
+
+# Override log level at runtime
+rouser -l debug --dry-run
+</code></pre>
+<p>The daemon runs indefinitely — press <code>Ctrl+C</code> to stop. When running as a systemd user service, use the service management commands below instead.</p>
+<h3 id="systemd-user-service-recommended">Systemd User Service (Recommended)</h3>
+<p>After testing with dry-run:</p>
+<pre><code class="language-bash"># Install and enable the user service (if not done by installer script)
+systemctl --user daemon-reload
+systemctl --user enable --now rouser.service
+
+# Check status
+systemctl --user status rouser
+
+# View live logs
+journalctl --user -u rouser -f
+</code></pre>
+<h3 id="service-management">Service Management</h3>
+<pre><code class="language-bash">systemctl --user start rouser    # Start service
+systemctl --user stop rouser     # Stop service
+systemctl --user restart rouser  # Restart (after config change)
+systemctl --user disable rouser  # Disable auto-start on login
+</code></pre>
+<h2 id="verifying-inhibition">Verifying Inhibition</h2>
+<p>Check active sleep inhibitors:</p>
+<pre><code class="language-bash"># List all current inhibitors
+loginctl list-inhibitors
+
+# Or use systemd-inhibit
+systemd-inhibit --list
+</code></pre>
+<p>When rouser is inhibiting, you should see an entry with description "rouser".</p>
+<h3 id="quick-test">Quick Test</h3>
+<ol>
+<li>
+<p>Start rouser in dry-run mode and verify metrics are collected:
+   <code>bash
+   RUST_LOG=debug rouser --dry-run -l debug 2&gt;&amp;1 | head -30</code></p>
+</li>
+<li>
+<p>If inhibition works, you can temporarily lower the CPU threshold to <code>1</code> to test:
+   ```toml
+   # In config.toml — set thresholds very low just for testing
+   [metrics.cpu]
+   threshold = 1.0    # Will trigger on any significant activity
+   ema_alpha = 0.3</p>
+</li>
+</ol>
+<p>[timing]
+   duration_threshold = "5s"   # Short test window
+   cooldown_duration = "10s"
+   ```</p>
+<p>Then run <code>rouser</code> and check <code>loginctl list-inhibitors</code>. Restore thresholds after testing.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="service-wont-start-after-logout">Service Won't Start After Logout</h3>
+<p>Ensure logind lingering is enabled for your user:</p>
+<pre><code class="language-bash">loginctl enable-linger $USER
+# Verify: loginctl show-user $USER | grep Linger
+</code></pre>
+<p>Without lingering, systemd only starts the service during active login sessions.</p>
+<h3 id="d-bus-permission-errors">D-Bus Permission Errors</h3>
+<p>If rouser cannot acquire sleep inhibition:</p>
+<ol>
+<li><strong>KDE Plasma</strong>: Add a polkit rule (see <a href="systemd-user-service.html">systemd user service docs</a>)</li>
+<li><strong>Check D-Bus session</strong>: <code>echo $DBUS_SESSION_BUS_ADDRESS</code> should be non-empty</li>
+<li><strong>Manual test</strong>: <code>systemd-inhibit --what=sleep --mode=block --description="Test" sh -c "sleep 5"</code> — if this works but rouser doesn't, it's a config or threshold issue</li>
+</ol>
+<h3 id="inhibition-not-working-on-kde-plasma">Inhibition Not Working on KDE Plasma</h3>
+<p>KDE Powerdevil may ignore inhibitors from unprivileged users. Create <code>/etc/polkit-1/rules.d/50-rouser.rules</code>:</p>
+<pre><code class="language-javascript">polkit.addRule(function(action, subject) {
+    if (action.id == &quot;org.freedesktop.login1.inhibit&quot; &amp;&amp;
+        subject.user == &quot;your_username&quot;) {
+        return polkit.Result.YES;
+    }
+});
+</code></pre>
+<p>Then <code>sudo systemctl restart polkit</code>.</p>
+<h3 id="debug-logging">Debug Logging</h3>
+<p>Enable verbose logging to see per-device metric readings:</p>
+<pre><code class="language-toml"># In config.toml — set log_level at root level
+name = &quot;rouser&quot;
+update_interval = &quot;5s&quot;
+log_level = &quot;debug&quot;     # NOT under [daemon] — rouser uses flat structure now
+</code></pre>
+<p>Or override via CLI (takes priority over config):</p>
+<pre><code class="language-bash">rouser --dry-run -l debug
+</code></pre>
+<h2 id="example-configurations">Example Configurations</h2>
+<h3 id="home-server-low-activity-baseline">Home Server (low activity baseline)</h3>
+<pre><code class="language-toml">name = &quot;rouser&quot;
+update_interval = &quot;5s&quot;
+log_level = &quot;info&quot;
+
+[metrics.cpu]
+threshold = 70.0
+ema_alpha = 0.3
+
+[metrics.gpu]
+threshold = 85.0
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 50.0
+ema_alpha = 0.2
+exclude_interfaces = [&quot;lo&quot;]
+
+[metrics.disk]
+threshold = 30.0
+ema_alpha = 0.2
+exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]
+
+[timing]
+duration_threshold = &quot;60s&quot;
+cooldown_duration = &quot;120s&quot;
+
+[inhibitor]
+what = &quot;sleep:idle&quot;
+mode = &quot;block&quot;
+</code></pre>
+<h3 id="development-workstation-high-activity-tolerance">Development Workstation (high activity tolerance)</h3>
+<pre><code class="language-toml">[metrics.cpu]
+threshold = 90.0       # Only inhibit during heavy compilation/builds
+ema_alpha = 0.3
+
+[metrics.gpu]
+threshold = 95.0       # Gaming or GPU workloads
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 200.0      # Large downloads/uploads
+ema_alpha = 0.2
+exclude_interfaces = [&quot;lo&quot;]
+
+[metrics.disk]
+threshold = 100.0      # Heavy I/O builds or VM operations
+ema_alpha = 0.2
+exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]
+
+[timing]
+duration_threshold = &quot;30s&quot;   # Shorter threshold for responsive inhibition
+cooldown_duration = &quot;60s&quot;
+
+[inhibitor]
+what = &quot;shutdown:idle:sleep:suspend&quot;  # Block all sleep types
+mode = &quot;block&quot;
+</code></pre>
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li><strong>Adjust thresholds</strong> based on your system's typical activity patterns (use <code>RUST_LOG=debug</code> dry-run to baseline)</li>
+<li><strong>Review <a href="configuration.html">Configuration Reference</a></strong> for all available options and EMA smoothing details</li>
+<li><strong>Read the full docs/</strong> directory for metrics collection methods, inhibition flow, and security hardening</li>
+</ol>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="configuration.html">Configuration Reference</a> — Complete configuration options with defaults</li>
+<li><a href="command-line.html">Command Line Arguments</a> — CLI usage and environment variables</li>
+<li><a href="systemd-user-service.html">Systemd User Service</a> — Detailed service setup and troubleshooting</li>
+<li><a href="metrics-overview.html">Metrics Overview</a> — How each metric type is collected</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,1845 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="command-line.html">
+      
+      
+        <link rel="next" href="metrics-overview.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Systemd User Service - rouser</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#running-rouser-as-a-systemd-user-service" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="rouser" class="md-header__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rouser
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Systemd User Service
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="rouser" class="md-nav__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rouser
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="configuration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systemd User Service
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="systemd-user-service.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systemd User Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-create-configuration-directory-and-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Create Configuration Directory and File
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-create-user-service-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Create User Service File
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-create-log-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Create Log Directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-configure-and-start-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Configure and Start Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-verify-inhibition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Verify Inhibition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#service-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Service Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#startstoprestart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start/Stop/Restart
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enabledisable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enable/Disable
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternative-systemd-system-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative: Systemd System Service
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternative: Systemd System Service">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-system-service-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create System Service File
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install-and-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install and Start
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Hardening
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Hardening">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-service-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Service (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system-service-more-restrictive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Service (More Restrictive)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#override-logging-via-systemd-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Override Logging via systemd environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resource-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#service-wont-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Won't Start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhibition-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Not Working
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kde-plasma-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KDE Plasma Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auto-start-on-login" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-Start on Login
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uninstallation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uninstallation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Uninstallation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#remove-user-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remove User Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remove-system-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remove System Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metrics-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="averaging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Averaging & EMA Smoothing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="d-bus-inhibition.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D-Bus Inhibition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ci-workflow.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-create-configuration-directory-and-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Create Configuration Directory and File
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-create-user-service-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Create User Service File
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-create-log-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Create Log Directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-configure-and-start-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Configure and Start Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-verify-inhibition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Verify Inhibition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#service-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Service Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#startstoprestart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start/Stop/Restart
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enabledisable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enable/Disable
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternative-systemd-system-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative: Systemd System Service
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternative: Systemd System Service">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-system-service-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create System Service File
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install-and-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install and Start
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Hardening
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Hardening">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-service-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Service (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system-service-more-restrictive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Service (More Restrictive)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#override-logging-via-systemd-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Override Logging via systemd environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resource-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#service-wont-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service Won't Start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhibition-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Not Working
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kde-plasma-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KDE Plasma Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auto-start-on-login" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-Start on Login
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uninstallation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uninstallation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Uninstallation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#remove-user-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remove User Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remove-system-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remove System Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="running-rouser-as-a-systemd-user-service">Running rouser as a Systemd User Service</h1>
+<p>This document describes how to configure <code>rouser</code> as a systemd user service for automatic startup and management.</p>
+<h2 id="overview">Overview</h2>
+<p>Systemd user services allow rouser to:
+- Start automatically when you log in
+- Run in your user context (no root required)
+- Be managed with standard systemd commands
+- Log to your user's journal</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Systemd user instance running (<code>systemctl --user daemon-reexec</code> may be needed)</li>
+<li>D-Bus session bus available</li>
+<li>User membership in <code>login</code> group (for D-Bus access) or polkit rule</li>
+<li><strong>logind lingering enabled</strong> for the user, so the service persists after logout:</li>
+</ul>
+<pre><code class="language-bash">loginctl enable-linger $USER
+</code></pre>
+<h2 id="installation-steps">Installation Steps</h2>
+<h3 id="step-1-create-configuration-directory-and-file">Step 1: Create Configuration Directory and File</h3>
+<p>Copy the repo-packaged default config into your XDG path:</p>
+<pre><code class="language-bash">mkdir -p ~/.config/rouser
+cp ./config/rouser.toml ~/.config/rouser/config.toml
+# Or create a custom one — see docs/configuration.md for full reference
+cat &gt; ~/.config/rouser/config.toml &lt;&lt; 'EOF'
+name = &quot;rouser&quot;
+update_interval = &quot;5s&quot;
+log_level = &quot;info&quot;
+
+[metrics.cpu]
+threshold = 80.0       # CPU usage % (0–100) above which to inhibit sleep
+ema_alpha = 0.3        # EMA smoothing: higher = more responsive, lower = smoother
+
+[metrics.gpu]
+threshold = 90.0       # GPU usage % per device
+ema_alpha = 0.3
+
+[metrics.network]
+threshold = 100.0      # Network throughput in Mbps
+ema_alpha = 0.2        # EMA smoothing for network I/O
+exclude_interfaces = [&quot;lo&quot;]    # Exclude from monitoring (default: loopback)
+include_interfaces = []        # Only monitor these; empty means all
+
+[metrics.disk]
+threshold = 50.0       # Disk I/O in MB/s above which to inhibit sleep
+ema_alpha = 0.2        # EMA smoothing for disk activity
+exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]  # Exclude virtual devices
+
+[timing]
+duration_threshold = &quot;30s&quot;   # Min time metrics must exceed threshold before inhibiting
+cooldown_duration = &quot;60s&quot;    # Time after releasing inhibition before re-inhibiting possible
+
+[inhibitor]
+what = &quot;shutdown:idle&quot;       # Lock types: idle, sleep, suspend, shutdown (colon-separated)
+mode = &quot;block&quot;               # Mode: block, delay, or block-weak
+EOF
+</code></pre>
+<h3 id="step-2-create-user-service-file">Step 2: Create User Service File</h3>
+<p>Create <code>~/.config/systemd/user/rouser.service</code>:</p>
+<pre><code class="language-ini">[Unit]
+Description=Rouser - User Sleep Inhibition Daemon
+Documentation=https://github.com/owaindjones/rouser
+After=graphical-session.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/%i/.local/bin/rouser --config /home/%i/.config/rouser/config.toml
+Restart=on-failure
+RestartSec=5s
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ProtectHome=read-only
+ReadWritePaths=%h/.config/rouser
+
+[Install]
+WantedBy=default.target
+</code></pre>
+<h3 id="step-3-create-log-directory">Step 3: Create Log Directory</h3>
+<pre><code class="language-bash">mkdir -p ~/.local/log/rouser
+</code></pre>
+<h3 id="step-4-configure-and-start-service">Step 4: Configure and Start Service</h3>
+<pre><code class="language-bash"># Reload user systemd daemon
+systemctl --user daemon-reload
+
+# Enable service to start on login
+systemctl --user enable rouser
+
+# Start the service
+systemctl --user start rouser
+
+# Check status
+systemctl --user status rouser
+</code></pre>
+<p>Expected output:</p>
+<pre><code>● rouser.service - Rouser - User Sleep Inhibition Daemon
+     Loaded: loaded (/home/username/.config/systemd/user/rouser.service; enabled)
+     Active: active (running) since Mon 2026-03-26 10:00:00 UTC; 5min ago
+   Main PID: 1234 (rouser)
+      Tasks: 4 (limit: 4915)
+     Memory: 2.5M
+</code></pre>
+<h3 id="step-5-verify-inhibition">Step 5: Verify Inhibition</h3>
+<p>Check active inhibitors:</p>
+<pre><code class="language-bash"># List active inhibitors
+loginctl list-inhibitors
+
+# Should show rouser as an inhibitor
+</code></pre>
+<h2 id="service-management">Service Management</h2>
+<h3 id="startstoprestart">Start/Stop/Restart</h3>
+<pre><code class="language-bash"># Start service
+systemctl --user start rouser
+
+# Stop service
+systemctl --user stop rouser
+
+# Restart service
+systemctl --user restart rouser
+
+# Reload configuration (without restart)
+systemctl --user reload rouser
+</code></pre>
+<h3 id="check-status">Check Status</h3>
+<pre><code class="language-bash"># Check if running
+systemctl --user is-active rouser
+
+# View detailed status
+systemctl --user status rouser
+
+# View logs
+journalctl --user -u rouser -f
+
+# View last 50 lines
+journalctl --user -u rouser -n 50
+
+# View logs for specific time range
+journalctl --user -u rouser --since &quot;2024-03-26 00:00:00&quot; --until &quot;2024-03-26 23:59:59&quot;
+</code></pre>
+<h3 id="enabledisable">Enable/Disable</h3>
+<pre><code class="language-bash"># Enable on login
+systemctl --user enable rouser
+
+# Disable (but keep file)
+systemctl --user disable rouser
+
+# Check if enabled
+systemctl --user is-enabled rouser
+</code></pre>
+<h2 id="alternative-systemd-system-service">Alternative: Systemd System Service</h2>
+<p>For system-wide installation (requires root):</p>
+<h3 id="create-system-service-file">Create System Service File</h3>
+<p>Create <code>/etc/systemd/system/rouser.service</code>:</p>
+<pre><code class="language-ini">[Unit]
+Description=Rouser - System Sleep Inhibition Daemon
+Documentation=https://github.com/owaindjones/rouser
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
+Restart=on-failure
+RestartSec=5s
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ReadWritePaths=/var/log/rouser
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<h3 id="install-and-start">Install and Start</h3>
+<pre><code class="language-bash"># Copy service file
+sudo cp rouser.service /etc/systemd/system/
+
+# Reload daemon
+sudo systemctl daemon-reload
+
+# Enable and start
+sudo systemctl enable rouser
+sudo systemctl start rouser
+
+# Check status
+sudo systemctl status rouser
+
+# View logs
+sudo journalctl -u rouser -f
+</code></pre>
+<h2 id="security-hardening">Security Hardening</h2>
+<h3 id="user-service-recommended">User Service (Recommended)</h3>
+<p>The user service runs with your user's privileges and has limited access:</p>
+<pre><code class="language-ini">[Service]
+User=%u
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ProtectHome=true
+ReadWritePaths=%h/.config/rouser %h/.local/log/rouser
+</code></pre>
+<h3 id="system-service-more-restrictive">System Service (More Restrictive)</h3>
+<p>For system-wide installation with enhanced security:</p>
+<pre><code class="language-ini">[Service]
+Type=simple
+User=rouser
+Group=rouser
+ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
+Restart=on-failure
+RestartSec=5s
+
+# Create dedicated user
+# UserAdd -r -s /usr/bin/false -U -M -r rouser
+
+# Grant only necessary capabilities
+CapabilityBoundingSet=CAP_SYS_ADMIN
+AmbientCapabilities=CAP_SYS_ADMIN
+
+# Restrict filesystem access
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ReadWritePaths=/var/log/rouser
+ReadOnlyPaths=/etc/rouser
+
+# System call filtering
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+</code></pre>
+<h2 id="environment-configuration">Environment Configuration</h2>
+<h3 id="override-logging-via-systemd-environment">Override Logging via systemd environment</h3>
+<p>Since rouser has no <code>ROUSER_*</code> config overrides, use systemd's <code>Environment=</code> to set <code>RUST_LOG</code>:</p>
+<pre><code class="language-bash">systemctl --user edit rouser.service
+</code></pre>
+<p>Add:</p>
+<pre><code class="language-ini">[Service]
+Environment=&quot;RUST_LOG=debug&quot;
+</code></pre>
+<p>Reload and restart:</p>
+<pre><code class="language-bash">systemctl --user daemon-reload
+systemctl --user restart rouser
+</code></pre>
+<p>Or override the log level via CLI by editing <code>ExecStart</code> in the service file to include <code>-l debug</code>.</p>
+<h3 id="resource-limits">Resource Limits</h3>
+<p>Prevent resource exhaustion:</p>
+<pre><code class="language-ini">[Service]
+Type=simple
+ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
+
+# Resource limits
+MemoryLimit=256M
+MemoryHigh=200M
+CPUQuota=50%
+TasksMax=10
+</code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="service-wont-start">Service Won't Start</h3>
+<p><strong>Check if user systemd is running</strong>:</p>
+<pre><code class="language-bash">systemctl --user status
+</code></pre>
+<p>If not running, log out and back in to start the user instance.</p>
+<p><strong>Check D-Bus access</strong>:</p>
+<pre><code class="language-bash"># Verify D-Bus session is available
+echo $DBUS_SESSION_BUS_ADDRESS
+
+# Check if rouser can reach D-Bus
+dbus-send --session --print-reply \
+  --dest=org.freedesktop.DBus \
+  /org/freedesktop/DBus \
+  org.freedesktop.DBus.Peer.Ping
+</code></pre>
+<p><strong>Check logs</strong>:</p>
+<pre><code class="language-bash">journalctl --user -u rouser -n 100 --no-pager
+</code></pre>
+<h3 id="inhibition-not-working">Inhibition Not Working</h3>
+<p><strong>Verify rouser is running</strong>:</p>
+<pre><code class="language-bash">systemctl --user status rouser
+</code></pre>
+<p><strong>Check active inhibitors</strong>:</p>
+<pre><code class="language-bash">loginctl list-inhibitors
+</code></pre>
+<p><strong>Test D-Bus access manually</strong>:</p>
+<pre><code class="language-bash"># Try to inhibit sleep manually
+systemd-inhibit --what=sleep --mode=block --description=&quot;Test&quot; \
+  -- sh -c &quot;sleep 60; echo Done&quot;
+</code></pre>
+<h3 id="kde-plasma-issues">KDE Plasma Issues</h3>
+<p>KDE Powerdevil may ignore inhibitors from unprivileged users.</p>
+<p><strong>Add polkit rule</strong>:</p>
+<p>Create <code>/etc/polkit-1/rules.d/50-rouser.rules</code>:</p>
+<pre><code class="language-javascript">polkit.addRule(function(action, subject) {
+    if (action.id == &quot;org.freedesktop.login1.inhibit&quot; &amp;&amp;
+        subject.user == &quot;your_username&quot;) {
+        return polkit.Result.YES;
+    }
+});
+</code></pre>
+<p>Reload polkit:</p>
+<pre><code class="language-bash">sudo systemctl restart polkit
+</code></pre>
+<h3 id="logging-issues">Logging Issues</h3>
+<p><strong>Enable debug logging in config.toml</strong>:</p>
+<pre><code class="language-toml">name = &quot;rouser&quot;
+update_interval = &quot;5s&quot;
+log_level = &quot;debug&quot;   # Set at root level, not under [daemon]
+...
+</code></pre>
+<p>Then restart:</p>
+<pre><code class="language-bash">systemctl --user restart rouser
+journalctl --user -u rouser -f
+</code></pre>
+<h2 id="auto-start-on-login">Auto-Start on Login</h2>
+<p>The user service automatically starts when you log in if enabled. To verify:</p>
+<pre><code class="language-bash"># Check autostart status
+systemctl --user is-enabled rouser
+
+# Check what pulls it in
+systemctl --user list-dependencies default.target | grep rouser
+</code></pre>
+<p>If needed, create a desktop autostart entry:</p>
+<p>Create <code>~/.config/autostart/rouser.desktop</code>:</p>
+<pre><code class="language-ini">[Desktop Entry]
+Type=Application
+Name=Rouser
+Exec=/usr/bin/systemctl --user start rouser
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+</code></pre>
+<h2 id="uninstallation">Uninstallation</h2>
+<h3 id="remove-user-service">Remove User Service</h3>
+<pre><code class="language-bash"># Stop and disable service
+systemctl --user stop rouser
+systemctl --user disable rouser
+
+# Remove service file
+rm ~/.config/systemd/user/rouser.service
+
+# Reload daemon
+systemctl --user daemon-reload
+
+# Clean up configuration
+rm -rf ~/.config/rouser ~/.local/log/rouser
+</code></pre>
+<h3 id="remove-system-service">Remove System Service</h3>
+<pre><code class="language-bash">sudo systemctl stop rouser
+sudo systemctl disable rouser
+sudo rm /etc/systemd/system/rouser.service
+sudo systemctl daemon-reload
+sudo rm /etc/rouser/config.toml
+sudo rm -rf /etc/rouser /var/log/rouser
+</code></pre>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="quickstart.html">Quick Start Guide</a> - Getting started with rouser</li>
+<li><a href="configuration.html">Configuration Reference</a> - Complete configuration options</li>
+<li><a href="command-line.html">Command Line Arguments</a> - CLI usage details</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

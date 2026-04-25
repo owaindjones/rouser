@@ -1,0 +1,1410 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="averaging.html">
+      
+      
+        <link rel="next" href="security.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>D-Bus Inhibition - rouser</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#d-bus-sleep-inhibition-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="rouser" class="md-header__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rouser
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              D-Bus Inhibition
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="rouser" class="md-nav__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rouser
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quickstart.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="configuration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systemd-user-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systemd User Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metrics-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="averaging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Averaging & EMA Smoothing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D-Bus Inhibition
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="d-bus-inhibition.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D-Bus Inhibition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Concepts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d-bus-service-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D-Bus Service Details
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D-Bus Service Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inhibition-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#return-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Return Values
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lock-types-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lock Types Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rust-implementation-zbus-v4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust Implementation (zbus v4)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rust Implementation (zbus v4)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-pattern-raii-wrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Pattern: RAII Wrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-in-rousers-service-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage in rouser's Service Loop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-change-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State-Change Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#debugging-and-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debugging and Verification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Debugging and Verification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-active-inhibitors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check Active Inhibitors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-systemd-logind-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check systemd-logind Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deprecated-apis-do-not-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecated APIs (Do Not Use)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deprecated APIs (Do Not Use)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#freedesktop-powermanagement-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FreeDesktop PowerManagement API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ci-workflow.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Concepts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d-bus-service-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D-Bus Service Details
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D-Bus Service Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inhibition-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inhibition Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#return-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Return Values
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lock-types-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lock Types Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rust-implementation-zbus-v4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust Implementation (zbus v4)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rust Implementation (zbus v4)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-pattern-raii-wrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Pattern: RAII Wrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-in-rousers-service-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage in rouser's Service Loop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-change-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State-Change Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#debugging-and-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debugging and Verification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Debugging and Verification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#check-active-inhibitors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check Active Inhibitors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check-systemd-logind-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check systemd-logind Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deprecated-apis-do-not-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecated APIs (Do Not Use)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deprecated APIs (Do Not Use)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#freedesktop-powermanagement-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FreeDesktop PowerManagement API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="d-bus-sleep-inhibition-api-reference">D-Bus Sleep Inhibition API Reference</h1>
+<p>This document describes the D-Bus API used by <code>rouser</code> for inhibiting system sleep on Linux systems running systemd. It serves as a technical reference for developers extending or debugging inhibition behavior.</p>
+<h2 id="overview">Overview</h2>
+<p>Systemd provides a sleep inhibition mechanism that allows applications to register interest in preventing system suspend/hibernate. When an inhibitor is active, the system delays or prevents sleep operations.</p>
+<p>rouser uses this via the <code>org.freedesktop.login1.Manager.Inhibit</code> method on the <strong>system</strong> D-Bus. Unlike session-bus APIs (e.g., the deprecated FreeDesktop PowerManagement API), systemd login1 works without a graphical session and is actively maintained.</p>
+<h3 id="key-concepts">Key Concepts</h3>
+<ul>
+<li><strong>Inhibition Lock</strong>: A file descriptor that, when kept open, holds sleep inhibited</li>
+<li><strong>cookie</strong>: A unique identifier returned by <code>Inhibit()</code> for tracking individual inhibition requests</li>
+<li><strong>what</strong>: The type of operation to inhibit (sleep, shutdown, etc.)</li>
+<li><strong>mode</strong>: How the inhibitor affects the operation (block, delay, block-weak)</li>
+</ul>
+<h2 id="d-bus-service-details">D-Bus Service Details</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bus</td>
+<td>System bus (<code>org.freedesktop.login1</code>)</td>
+</tr>
+<tr>
+<td>Object Path</td>
+<td><code>/org/freedesktop/login1</code></td>
+</tr>
+<tr>
+<td>Interface</td>
+<td><code>org.freedesktop.login1.Manager</code></td>
+</tr>
+<tr>
+<td>Method</td>
+<td><code>Inhibit(string what, string mode, string who, string reason)</code> → <code>(handle cookie)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="inhibition-parameters">Inhibition Parameters</h3>
+<p><strong>what</strong> — Colon-separated lock types:</p>
+<table>
+<thead>
+<tr>
+<th>Lock Type</th>
+<th>ACPI State</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idle</code></td>
+<td>S5 (software power off) / idle suspend</td>
+<td>Prevents the system from entering an idle/off state</td>
+</tr>
+<tr>
+<td><code>sleep</code></td>
+<td>S3 (Suspend-to-RAM) / S4 (Suspend-to-disk)</td>
+<td>Prevents sleep/hibernate operations</td>
+</tr>
+</tbody>
+</table>
+<p><strong>mode</strong> — How the inhibitor affects the operation:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+<th>Equivalent systemd directive</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>block</code></td>
+<td>Completely blocks the operation while lock is held</td>
+<td>Default behavior</td>
+</tr>
+<tr>
+<td><code>delay</code></td>
+<td>Delays the operation for up to <code>InhibitDelayMaxUSec()</code></td>
+<td><code>InhibitDelayMaxUSec=</code></td>
+</tr>
+<tr>
+<td><code>block-weak</code></td>
+<td>Blocks but can be overridden by privileged processes</td>
+<td>N/A (internal)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>who</strong> — A short string identifying the process (e.g., <code>"rouser"</code>). Appears in <code>systemd-inhibit --list</code>.</p>
+<p><strong>reason</strong> — A human-readable description of why sleep is inhibited. Appears in inhibitor listings for operators.</p>
+<h3 id="return-values">Return Values</h3>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fd</code> (handle)</td>
+<td>Unix file descriptor (<code>h</code>)</td>
+<td>Keep open to maintain inhibition; close to release</td>
+</tr>
+<tr>
+<td><code>cookie</code></td>
+<td>String</td>
+<td>Unique identifier for this lock, used for tracking/debugging</td>
+</tr>
+</tbody>
+</table>
+<h2 id="lock-types-reference">Lock Types Reference</h2>
+<p>The <code>what</code> parameter accepts these values individually or combined with colons:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idle</code></td>
+<td>Prevents idle/off state transitions</td>
+<td>Headless servers that should stay awake during background work even when no user is logged in</td>
+</tr>
+<tr>
+<td><code>sleep</code></td>
+<td>Prevents S3 (Suspend-to-RAM) and S4 (Suspend-to-disk)</td>
+<td>Standard use case for desktop/laptop systems</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Default</strong>: rouser defaults to <code>"shutdown:idle"</code>, which prevents idle transitions. Add <code>"sleep"</code> if you also want to block sleep/hibernate operations during activity:</p>
+<pre><code class="language-toml">[inhibitor]
+what = &quot;idle:sleep&quot;   # Block both idle and sleep
+mode = &quot;block&quot;
+</code></pre>
+<blockquote>
+<p><strong>Note</strong>: The <code>shutdown</code> lock type in the default config does not prevent reboot/shutdown — it prevents idle-to-shutdown transitions. A privileged user can still force shutdown with <code>systemctl --force reboot</code>.</p>
+</blockquote>
+<h2 id="rust-implementation-zbus-v4">Rust Implementation (zbus v4)</h2>
+<p>rouser uses <code>zbus</code> version 4 for D-Bus communication. The inhibition logic is in <code>src/inhibit.rs</code>.</p>
+<h3 id="core-pattern-raii-wrap">Core Pattern: RAII Wrap</h3>
+<p>The file descriptor returned by <code>Inhibit()</code> must be kept open while inhibition should be active, and closed when inhibition ends. rouser wraps this using Rust's Drop trait for automatic cleanup:</p>
+<pre><code class="language-rust">use zbus::{Connection, Result};
+use std::os::unix::io::RawFd;
+
+pub struct SleepInhibitor {
+    fd: RawFd,
+    cookie: String,
+}
+
+impl SleepInhibitor {
+    pub async fn new(what: &amp;str, mode: &amp;str, reason: &amp;str) -&gt; Result&lt;Self&gt; {
+        let connection = Connection::system().await?;
+
+        // Call Inhibit() on the system bus
+        let (fd, cookie): (RawFd, String) = connection.call_method(
+            Some(&quot;org.freedesktop.login1&quot;),
+            &quot;/org/freedesktop/login1&quot;,
+            Some(&quot;org.freedesktop.login1.Manager&quot;),
+            &quot;Inhibit&quot;,
+            &amp;(what, mode, &quot;rouser&quot;, reason),
+        ).await?;
+
+        Ok(Self { fd, cookie })
+    }
+}
+
+impl Drop for SleepInhibitor {
+    fn drop(&amp;mut self) {
+        // File descriptor is automatically closed when dropped.
+        // This releases the inhibition lock and allows sleep again.
+    }
+}
+</code></pre>
+<p>When <code>SleepInhibitor</code> goes out of scope (or is explicitly dropped), the file descriptor closes, releasing inhibition immediately — no explicit D-Bus release call needed.</p>
+<h3 id="usage-in-rousers-service-loop">Usage in rouser's Service Loop</h3>
+<p>The inhibitor is acquired/released within the main service loop (<code>src/service.rs</code>):</p>
+<ol>
+<li>Each tick collects metrics and evaluates thresholds</li>
+<li>If any metric exceeds its threshold continuously for <code>duration_threshold</code>, a new <code>SleepInhibitor</code> is created</li>
+<li>While inhibited, inhibition state persists across ticks (the <code>SleepInhibitor</code> struct lives in <code>DataManager</code>)</li>
+<li>When all metrics stay below their thresholds for <code>cooldown_duration</code>, the inhibitor is dropped and sleep is released</li>
+</ol>
+<h3 id="state-change-logging">State-Change Logging</h3>
+<p>Following best practices, rouser only logs INFO-level messages when the inhibition state <strong>transitions</strong> — not on every polling tick:</p>
+<pre><code class="language-rust">// After evaluating state in a tick:
+let current_inhibited = self.state.is_inhibited();
+if !self.previous_inhibited_state &amp;&amp; current_inhibited {
+    info!(&quot;Sleep inhibited: at least one metric above threshold&quot;);
+} else if self.previous_inhibited_state &amp;&amp; !current_inhibited {
+    info!(&quot;Releasing sleep inhibition: all metrics below thresholds for cooldown duration&quot;);
+}
+self.previous_inhibited_state = current_inhibited;
+</code></pre>
+<p>This prevents log spam (previously, "Sleep inhibited" was logged every 5 seconds while active). See <a href="../AGENTS.md">AGENTS.md</a> → Logging Conventions for the state-change-only logging rule.</p>
+<h2 id="debugging-and-verification">Debugging and Verification</h2>
+<h3 id="check-active-inhibitors">Check Active Inhibitors</h3>
+<pre><code class="language-bash"># List all current inhibitors system-wide
+systemd-inhibit --list
+
+# Show detailed info about a specific inhibitor
+systemd-inhibit --list --what=sleep
+
+# From rouser's perspective — check if your user has inhibition permission
+loginctl list-sessions | grep $(whoami)
+</code></pre>
+<h3 id="check-systemd-logind-status">Check systemd-logind Status</h3>
+<pre><code class="language-bash"># Verify the login1 D-Bus service is running
+systemctl status systemd-logind
+
+# Check for errors in logind journal
+journalctl -u systemd-logind --since &quot;5 min ago&quot;
+</code></pre>
+<h3 id="common-errors">Common Errors</h3>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AccessDenied</code> (org.freedesktop.login1)</td>
+<td>User lacks permission to inhibit via polkit</td>
+<td>Add polkit rule for the user, or run as root. See <a href="security.html#polkit-rules-for-desktop-environments">Security Best Practices</a>.</td>
+</tr>
+<tr>
+<td><code>Failed</code> (org.freedesktop.DBus.Error.ServiceUnknown)</td>
+<td>systemd-logind not running on system bus</td>
+<td>Ensure systemd is active: <code>systemctl --user start systemd-logind</code> or check host-level service.</td>
+</tr>
+<tr>
+<td>No inhibitors showing in <code>systemd-inhibit --list</code></td>
+<td>Inhibition was released before command ran</td>
+<td>Check timing — inhibition may have been released between polling cycles. Run rouser with debug logging to track state transitions.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="deprecated-apis-do-not-use">Deprecated APIs (Do Not Use)</h2>
+<h3 id="freedesktop-powermanagement-api">FreeDesktop PowerManagement API</h3>
+<p>The old <code>/org/freedesktop/PowerManagement.Inhibit</code> API is <strong>obsolete</strong> and should never be used:
+- Deprecated around 2014 (systemd 183 era)
+- Specs no longer available in current freedesktop.org documentation
+- Does not work reliably on modern desktop environments
+- KDE Powerdevil ignores inhibitors from unprivileged users regardless of the API used</p>
+<p>Always use <code>org.freedesktop.login1.Manager.Inhibit</code> instead. See <a href="../AGENTS.md">AGENTS.md</a> → Lessons Learned for more context on why this approach was chosen over alternatives.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html#Inhibit%20">systemd login1 D-Bus API docs</a></li>
+<li><a href="https://systemd.io/INHIBITOR_LOCKS/">systemd inhibitor lock types</a></li>
+<li><a href="https://docs.rs/zbus/">zbus documentation</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
