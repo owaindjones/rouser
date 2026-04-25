@@ -45,6 +45,13 @@ jobs:
       - name: Run all tests
         run: cargo test --all-targets
 
+      - name: Security audit (cargo audit)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - name: Run security audit
+        run: cargo audit
+
   build-artifacts-ci:
     if: github.event_name != 'release'
     needs: [ci-lint-test]
@@ -358,6 +365,23 @@ jobs:
           name: rouser-arch-pkgbuild
           path: PKGBUILD
           retention-days: 30
+
+  auto-release:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes and update release
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose
+        env:
+          GITHUB_REPO: ${{ github.repository }}
+          OUTPUT: RELEASE_NOTES.md
 
   deploy-pages:
     if: github.event_name == 'release'
