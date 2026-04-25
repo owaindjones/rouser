@@ -109,7 +109,7 @@ jobs:
           retention-days: 7
 
   release-tarballs:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     strategy:
       fail-fast: false
       matrix:
@@ -124,6 +124,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set version
+        id: set-version
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "release" ]; then
+            echo "VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+          fi
 
       - name: Install stable toolchain and clippy
         run: |
@@ -159,18 +168,16 @@ jobs:
       - name: Create release tarball
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF#refs/tags/v}"
           BINARY="target/${{ matrix.target }}/release/rouser"
           ARCHIVE="rouser-v${VERSION}-linux-${{ matrix.arch }}.tar.gz"
           chmod +x .github/scripts/packaging.sh
           .github/scripts/packaging.sh package "$BINARY" "$ARCHIVE"
 
       - name: Upload release asset (tarball)
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
           gh release upload "${VERSION}" \
             "rouser-v${VERSION}-linux-${{ matrix.arch }}.tar.gz" --clobber
 
@@ -229,7 +236,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
           gh release upload "${VERSION}" "rouser-${VERSION}-${{ matrix.arch }}.deb" --clobber
 
       - name: Upload GHA artifact (DEB backup)
@@ -290,7 +297,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
           rpm_file=$(find . -maxdepth 2 -name "rouser-${VERSION}-*.rpm" 2>/dev/null | head -1)
           if [ -n "$rpm_file" ]; then
             gh release upload "${VERSION}" "$rpm_file" --clobber
@@ -316,13 +323,13 @@ jobs:
       - name: Download all release tarballs for PKGBUILD source URLs
         run: |
           mkdir -p dist-tarballs/
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
           gh api repos/{owner}/{repo}/releases/assets \
             --jq '.[] | select(.name | test("linux")) | {name, browser_download_url}' 2>/dev/null || true
 
       - name: Generate PKGBUILD
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ github.event.release.tag_name }}
         run: |
           chmod +x .github/scripts/pkgbuild.sh
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
@@ -330,7 +337,7 @@ jobs:
 
       - name: Create Arch source archive artifact
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
           tar czf "rouser-pkgbuild-v${VERSION}.tar.gz" PKGBUILD
 
       - name: Upload Arch PKGBUILD as release asset
@@ -338,7 +345,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
           gh release upload "${VERSION}" \
             "rouser-pkgbuild-v${VERSION}.tar.gz" --clobber
 
