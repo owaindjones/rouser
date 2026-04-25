@@ -514,6 +514,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "hardware-specific: only meaningful on real hardware"]
     fn test_detect_driver_nvidia_is_recognized() {
         if let Ok(entries) = fs::read_dir("/sys/class/drm") {
             for entry in entries.flatten() {
@@ -538,6 +539,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "hardware-specific: depends on local GPU hardware"]
     fn test_mixed_vendor_gpu_detection() {
         if let Ok(entries) = fs::read_dir("/sys/class/drm") {
             let mut found_nvidia = false;
