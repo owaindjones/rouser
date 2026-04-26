@@ -16,7 +16,7 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 ### Agent-Specific Rules (do NOT apply to human developers)
 
 - **No background tasks**: All work must be performed by subagents or in the foreground. Background tasks are not allowed because they often time out or exhaust the context window before completing.
-- **Subagents and subtasks allowed (foreground only)**: Delegating to subagents is encouraged for parallelizable work, but all spawned agents MUST run with `run_in_background=false` (synchronous mode). This ensures agent output is available in-session and prevents context loss from timed-out background tasks. Never spawn a task and forget about it — always collect results before proceeding.
+- **Sequential workers only (foreground)**: Delegating to subagents is allowed, but ONLY one at a time with `run_in_background=false` (synchronous mode). Never run multiple agents concurrently — always wait for each worker to finish before spawning the next. This ensures agent output is available in-session and prevents context loss from timed-out background tasks.
 
 ## Versioning Policy
 
