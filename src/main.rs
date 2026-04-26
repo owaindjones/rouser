@@ -52,6 +52,10 @@ struct Args {
     #[arg(long)]
     dry_run: bool,
 
+    /// Print the embedded default configuration and exit
+    #[arg(long)]
+    print_config: bool,
+
     /// Log level filter; overrides config.log_level and RUST_LOG env var.
     #[arg(long, short = 'l')]
     log_level: Option<String>,
@@ -61,6 +65,11 @@ struct Args {
 async fn main() -> ExitCode {
     let args = Args::parse();
 
+    if args.print_config {
+        config::ConfigLoader::print_default_config(&mut std::io::stdout()).ok();
+        return ExitCode::SUCCESS;
+    }
+
     // Load configuration to get log_level
     let (config_path, searched_paths) = resolve_config_path(&args);
 
@@ -68,7 +77,7 @@ async fn main() -> ExitCode {
     let config_result = config_loader.clone().load();
     if config_result.is_err() {
         warn!(
-            "No configuration file found at checked paths — using built-in defaults. \
+            "No configuration file found at checked paths — using embedded defaults. \
              Checked: {}",
             searched_paths.join(", ")
         );
@@ -152,8 +161,10 @@ async fn run_dry_run(config: &config::Config) -> Result<()> {
     info!("Running in dry-run mode indefinitely");
     info!("Configuration:");
     info!(
-        "  - CPU threshold: {}%, EMA alpha: {:.2}",
-        config.metrics.cpu.threshold, config.metrics.cpu.ema_alpha
+        "  - CPU per-core threshold: {}%, total threshold: {}%, EMA alpha: {:.2}",
+        config.metrics.cpu.per_core_threshold,
+        config.metrics.cpu.total_threshold,
+        config.metrics.cpu.ema_alpha
     );
     info!(
         "  - GPU threshold: {}%, EMA alpha: {:.2}",

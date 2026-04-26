@@ -8,8 +8,9 @@ update_interval = "1s"
 log_level = "info"
 
 [metrics.cpu]
-threshold = 10.0      # CPU usage threshold (percentage)
-ema_alpha = 0.7       # EMA smoothing factor (0.0-1.0, higher = more responsive)
+per_core_threshold = 80.0
+total_threshold = 50.0
+ema_alpha = 0.7
 
 [metrics.gpu]
 threshold = 33.3      # GPU usage threshold (percentage)
