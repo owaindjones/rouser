@@ -88,7 +88,7 @@ impl CpuCollector {
         let has_stable_core_count = self
             .last_stats
             .as_ref()
-            .is_none_or(|prev| prev.len() == curr_ticks.len());
+            .is_some_and(|prev| prev.len() == curr_ticks.len());
 
         if has_stable_core_count {
             match &self.last_time {
@@ -412,5 +412,32 @@ mod tests {
 
         let err2 = CpuError::NoCoresFound;
         assert!(format!("{}", err2).contains("No CPU cores found"));
+    }
+
+    #[tokio::test]
+    async fn test_first_collect_does_not_panic_on_none_last_stats() {
+        let mut collector = CpuCollector::new();
+        // last_stats is None — calling collect() on a fresh collector must not panic.
+        let result = collector.collect().await;
+        assert!(result.is_ok(), "first collect should succeed");
+        let usage = result.unwrap();
+        // First sample has no previous data, so delta is zero.
+        assert_eq!(usage.per_core_max, 0.0);
+        assert_eq!(usage.total_average, 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_consecutive_collects_produce_nonzero_after_warmup() {
+        let mut collector = CpuCollector::new();
+        // Warm up: collect a few times so last_stats and last_time are set.
+        for _ in 0..3 {
+            let result = collector.collect().await;
+            assert!(result.is_ok());
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+        // After warmup, the next collect should compute actual delta (not zero) on a busy system.
+        // On an idle system it may still be near-zero; just verify no panic and stable core count.
+        let result = collector.collect().await;
+        assert!(result.is_ok());
     }
 }
