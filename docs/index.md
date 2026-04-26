@@ -2,7 +2,7 @@
 
 A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded.
 
-![rouser logo](../docs/rouser-logo.svg)
+![rouser logo](./rouser-logo.svg)
 
 ## Quick Start
 

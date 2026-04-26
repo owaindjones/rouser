@@ -4,6 +4,7 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 
 ## Core Principles
 
+- **Read CONTRIBUTING.md first**: Before making changes, read [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards, testing conventions, and documentation sync rules that apply to all contributors (agents included). AGENTS.md covers agent-specific behavior; CONTRIBUTING.md covers everything else.
 - **Build before committing**: The code MUST compile (`cargo build`), pass all tests (`cargo test`), and be clean under clippy (`cargo clippy -- -D warnings`) before any git commit. Never ship broken code.
 - **Conventional commits**: All git commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope): description`. See section below.
 - **Commit frequently when stable**: Make atomic, logical commits whenever the codebase is in a working state (builds, tests pass). Do not batch unrelated changes into a single commit. Each commit should represent one coherent unit of change.
