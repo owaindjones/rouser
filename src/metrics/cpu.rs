@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::Path;
 use tracing::debug;
 
 #[derive(Debug, Clone)]
@@ -173,17 +172,16 @@ impl CpuCollector {
     }
 }
 
-/// Cache base max frequencies from cpufreq sysfs at startup.
-/// Reads once (not per-tick), avoiding excessive file descriptor usage.
+/// Cache max frequency from cpufreq sysfs at startup.
 fn cache_base_frequencies() -> Vec<CpuFreq> {
     let mut freqs = Vec::new();
-    
+
     for entry in fs::read_dir("/sys/devices/system/cpu").ok().into_iter().flatten() {
         let path = match entry.map(|e| e.path()).ok() {
             Some(p) => p,
             None => continue,
         };
-        
+
         let name = match path.file_name().and_then(|s| s.to_str()) {
             Some(n) => n,
             None => continue,
@@ -196,34 +194,21 @@ fn cache_base_frequencies() -> Vec<CpuFreq> {
             continue;
         }
 
-        let cur_path = format!(
-            "/sys/devices/system/cpu/{}/cpufreq/cpuinfo_cur_freq",
-            name
-        );
-        let max_path = format!(
+      let max_path = format!(
             "/sys/devices/system/cpu/{}/cpufreq/cpuinfo_max_freq",
             name
         );
+        let fallback_max_path = format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name);
 
-        if Path::new(&cur_path).exists() {
-            let cur = read_single_freq(&cur_path, 1000.0);
-            let max = read_single_freq(&max_path, 1000.0);
-            freqs.push(CpuFreq {
-                cur_freq_khz: (cur as f64 / 1000.0) as u64,
-                max_freq_khz: (max as f64 / 1000.0) as u64,
-            });
-        } else {
-            let fallback_max_path = format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name);
-            if Path::new(&fallback_max_path).exists() {
-                let max = read_single_freq(&fallback_max_path, 1.0);
-                freqs.push(CpuFreq {
-                    cur_freq_khz: (max as f64 / 1000.0) as u64,
-                    max_freq_khz: (max as f64 / 1000.0) as u64,
-                });
-            } else {
-                freqs.push(CpuFreq::default());
-            }
-        }
+        let effective_max = match read_single_freq(&max_path, 1000.0) {
+            0 => read_single_freq(&fallback_max_path, 1.0),
+            v => v,
+        };
+
+        freqs.push(CpuFreq {
+            cur_freq_khz: 0,
+            max_freq_khz: effective_max,
+        });
     }
 
     debug!("Cached base frequencies for {} core(s) at startup", freqs.len());
@@ -246,40 +231,16 @@ fn read_runtime_cur_freq(core_name: &str, core_idx: usize, base_freqs: &[CpuFreq
         CpuFreq::default()
     };
 
+    // Single sysfs file read per tick — no fallback chain to minimize FD burst.
+    // If cpufreq scaling_cur_freq is unavailable, cur stays 0 and we rely on
+    // base_max from startup for frequency-weighted calculations.
     let cur_path = format!(
         "/sys/devices/system/cpu/{}/cpufreq/scaling_cur_freq",
         core_name
     );
-    
     if let Ok(content) = fs::read_to_string(&cur_path) {
         if let Ok(freq_hz) = content.trim().parse::<f64>() {
             result.cur_freq_khz = (freq_hz / 1000.0) as u64;
-        }
-    }
-
-    // Fallback to cpuinfo_cur_freq if scaling path failed or returned 0
-    if result.cur_freq_khz == 0 {
-        let info_path = format!(
-            "/sys/devices/system/cpu/{}/cpufreq/cpuinfo_cur_freq",
-            core_name
-        );
-        if let Ok(content) = fs::read_to_string(&info_path) {
-            if let Ok(freq_hz) = content.trim().parse::<f64>() {
-                result.cur_freq_khz = (freq_hz / 1000.0) as u64;
-            }
-        }
-    }
-
-    // Final fallback to non-cpufreq path
-    if result.cur_freq_khz == 0 {
-        let info_path = format!(
-            "/sys/devices/system/cpu/{}/cpuinfo_cur_freq",
-            core_name
-        );
-        if let Ok(content) = fs::read_to_string(&info_path) {
-            if let Ok(freq_hz) = content.trim().parse::<f64>() {
-                result.cur_freq_khz = (freq_hz / 1000.0) as u64;
-            }
         }
     }
 
