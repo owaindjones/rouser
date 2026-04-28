@@ -1,0 +1,392 @@
+name: Release CI/CD
+
+on:
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  ci-lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu
+
+      - name: Cache dependencies and build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-lint-test
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            libsystemd-dev libdbus-1-dev pkg-config
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy lint check
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run all tests
+        run: cargo test --all-targets
+
+      - name: Security audit (cargo audit)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - name: Run security audit
+        run: cargo audit
+
+  release-build:
+    needs: [ci-lint-test]
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: x86_64
+            deb_arch: amd64
+            rpm_arch: x86_64
+          - target: aarch64-unknown-linux-gnu
+            arch: aarch64
+            deb_arch: arm64
+            rpm_arch: aarch64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        id: set-version
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "release" ]; then
+            echo "VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install stable toolchain and clippy
+        run: |
+          rustup update stable && rustup default stable
+          rustup component add clippy
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            libsystemd-dev libdbus-1-dev pkg-config
+
+      - name: Cache dependencies and build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-build-${{ matrix.target }}
+
+      - name: Install cross-compilation toolchain (cross-rs)
+        if: matrix.arch == 'aarch64'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build release binary
+        run: |
+          set -euo pipefail
+          BINARY="target/${{ matrix.target }}/release/rouser"
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            cargo build --release --target ${{ matrix.target }} --verbose
+          else
+            cross build --release --target ${{ matrix.target }} --verbose
+          fi
+
+      - name: Create release tarball
+        run: |
+          set -euo pipefail
+          BINARY="target/${{ matrix.target }}/release/rouser"
+          ARCHIVE="rouser-v${VERSION}-linux-${{ matrix.arch }}.tar.gz"
+          chmod +x .github/scripts/packaging.sh
+          .github/scripts/packaging.sh package "$BINARY" "$ARCHIVE"
+
+      - name: Upload GHA artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-release-${{ matrix.arch }}-linux
+          path: "rouser-v*-linux-${{ matrix.arch }}.tar.gz"
+          retention-days: 30
+
+      - name: Upload release asset (only if GitHub Release exists)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release view "v${VERSION}" >/dev/null 2>&1 || exit 0
+          gh release upload "v${VERSION}" \
+            "rouser-v${VERSION}-linux-${{ matrix.arch }}.tar.gz" --clobber
+
+      - name: Upload changelog as artifact for auto-release job
+        if: always() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes-${{ github.ref_name }}
+          path: RELEASE_NOTES.md
+
+  auto-release:
+    needs: [ci-lint-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@git-cliff
+        with:
+          version: "latest"
+
+      - name: Generate release notes and create GitHub Release
+        id: cliff
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          
+          git-cliff --config cliff.toml --verbose > RELEASE_NOTES.md
+          
+          # Create or update release (gh handles existing releases gracefully)
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes-file RELEASE_NOTES.md 2>/dev/null || true
+
+      - name: Upload changelog as artifact for downstream jobs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes-${{ github.ref_name }}
+          path: RELEASE_NOTES.md
+
+  package-deb:
+    needs: [auto-release, release-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            deb_arch: amd64
+          - arch: aarch64
+            deb_arch: arm64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release tarball
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rouser-release-${{ matrix.arch }}-linux*
+          path: dist-tarballs/
+          merge-multiple: true
+
+      - name: Extract binary from tarball
+        run: |
+          mkdir -p pkg-build
+          chmod +x .github/scripts/packaging.sh
+          TARBALL=$(ls dist-tarballs/*.tar.gz)
+          .github/scripts/packaging.sh extract "$TARBALL" "pkg-build"
+
+      - name: Install DEB packaging dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot
+
+      - name: Build DEB package
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          chmod +x .github/scripts/deb.sh
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          ARCH="${{ matrix.arch }}"
+          DEB_ARCH="${{ matrix.deb_arch }}"
+          .github/scripts/deb.sh build pkg-build "rouser-${RPM_VERSION}-${ARCH}.deb" "$RPM_VERSION" "$DEB_ARCH"
+
+      - name: Upload DEB release asset (only if GitHub Release exists)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          echo "Checking for GitHub Release ${VERSION}..." >&2
+          gh release view "${VERSION}" >/dev/null 2>&1 || { echo "No release found, skipping upload." >&2; exit 0; }
+          DEB_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          deb_file="rouser-${DEB_VERSION}-${{ matrix.arch }}.deb"
+          echo "Uploading ${deb_file} ($(du -h "$deb_file" | cut -f1))..." >&2
+          gh release upload "${VERSION}" "${deb_file}" --clobber
+
+      - name: Upload GHA artifact (DEB backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-deb-${{ matrix.deb_arch }}
+          path: rouser-*.deb
+          retention-days: 30
+
+  package-rpm-build:
+    needs: [auto-release, release-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            rpm_arch: x86_64
+          - arch: aarch64
+            rpm_arch: aarch64
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RPM build dependencies (container)
+        run: |
+          dnf install -y rpm-build gcc make tar gzip qemu-user-static
+
+      - name: Download release tarball
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rouser-release-${{ matrix.arch }}-linux*
+          path: dist-tarballs/
+          merge-multiple: true
+
+      - name: Extract binary from tarball
+        run: |
+          mkdir -p pkg-build
+          chmod +x .github/scripts/packaging.sh
+          TARBALL=$(ls dist-tarballs/*.tar.gz)
+          .github/scripts/packaging.sh extract "$TARBALL" "pkg-build"
+
+      - name: Build RPM package
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          chmod +x .github/scripts/rpm.sh
+          ARCH="${{ matrix.rpm_arch }}"
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          
+          echo "Building RPM for ${ARCH} version ${RPM_VERSION}..." >&2
+          ls -la pkg-build/ 2>&1 || true
+          
+          .github/scripts/rpm.sh build pkg-build "$RPM_VERSION" "$ARCH"
+
+      - name: Upload GHA artifact (RPM)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-rpm-${{ matrix.rpm_arch }}
+          path: "*.rpm"
+          retention-days: 30
+
+  package-rpm-upload:
+    needs: [package-rpm-build, auto-release]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            rpm_arch: x86_64
+          - arch: aarch64
+            rpm_arch: aarch64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download RPM artifacts
+        id: download-rpm
+        uses: actions/download-artifact@v4
+        with:
+          name: rouser-rpm-${{ matrix.rpm_arch }}
+          path: rpm-files/
+
+      - name: Locate and verify RPM file
+        run: |
+          echo "=== DEBUG: Downloaded files ===" >&2
+          find ./rpm-files/ -type f 2>&1 || true
+          ls -laR ./rpm-files/ 2>&1 || true
+          
+          # Move to working directory for gh CLI
+          mv rpm-files/*.rpm . 2>/dev/null || { echo "ERROR: No RPM file found!" >&2; exit 1; }
+          echo "Found RPM files:" >&2
+          ls -la *.rpm 2>&1
+
+      - name: Upload RPM release asset (only if GitHub Release exists)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+
+          gh release view "${VERSION}" >/dev/null 2>&1 || { echo "No GitHub Release found, skipping upload." >&2; exit 0; }
+          
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+
+          rpm_file="rouser-${RPM_VERSION}-${{ matrix.rpm_arch }}.rpm"
+          
+          if [ ! -f "$rpm_file" ]; then
+            echo "ERROR: RPM file not found!" >&2
+            find . -name "*.rpm" 2>/dev/null | head -5 || true
+            exit 1
+          fi
+          
+          FILESIZE=$(du -h "$rpm_file" | cut -f1)
+          gh release upload "${VERSION}" "${rpm_file}" --clobber && \
+            echo "RPM upload succeeded for ${{ matrix.rpm_arch }}" || { 
+              echo "ERROR: RPM upload failed!" >&2; exit 1; 
+          }
+
+
+  package-arch-pkgbuild:
+    needs: [auto-release, release-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all release tarballs for PKGBUILD source URLs
+        run: |
+          mkdir -p dist-tarballs/
+
+      - name: Generate PKGBUILD
+        env:
+          VERSION: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          chmod +x .github/scripts/pkgbuild.sh
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          .github/scripts/pkgbuild.sh generate PKGBUILD "$RPM_VERSION"
+
+      - name: Create Arch source archive artifact
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          PKG_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          tar czf "rouser-pkgbuild-v${PKG_VERSION}.tar.gz" PKGBUILD
+
+      - name: Upload Arch PKGBUILD as release asset (only if GitHub Release exists)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          gh release view "${VERSION}" >/dev/null 2>&1 || exit 0
+          PKG_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          gh release upload "${VERSION}" \
+            "rouser-pkgbuild-v${PKG_VERSION}.tar.gz" --clobber
+
+      - name: Upload GHA artifact (PKGBUILD backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-arch-pkgbuild
+          path: PKGBUILD
+          retention-days: 30
