@@ -25,11 +25,29 @@ rouser keeps headless servers and desktops awake during active use. It monitors 
 
 ## Quick Start
 
+### Build from source
+
 ```bash
 git clone https://github.com/owaindjones/rouser.git && cd rouser
 cargo build --release
 ./target/release/rouser --dry-run    # test first
-rouser                                # run as daemon (Ctrl+C to stop)
+./target/release/rouser              # run as daemon (Ctrl+C to stop)
+```
+
+### Install via script (recommended)
+
+The installer fetches the latest release, installs the binary + config + systemd service:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh | bash
+```
+
+Or download and verify before running:
+
+```bash
+curl -fSL -o install.sh https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh
+sha256sum install.sh  # inspect before executing
+bash install.sh
 ```
 
 See [Quick Start Guide](docs/quickstart.md) for full installation, configuration, and systemd service setup.
@@ -39,7 +57,8 @@ See [Quick Start Guide](docs/quickstart.md) for full installation, configuration
 The default config is embedded in the binary from `config/rouser.toml`. Print it with:
 
 ```bash
-rouser --print-config > ~/.config/rouser/config.toml
+./target/release/rouser --print-config > ~/.config/rouser/config.toml
+# or after install script: rouser --print-config > ~/.config/rouser/config.toml
 ```
 
 See [Configuration Reference](docs/configuration.md) for all options with defaults and descriptions.

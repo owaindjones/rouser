@@ -17,6 +17,14 @@ REBUILD=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --help)
+            echo "Usage: install.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --from-repo   Use local repo build (cargo build --release from current dir)"
+            echo "  --rebuild     Force rebuild even if binary already exists"
+            exit 0
+            ;;
         --from-repo) FROM_REPO=true; shift ;;
         --rebuild)   REBUILD=true; shift ;;
         *)           error "Unknown option: $1"; exit 1 ;;

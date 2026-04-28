@@ -33,6 +33,14 @@ The installer script fetches the latest release, installs the binary, config, an
 curl -fsSL https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh | bash
 ```
 
+For safety, review or verify the script before running it:
+
+```bash
+curl -fSL -o install.sh https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh
+# Inspect: cat install.sh   or   sha256sum install.sh  to record for future verification
+bash install.sh
+```
+
 See `scripts/install.sh --help` for options.
 
 ### Option 3: Manual Download from Release
