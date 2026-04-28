@@ -19,6 +19,7 @@ case "$ACTION" in
   build)
     RPMBUILD_DIR=$(mktemp -d)
     trap 'rm -rf "$RPMBUILD_DIR"' EXIT
+    export RPM_BUILD_ROOT="${RPMBUILD_DIR}/BUILDROOT"
     
     # Set up standard rpmbuild directory structure
     mkdir -p "${RPMBUILD_DIR}/BUILD"              "${RPMBUILD_DIR}/RPMS/$ARCH"              "${RPMBUILD_DIR}/SOURCES"              "${RPMBUILD_DIR}/SPECS"              "${RPMBUILD_DIR}/SRPMs"
@@ -87,9 +88,10 @@ SPECEOF
      
      # Run rpmbuild with proper topdir and spec path  
      $RPMBUILD \
-       --define "_topdir ${RPMBUILD_DIR}" \
-       --target "$ARCH" \
-       -bb "${RPMBUILD_DIR}/SPECS/.rpm-spec" 2>&1
+        --define "_builddir ${RPMBUILD_DIR}/BUILD" \
+        --define "_topdir ${RPMBUILD_DIR}" \
+        --target "$ARCH" \
+        -bb "${RPMBUILD_DIR}/SPECS/.rpm-spec" 2>&1
 
      # Copy built RPMs to workspace  
      if ls "${RPMBUILD_DIR}/RPMS/$ARCH/"*.rpm 1>/dev/null 2>&1; then
