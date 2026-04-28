@@ -19,33 +19,31 @@ case "$ACTION" in
   build)
     TMPDIR=$(mktemp -d)
     trap 'rm -rf "$TMPDIR"' EXIT
-
-    mkdir -p "$TMPDIR/BUILD" "$TMPDIR/SOURCES" "$TMPDIR/RPMS/$ARCH" "$TMPDIR/SRPMS"
+    
     RPMTOP="$TMPDIR"
-    ORIGINAL_DIR="$(pwd)"
-    cd "$RPMTOP"
+    
+    mkdir -p "${RPMTOP}/SOURCES"
 
-    # Prepare source tarball (contains just the binary for no-build RPM)
-    mkdir -p "rouser-${RPM_VERSION}/config"
-    cp "$SOURCE_DIR/rouser"       "rouser-${RPM_VERSION}/rouser" 2>/dev/null || true
+    # Build source tarball content  
+    SOURCE_DIR_NAME="rouser-${RPM_VERSION}"
+    mkdir -p "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/config"              "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/systemd"
+    
+    cp "$SOURCE_DIR/rouser"       "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/rouser" 2>/dev/null || true
     if [ -d "$SOURCE_DIR/config" ] && [ -f "$SOURCE_DIR/config/rouser.toml" ]; then
-      cp "$SOURCE_DIR/config/rouser.toml" "rouser-${RPM_VERSION}/config/"
+      cp "$SOURCE_DIR/config/rouser.toml" "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/config/"
     elif [ -f "$PROJECT_ROOT/etc/rouser/config.toml.example" ]; then
-      cp "$PROJECT_ROOT/etc/rouser/config.toml.example" "rouser-${RPM_VERSION}/config/rouser.toml"
+      cp "$PROJECT_ROOT/etc/rouser/config.toml.example" "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/config/rouser.toml"
     fi
-    if [ -d "$SOURCE_DIR/systemd" ]; then
-      mkdir -p "rouser-${RPM_VERSION}/systemd"
-      cp "$SOURCE_DIR/systemd/"*.service "rouser-${RPM_VERSION}/systemd/" 2>/dev/null || true
+    if ls "$SOURCE_DIR/systemd/"*.service 1>/dev/null 2>&1; then
+      cp "$SOURCE_DIR/systemd/"*.service "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/systemd/" 2>/dev/null || true
     elif ls "$PROJECT_ROOT/systemd/"*.service 1>/dev/null 2>&1; then
-      mkdir -p "rouser-${RPM_VERSION}/systemd"
-      cp "$PROJECT_ROOT/systemd/"*.service "rouser-${RPM_VERSION}/systemd/"
+      cp "$PROJECT_ROOT/systemd/"*.service "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/systemd/"
     fi
+    
+    tar czf "${RPMTOP}/SOURCES/rouser-source.tar.gz" "${SOURCE_DIR_NAME}"
 
-    tar czf "SOURCES/rouser-source.tar.gz" "rouser-${RPM_VERSION}" 2>/dev/null || true
-    rm -rf "rouser-${RPM_VERSION}"
-
-    # SPEC file
-    cat > "${RPMTOP}.rpm-spec" <<'SPECEOF'
+    # SPEC file with absolute path reference  
+    cat > "${RPMTOP}/SOURCES/.rpm-spec" <<'SPECEOF'
 %global debug_package %{nil}
 Name:           rouser
 Version:        @VERSION@
@@ -85,28 +83,26 @@ systemctl daemon-reload || true
 * $(date '+%a %b %d %Y') Release <release@example.com> - @VERSION@
 - Build for release
 SPECEOF
+     
+     sed -i "s|@VERSION@|${RPM_VERSION}|g" "${RPMTOP}/SOURCES/.rpm-spec"
 
-    sed -i "s|@VERSION@|${RPM_VERSION}|g" "${RPMTOP}.rpm-spec"
-    echo "DEBUG: RPMTOP=$RPMTOP"
-    echo "DEBUG: pwd=$(pwd)"
-    echo "DEBUG: SOURCES contents:" && ls -la "$RPMTOP/SOURCES/" 2>&1 || true
-    echo "DEBUG: spec file exists:" && ls -la "${RPMTOP}.rpm-spec" 2>&1 || true
+     # Run rpmbuild with absolute topdir path  
+     $RPMBUILD \
+       --define "_topdir ${RPMTOP}" \
+       --target "$ARCH" \
+       -ba "${RPMTOP}/SOURCES/.rpm-spec" 2>&1
 
+     # Copy built RPMs to workspace (absolute paths)  
+     if ls "${RPMTOP}/RPMS/$ARCH/"*.rpm 1>/dev/null 2>&1; then
+       cp "${RPMTOP}/RPMS/$ARCH/"*.rpm . 2>/dev/null || true
+     fi
+     
+     rm -rf "${SOURCE_DIR_NAME}"
+     echo "Built RPM for $ARCH (version $RPM_VERSION)"
 
-    $RPMBUILD \
-      --define "_topdir $RPMTOP" \
-      --target "$ARCH" \
-      -bb "${RPMTOP}.rpm-spec" 2>&1
-
-    # Copy built RPM out of temp dir
-    if ls "$RPMTOP/RPMS/$ARCH/rouser-${RPM_VERSION}"*.rpm 1>/dev/null 2>&1; then
-      cp "$RPMTOP/RPMS/$ARCH/"*.rpm . 2>/dev/null || true
-    fi
-
-    rm -rf "rouser-${RPM_VERSION}" SOURCES/rouser-source.tar.gz "${RPMTOP}.rpm-spec"
-    cd "$ORIGINAL_DIR"
-    echo "Built RPM for $ARCH (version $RPM_VERSION)"
     ;;
+
+
 
   *)
     echo "Usage: $0 build <source-dir> <version> <target-arch>" >&2
