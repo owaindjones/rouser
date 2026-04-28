@@ -314,6 +314,10 @@ jobs:
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           .github/scripts/rpm.sh build pkg-build "$RPM_VERSION" "$ARCH"
 
+      - name: Install GitHub CLI (container)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/cli/cli/v2.70.0/install.sh | bash
+
       - name: Upload RPM release asset (only if GitHub Release exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -324,10 +328,15 @@ jobs:
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           rpm_file="rouser-${RPM_VERSION}-${{ matrix.rpm_arch }}.rpm"
           if [ -f "$rpm_file" ]; then
-            gh release upload "${VERSION}" "$rpm_file" --clobber
+            echo "Uploading ${rpm_file} ($(du -h "$rpm_file" | cut -f1))..." >&2
+            RELEASE_ID=$(gh release view "${VERSION}" --json id -q .id)
+            curl -fL \
+              --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+              --data-binary "@${rpm_file}" \
+              "https://uploads.github.com/repos/owaindjones/rouser/releases/${RELEASE_ID}/assets?name=$(basename $rpm_file)" && echo "RPM upload succeeded." || { echo "ERROR: RPM upload failed!" >&2; exit 1; }
           else
-            echo "DEBUG: Looking for RPM file..." >&2
-            find . -name "*.rpm" 2>/dev/null || true
+            echo "ERROR: No RPM file found at ${rpm_file}" >&2
+            find . -name "*.rpm" 2>/dev/null | head -5 || true
             ls -la *.rpm 2>&1 || true
             exit 1
           fi
