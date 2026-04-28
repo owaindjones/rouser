@@ -286,13 +286,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install RPM build dependencies and gh CLI (container)
+      - name: Install RPM build dependencies (container)
         run: |
-          dnf install -y rpm-build gcc make tar gzip curl unzip qemu-user-static
-          # Register binfmt handlers for cross-architecture builds
-          if [ ! -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
-            echo ':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\xb7:\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff\xff\xff\xff\xff\xff:/usr/bin/qemu-aarch64-static:OCF' > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true
-          fi
+          dnf install -y rpm-build gcc make tar gzip qemu-user-static
 
       - name: Download release tarball
         uses: actions/download-artifact@v4
@@ -308,32 +304,89 @@ jobs:
           TARBALL=$(ls dist-tarballs/*.tar.gz)
           .github/scripts/packaging.sh extract "$TARBALL" "pkg-build"
 
-      - name: Build RPM package and upload to release
+      - name: Build RPM package
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
           chmod +x .github/scripts/rpm.sh
           ARCH="${{ matrix.rpm_arch }}"
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           
-          # Build the RPM package (produces file in current directory)
-          .github/scripts/rpm.sh build pkg-build "$RPM_VERSION" "$ARCH"
+          echo "Building RPM for ${ARCH} version ${RPM_VERSION}..." >&2
+          ls -la pkg-build/ 2>&1 || true
           
+          .github/scripts/rpm.sh build pkg-build "$RPM_VERSION" "$ARCH"
+
+      - name: Upload GHA artifact (RPM)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rouser-rpm-${{ matrix.rpm_arch }}
+          path: "*.rpm"
+          retention-days: 30
+
+  package-rpm-upload:
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    needs: [package-rpm-build, auto-release]
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            rpm_arch: x86_64
+          - arch: aarch64
+            rpm_arch: aarch64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download RPM artifacts
+        id: download-rpm
+        uses: actions/download-artifact@v4
+        with:
+          name: rouser-rpm-${{ matrix.rpm_arch }}
+          path: rpm-files/
+
+      - name: Locate and verify RPM file
+        run: |
+          echo "=== DEBUG: Downloaded files ===" >&2
+          find ./rpm-files/ -type f 2>&1 || true
+          ls -laR ./rpm-files/ 2>&1 || true
+          
+          # Move to working directory for gh CLI
+          mv rpm-files/*.rpm . 2>/dev/null || { echo "ERROR: No RPM file found!" >&2; exit 1; }
+          echo "Found RPM files:" >&2
+          ls -la *.rpm 2>&1
+
+      - name: Upload RPM release asset (only if GitHub Release exists)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION}"
+          echo "Checking for release ${VERSION}..." >&2
+          
+          gh release view "${VERSION}" >/dev/null 2>&1 || { 
+            echo "No GitHub Release found, skipping upload." >&2; 
+            exit 0; 
+          }
+          
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           rpm_file="rouser-${RPM_VERSION}-${{ matrix.rpm_arch }}.rpm"
-          if [ ! -f "$rpm_file" ]; then
-            echo "ERROR: No RPM file found at ${rpm_file}" >&2
+          
+          if [ -f "$rpm_file" ]; then
+            FILESIZE=$(du -h "$rpm_file" | cut -f1)
+            echo "Uploading ${rpm_file} (${FILESIZE})..." >&2
+            gh release upload "${VERSION}" "${rpm_file}" --clobber && \
+              echo "RPM upload succeeded for ${{ matrix.rpm_arch }}" || { 
+                echo "ERROR: RPM upload failed!" >&2; exit 1; 
+              }
+          else
+            echo "ERROR: Expected file not found: ${rpm_file}" >&2
+            ls -la *.rpm 2>&1 || true
             find . -name "*.rpm" 2>/dev/null | head -5 || true
             exit 1
           fi
-          
-          # Check for release existence  
-          gh release view "${VERSION}" >/dev/null 2>&1 || { echo "No GitHub Release found, skipping upload." >&2; exit 0; }
-          
-          FILESIZE=$(du -h "$rpm_file" | cut -f1)
-          echo "Uploading ${rpm_file} (${FILESIZE})..." >&2
-          
-          gh release upload "${VERSION}" "${rpm_file}" --clobber && echo "RPM upload succeeded." || { echo "ERROR: RPM upload failed!" >&2; exit 1; }
 
   package-arch-pkgbuild:
     if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
