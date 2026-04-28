@@ -120,6 +120,7 @@ jobs:
           retention-days: 7
 
   release-build:
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
