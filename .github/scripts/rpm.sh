@@ -89,7 +89,7 @@ SPECEOF
     $RPMBUILD \
       --define "_topdir $RPMTOP" \
       --target "$ARCH" \
-      -bb "${RPMTOP}.rpm-spec" 2>&1 || true
+      -bb "${RPMTOP}.rpm-spec" 2>&1
 
     # Copy built RPM out of temp dir
     if ls "$RPMTOP/RPMS/$ARCH/rouser-${RPM_VERSION}"*.rpm 1>/dev/null 2>&1; then

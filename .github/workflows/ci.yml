@@ -321,7 +321,7 @@ jobs:
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           rpm_file=$(find . -maxdepth 2 -name "rouser-${RPM_VERSION}-*.rpm" 2>/dev/null | head -1)
           if [ -n "$rpm_file" ]; then
-            gh release upload "v${RPM_VERSION}" "$rpm_file" --clobber
+            gh release upload "${VERSION}" "$rpm_file" --clobber
           else
             echo "No RPM file found for ${{ matrix.rpm_arch }}" >&2
             ls -R *.rpm 2>/dev/null || true
