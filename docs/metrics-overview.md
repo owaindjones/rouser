@@ -8,10 +8,10 @@ rouser monitors four main categories of system metrics:
 
 | Metric | Source | Polling | Description |
 |--------|--------|---------|-------------|
-| **CPU Usage** | `/proc/stat` | Configurable (default: 5s) | Aggregate CPU usage across all cores |
-| **GPU Usage** | NVML (`libnvidia-ml.so`) or `/sys/class/drm/` | Configurable (default: 5s) | GPU utilization percentage per device |
-| **Network I/O** | `/proc/net/dev` | Configurable (default: 5s) | Network throughput in Mbps |
-| **Disk Activity** | `/proc/diskstats` | Configurable (default: 5s) | Disk read/write in MB/s |
+| **CPU Usage** | `/proc/stat` | Top-level `update_interval` config | Per-core maximum and total average CPU usage (frequency-weighted) |
+| **GPU Usage** | NVML (`libnvidia-ml.so`) or `/sys/class/drm/` | Configurable via top-level `update_interval` | GPU utilization percentage per device |
+| **Network I/O** | `/proc/net/dev` | Configurable via top-level `update_interval` | Network throughput in Mbps |
+| **Disk Activity** | `/proc/diskstats` | Configurable via top-level `update_interval` | Disk read/write in MB/s |
 
 All metrics are collected asynchronously using Tokio's async runtime.
 
@@ -51,7 +51,7 @@ The first line (starting with `cpu `) contains aggregate statistics for all core
 rouser uses a **two-sample delta** approach to calculate CPU usage:
 
 1. Read current values from `/proc/stat`
-2. Wait for polling interval (default: 5 seconds)
+2. Wait for polling interval (set via top-level `update_interval`)
 3. Read new values
 4. Calculate the difference between samples
 5. Compute usage percentage based on idle vs non-idle time
@@ -150,15 +150,18 @@ rocm-smi --showgpuutilization
 ```
 
 **Requirements**:
-- AMD ROCm drivers or Intel i915 driver installed
-- `uvm` (Unified Virtual Memory) subsystem loaded
-- Access to `/sys/class/drm/cardX/device/`
+- AMD amdgpu drivers or Intel i915/xe driver installed
+- Access to `/sys/class/drm/cardX/device/gpu_busy_percent` (readable by the rouser process user)
 
 **Implementation**:
 - Scans `/sys/class/drm/` directory for GPU devices
 - Reads `gpu_busy_percent` from each device
 - Reports per-device utilization independently (no averaging)
 - Falls back to 0% if no GPUs detected
+
+### Driver Measurement Differences
+
+NVML, amdgpu, and i915 all report a 0–100% value but measure different things under the hood. NVIDIA's SM kernel utilization, AMD's aggregate IP core activity via SMU firmware, and Intel's GT engine ticks are not directly comparable as percentages. See [GPU Usage Measurement](gpu-usage-measurement.md) for a detailed breakdown of what each driver reports and why this doesn't affect rouser's sleep inhibition behavior in practice.
 
 ### Aggregation Strategy — Per-Device Reporting Over Averaging
 
@@ -210,7 +213,7 @@ rouser supports two filtering strategies:
 
 #### Exclude Interfaces
 
-By default, loopback (`lo`) is excluded:
+No interfaces are excluded by default — all available interfaces are monitored. To exclude specific interfaces (e.g., loopback):
 
 ```toml
 [network]
@@ -257,7 +260,7 @@ rouser reads disk statistics from the virtual `/proc/diskstats` file.
 259:1 md1 rw 500 2500 50000 250000 0 0 0 0 50 1000 1500
 ```
 
-Fields: `major minor name reads merged sectors writes merged sec_wait ected sectors`
+Fields (simplified): `major minor name reads_merged sectors_read writes_merged sectors_written ...`
 
 ### Calculation Method
 
@@ -326,8 +329,7 @@ If no devices are available (highly unlikely):
 The polling interval is a top-level config field:
 
 ```toml
-name = "rouser"
-update_interval = "5s"   # Default: 5 seconds — time between metric collection cycles
+update_interval = "1s"   # Time between metric collection cycles (default)
 log_level = "info"
 ...
 ```
@@ -393,8 +395,7 @@ error!("No disk devices available");
 To reduce resource usage:
 
 ```toml
-# Increase polling interval (default 5s)
-name = "rouser"
+# Increase polling interval (configurable via top-level update_interval)
 update_interval = "10s"   # Less responsive but lower overhead
 
 [metrics.network]
@@ -406,5 +407,6 @@ exclude_device_prefixes = ["loop", "fd", "sr", "cdrom", "nbd"]  # Exclude more v
 
 ## See Also
 
+- [GPU Usage Measurement](gpu-usage-measurement.md) — Driver measurement differences (NVML vs amdgpu vs i915/xe)
 - [Averaging Explained](averaging.md) - Understanding threshold calculations with EMA
 - [Configuration Reference](configuration.md) - Configuration options for metrics

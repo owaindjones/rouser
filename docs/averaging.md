@@ -314,12 +314,12 @@ Result: Oscillation dampened from ±20% to ±3.2%
 
 **Home Server** (bursty network/disk):
 ```toml
-name = "rouser"
 update_interval = "5s"
 log_level = "info"
 
 [metrics.cpu]
-threshold = 80.0
+per_core_threshold = 80.0
+total_threshold = 60.0
 ema_alpha = 0.1        # Default smoothing for CPU
 
 [metrics.gpu]
@@ -345,8 +345,12 @@ mode = "block"
 
 **Development Workstation** (consistent CPU/GPU):
 ```toml
+update_interval = "5s"
+log_level = "info"
+
 [metrics.cpu]
-threshold = 90.0
+per_core_threshold = 90.0
+total_threshold = 70.0
 ema_alpha = 0.15       # More responsive for compilation bursts
 
 [metrics.gpu]
@@ -372,8 +376,12 @@ mode = "block"
 
 **Gaming System** (quick response):
 ```toml
+update_interval = "3s"
+log_level = "info"
+
 [metrics.cpu]
-threshold = 85.0
+per_core_threshold = 85.0
+total_threshold = 60.0
 ema_alpha = 0.2        # Quick spike detection
 
 [metrics.gpu]

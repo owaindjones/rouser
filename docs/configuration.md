@@ -27,7 +27,7 @@ No configuration file found at checked paths — using embedded defaults. Checke
 
 ## Complete Configuration Example
 
-The following is the default configuration shipped with `rouser` (from `config/rouser.toml`). Copy this file and adjust as needed.
+The following is the default configuration shipped with `rouser` (from `config/rouser.toml`). Copy this file and adjust as needed. This TOML file is embedded at compile time via `include_str!()` and serves as both the shipped config file and the binary's built-in fallback.
 
 ```toml
 # rouser default configuration — copy this file and adjust as needed.
@@ -62,8 +62,8 @@ duration_threshold = "5s"    # Min time above threshold before inhibiting sleep
 cooldown_duration = "10s"     # Time below threshold before releasing inhibition
 
 [inhibitor]
-what = "sleep"     # Lock type: idle, sleep, suspend, shutdown
-mode = "block"     # Mode: block, delay, block-weak
+what = "shutdown:idle"     # Lock type: idle, sleep, suspend, shutdown (colon-separated)
+mode = "block"             # Mode: block, delay, block-weak
 ```
 
 ## Root-Level Options
@@ -101,8 +101,8 @@ Network I/O is calculated as total bytes transferred (in + out) across monitored
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `threshold` | f64 | `10.0` | Network throughput in Mbps above which to inhibit sleep |
-| `ema_alpha` | f64 | `0.5` | EMA smoothing factor for network I/O |
-| `exclude_interfaces` | array of strings | `["lo"]` | Interface names to exclude from monitoring |
+| `ema_alpha` | f64 | `0.5` | EMA smoothing factor for network I/O (lower for network to avoid spikes) |
+| `exclude_interfaces` | array of strings | `["lo"]` | Interface names to exclude from monitoring; loopback excluded by default |
 | `include_interfaces` | array of strings | `[]` | If non-empty, only monitor these interfaces; empty means all available interfaces |
 
 ### `[metrics.disk]` — Disk I/O Threshold
@@ -132,7 +132,7 @@ Disk activity is calculated as total bytes transferred across monitored devices 
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `what` | string | `"sleep"` | Lock types to inhibit (colon-separated). Values: `idle`, `sleep`, `suspend`, `shutdown`. Multiple values combined with colons, e.g., `"sleep:suspend"`. See [d-bus-inhibition.md](d-bus-inhibition.md) for lock type details. |
+| `what` | string | `"shutdown:idle"` | Lock types to inhibit (colon-separated). Values: `idle`, `sleep`, `suspend`, `shutdown`. Multiple values combined with colons, e.g., `"sleep:suspend"`. See [d-bus-inhibition.md](d-bus-inhibition.md) for lock type details. |
 | `mode` | string | `"block"` | Inhibition mode. Values: `block` (completely blocks sleep), `delay` (delays sleep for duration of inhibition), `block-weak` (blocks but can be overridden by privileged processes). See [d-bus-inhibition.md](d-bus-inhibition.md) for more on inhibition modes. |
 
 ## Configuration File Security
@@ -183,7 +183,7 @@ There are no `ROUSER_*` environment variable overrides for configuration values 
 
 ## Best Practices
 
-1. **Start with conservative thresholds**: Begin with higher CPU/GPU thresholds (90%) and lower network/disk thresholds
+1. **Start with conservative thresholds**: Begin with higher per-core CPU (80%) and GPU (33.3%) thresholds, then lower them based on observed baselines from dry-run logs
 2. **Use EMA smoothing**: Default alpha values provide a good balance between responsiveness and noise filtering for your workload
 3. **Test before production**: Always use `--dry-run` mode to verify thresholds before deploying in daemon mode
 4. **Review logs regularly**: Use debug logging (`RUST_LOG=debug`) to understand your system's baseline activity before finalizing thresholds

@@ -194,21 +194,33 @@ fn cache_base_frequencies() -> Vec<CpuFreq> {
             continue;
         }
 
-      let max_path = format!(
-            "/sys/devices/system/cpu/{}/cpufreq/cpuinfo_max_freq",
-            name
-        );
-        let fallback_max_path = format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name);
+     let cpufreq_base = format!("/sys/devices/system/cpu/{}/cpufreq", name);
+        let cpufreq_exists = fs::exists(&cpufreq_base).unwrap_or(false);
 
-        let effective_max = match read_single_freq(&max_path, 1000.0) {
-            0 => read_single_freq(&fallback_max_path, 1.0),
-            v => v,
-        };
-
-        freqs.push(CpuFreq {
-            cur_freq_khz: 0,
-            max_freq_khz: effective_max,
-        });
+        if cpufreq_exists {
+            freqs.push(CpuFreq {
+                cur_freq_khz: read_single_freq(
+                    &format!("{}/cpuinfo_cur_freq", cpufreq_base), 1.0,
+                ),
+                max_freq_khz: match read_single_freq(&format!("{}/cpuinfo_max_freq", cpufreq_base), 1.0) {
+                    0 => read_single_freq(
+                        &format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name), 1.0,
+                    ),
+                    v => v,
+                },
+            });
+        } else if let Ok(max_val) = fs::read_to_string(format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name)) {
+            if let Ok(freq_hz) = max_val.trim().parse::<f64>() {
+                freqs.push(CpuFreq {
+                    cur_freq_khz: (freq_hz / 1000.0) as u64, // no cur available, use max as estimate
+                    max_freq_khz: (freq_hz / 1000.0) as u64,
+                });
+            } else {
+                freqs.push(CpuFreq::default());
+            }
+        } else {
+            freqs.push(CpuFreq::default());
+        }
     }
 
     debug!("Cached base frequencies for {} core(s) at startup", freqs.len());
@@ -239,8 +251,8 @@ fn read_runtime_cur_freq(core_name: &str, core_idx: usize, base_freqs: &[CpuFreq
         core_name
     );
     if let Ok(content) = fs::read_to_string(&cur_path) {
-        if let Ok(freq_hz) = content.trim().parse::<f64>() {
-            result.cur_freq_khz = (freq_hz / 1000.0) as u64;
+        if let Ok(freq_khz) = content.trim().parse::<u64>() {
+            result.cur_freq_khz = freq_khz;
         }
     }
 
@@ -296,21 +308,39 @@ fn read_core_ticks() -> Result<Vec<(String, CpuCoreTicks)>, CpuError> {
 
 fn store_state(collector: &mut CpuCollector, curr_ticks: Vec<(String, CpuCoreTicks)>) {
     let prev = std::mem::take(&mut collector.current_ticks);
-    if let Some(prev) = prev {
-        collector.last_stats = Some(
-            prev.into_iter()
-                .map(|(_, t)| CpuCoreStats {
-                    user: t.user,
-                    nice: t.nice,
-                    system: t.system,
-                    idle: t.idle,
-                    iowait: t.iowait,
-                    irq: t.irq,
-                    softirq: t.softirq,
-                    steal: t.steal,
-                })
-                .collect(),
-        );
+    match prev {
+        Some(prev) => {
+            collector.last_stats = Some(
+                prev.into_iter()
+                    .map(|(_, t)| CpuCoreStats {
+                        user: t.user,
+                        nice: t.nice,
+                        system: t.system,
+                        idle: t.idle,
+                        iowait: t.iowait,
+                        irq: t.irq,
+                        softirq: t.softirq,
+                        steal: t.steal,
+                    })
+                    .collect(),
+            );
+        }
+        None => {
+            collector.last_stats = Some(
+                curr_ticks.iter()
+                    .map(|(_, t)| CpuCoreStats {
+                        user: t.user,
+                        nice: t.nice,
+                        system: t.system,
+                        idle: t.idle,
+                        iowait: t.iowait,
+                        irq: t.irq,
+                        softirq: t.softirq,
+                        steal: t.steal,
+                    })
+                    .collect(),
+            );
+        }
     }
     collector.current_ticks = Some(curr_ticks);
 }
@@ -395,11 +425,11 @@ fn calculate_usage(
             // The denominator is the maximum frequency this core has ever been observed at
             // (or its rated base max), preventing inflated usage when downclocked from turbo.
             let effective_max = cur.max(base_max).max(peak);
-            
-            if effective_max > 0 {
+
+            if cur > 0 && effective_max > 0 {
                 raw_usage * (cur as f64 / effective_max as f64)
             } else {
-                raw_usage // fallback: no freq data, use raw usage
+                raw_usage // fallback: no usable runtime freq data, use raw usage
             }
         } else {
             raw_usage

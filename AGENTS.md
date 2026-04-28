@@ -200,6 +200,27 @@ When NVML is available but returns zero utilization results while hardware exist
 
 The old `/org/freedesktop/PowerManagement.Inhibit` API is obsolete (deprecated ~2014) and must not be referenced as a viable approach. Always use `org.freedesktop.login1.Manager.Inhibit`. Document why deprecated approaches were abandoned in AGENTS.MD so future agents don't revisit dead ends.
 
+### config/rouser.toml Is the Source of Truth for All Defaults
+
+`config/rouser.toml` is the single source of truth for all configuration defaults — not `src/config.rs`, not documentation, not code comments. When updating default values:
+
+1. **Always update `config/rouser.toml` first** with the new default value
+2. Then update `src/config.rs` to match (default helper functions like `default_ema_alpha_cpu()`)
+3. Then update all documentation (`docs/configuration.md`, `docs/metrics-overview.md`, etc.)
+
+The code defaults in `config/rouser.toml` are embedded at compile time via `include_str!()` and served as both the shipped config file AND the binary's built-in fallback. Never change a default value without updating all three locations simultaneously.
+
+### D-Bus Inhibition: "sleep" vs "shutdown:idle" in `[inhibitor].what`
+
+The `what` parameter controls which operations rouser inhibits. Two reasonable defaults exist for different deployment profiles:
+
+- **`"sleep"`** (simple) — Good for headless servers and traditional daemon deployments. Blocks sleep/hibernate but does not interfere with desktop environment idle timers or shutdown delays.
+- **`"shutdown:idle"`** (conservative, current default) — Better for workstations/home-labs running DEs like KDE/GNOME. Prevents the system from entering any powered-off or suspended state while metrics are active.
+
+Observed behavior on KDE: `"sleep"` alone may cause KDE to never automatically sleep after inhibition is released, as it interprets the lock as a persistent "don't touch my power management" signal. Conversely, `"shutdown:idle"` lets KDE respect its configured idle delay — if set to 15 minutes, KDE will put the system to sleep 15 minutes after rouser releases its locks.
+
+When writing docs or examples about inhibition behavior, document this difference explicitly so users understand why their DE reacts differently to each option. The default in `config/rouser.toml` is `"shutdown:idle"`.
+
 ## Dependency Policy
 
 - Prefer stdlib and crate ecosystem over external binary dependencies where possible.

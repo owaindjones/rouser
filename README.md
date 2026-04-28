@@ -52,6 +52,7 @@ See [Configuration Reference](docs/configuration.md) for all options with defaul
 | [Configuration Reference](docs/configuration.md) | All config options with embedded-default values |
 | [Command Line](docs/command-line.md) | CLI arguments and usage examples |
 | [Metrics Overview](docs/metrics-overview.md) | How CPU, GPU, network, disk metrics are collected |
+| [GPU Usage Measurement](docs/gpu-usage-measurement.md) | What NVML, amdgpu, and i915 actually measure |
 | [D-Bus Inhibition](docs/d-bus-inhibition.md) | How sleep inhibition works under the hood |
 
 ## License

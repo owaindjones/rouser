@@ -77,36 +77,36 @@ cp ./config/rouser.toml ~/.config/rouser/config.toml
 **Example configuration**:
 
 ```toml
-name = "rouser"
 update_interval = "5s"
 log_level = "info"
 
 [metrics.cpu]
-threshold = 80.0       # CPU usage % above which to inhibit sleep
-ema_alpha = 0.3        # EMA smoothing: higher = more responsive
+per_core_threshold = 80.0       # Per-core CPU max usage % above which to inhibit sleep
+total_threshold = 50.0          # Total averaged CPU usage % (default: 50.0)
+ema_alpha = 0.7                 # EMA smoothing: higher = more responsive
 
 [metrics.gpu]
-threshold = 90.0       # GPU usage % per device
-ema_alpha = 0.3
+threshold = 33.3                # GPU usage % per device (default: 33.3)
+ema_alpha = 0.7                 # EMA smoothing factor for GPU readings
 
 [metrics.network]
-threshold = 100.0      # Network throughput in Mbps
-ema_alpha = 0.2        # EMA smoothing for network I/O
-exclude_interfaces = ["lo"]    # Exclude loopback from monitoring
-include_interfaces = []        # Empty = monitor all interfaces
+threshold = 10.0                # Network throughput in Mbps (default: 10.0)
+ema_alpha = 0.5                 # EMA smoothing for network I/O
+exclude_interfaces = ["lo"]     # Exclude loopback from monitoring
+include_interfaces = []         # Empty = monitor all interfaces
 
 [metrics.disk]
-threshold = 50.0       # Disk I/O in MB/s above which to inhibit sleep
-ema_alpha = 0.2        # EMA smoothing for disk activity
+threshold = 10.0                # Disk I/O in MB/s (default: 10.0)
+ema_alpha = 0.5                 # EMA smoothing for disk activity
 exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]  # Exclude virtual devices
 
 [timing]
-duration_threshold = "30s"   # Min time metrics must exceed threshold before inhibiting
-cooldown_duration = "60s"    # Time after releasing inhibition before re-inhibiting possible
+duration_threshold = "5s"       # Min time metrics must exceed threshold before inhibiting (default: 5s)
+cooldown_duration = "10s"       # Time after releasing inhibition before re-inhibiting possible (default: 10s)
 
 [inhibitor]
-what = "shutdown:idle"       # Lock types to inhibit (colon-separated)
-mode = "block"               # Inhibition mode: block, delay, or block-weak
+what = "shutdown:idle"          # Lock types to inhibit (colon-separated). See D-Bus Inhibition docs for details.
+mode = "block"                  # Inhibition mode: block, delay, or block-weak
 ```
 
 See [Configuration Reference](configuration.md) for full option descriptions.
@@ -137,12 +137,12 @@ RUST_LOG=debug rouser -c ~/.config/rouser/config.toml --dry-run -l debug
 
 Sample output in dry-run mode:
 ```
-CPU threshold: 80%, EMA alpha: 0.30
-GPU threshold: 90%, EMA alpha: 0.30
-Network threshold: 100 Mbps, EMA alpha: 0.20
-Disk threshold: 50 MB/s, EMA alpha: 0.20
-Duration threshold: 30s
-Cooldown duration: 60s
+CPU max threshold: 80%, CPU avg threshold: 50%, EMA alpha: 0.70
+GPU threshold: 33.3%, EMA alpha: 0.70
+Network threshold: 10 Mbps, EMA alpha: 0.50
+Disk threshold: 10 MB/s, EMA alpha: 0.50
+Duration threshold: 5s
+Cooldown duration: 10s
 ```
 
 ## Running the Daemon
@@ -210,12 +210,12 @@ When rouser is inhibiting, you should see an entry with description "rouser".
 
 2. If inhibition works, you can temporarily lower the CPU threshold to `1` to test:
    ```toml
-   # In config.toml — set thresholds very low just for testing
-   [metrics.cpu]
-   threshold = 1.0    # Will trigger on any significant activity
-   ema_alpha = 0.3
+    # In config.toml — set thresholds very low just for testing
+    [metrics.cpu]
+    per_core_threshold = 1.0       # Will trigger on any significant activity
+    total_threshold = 1.0
 
-   [timing]
+    [timing]
    duration_threshold = "5s"   # Short test window
    cooldown_duration = "10s"
    ```
@@ -263,10 +263,9 @@ Then `sudo systemctl restart polkit`.
 Enable verbose logging to see per-device metric readings:
 
 ```toml
-# In config.toml — set log_level at root level
-name = "rouser"
+# In config.toml — log_level is at root level
 update_interval = "5s"
-log_level = "debug"     # NOT under [daemon] — rouser uses flat structure now
+log_level = "debug"
 ```
 
 Or override via CLI (takes priority over config):
@@ -279,12 +278,12 @@ rouser --dry-run -l debug
 ### Home Server (low activity baseline)
 
 ```toml
-name = "rouser"
-update_interval = "5s"
+update_interval = "10s"
 log_level = "info"
 
 [metrics.cpu]
-threshold = 70.0
+per_core_threshold = 70.0
+total_threshold = 50.0
 ema_alpha = 0.3
 
 [metrics.gpu]
@@ -313,8 +312,12 @@ mode = "block"
 ### Development Workstation (high activity tolerance)
 
 ```toml
+update_interval = "5s"
+log_level = "info"
+
 [metrics.cpu]
-threshold = 90.0       # Only inhibit during heavy compilation/builds
+per_core_threshold = 90.0       # Only inhibit during heavy compilation/builds
+total_threshold = 70.0
 ema_alpha = 0.3
 
 [metrics.gpu]

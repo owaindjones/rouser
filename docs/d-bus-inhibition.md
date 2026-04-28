@@ -61,7 +61,12 @@ The `what` parameter accepts these values individually or combined with colons:
 | `idle` | Prevents idle/off state transitions | Headless servers that should stay awake during background work even when no user is logged in |
 | `sleep` | Prevents S3 (Suspend-to-RAM) and S4 (Suspend-to-disk) | Standard use case for desktop/laptop systems |
 
-**Default**: rouser defaults to `"shutdown:idle"`, which prevents idle transitions. Add `"sleep"` if you also want to block sleep/hibernate operations during activity:
+**Default**: rouser defaults to `"shutdown:idle"`. The choice between `"sleep"` and `"shutdown:idle"` affects how desktop environments behave:
+
+- **`"sleep"`** — Simple, good for headless servers. Blocks sleep/hibernate but does not interfere with DE idle timers. Observed issue on KDE: may cause the system to never automatically sleep after inhibition is released, as it interprets the lock as a persistent "don't touch my power management" signal.
+- **`"shutdown:idle"`** — Conservative default, better for workstations/home-labs running DEs like KDE/GNOME. Prevents powered-off/suspended state transitions while metrics are active but lets the DE respect its configured idle delay (e.g., if KDE is set to sleep after 15 minutes of inactivity, it will put the system to sleep 15 minutes after rouser releases locks).
+
+To change between options:
 
 ```toml
 [inhibitor]

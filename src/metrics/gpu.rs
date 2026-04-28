@@ -32,12 +32,26 @@ pub struct EnumGpu {
     pub driver_name: String,
 }
 
-pub struct GpuCollector;
+pub struct GpuCollector {
+    nvml: Option<Nvml>,
+}
 
 impl GpuCollector {
     pub fn new() -> Self {
         debug!("GPU collector initialized (sysfs-first enumeration)");
-        Self
+        let nvml = Nvml::init().map_err(|e| {
+            debug!(
+                "NVML not available at startup (NVIDIA driver stack may be missing): {}",
+                e
+            );
+        })
+        .ok();
+
+        if nvml.is_some() {
+            debug!("NVML initialized successfully and cached for reuse");
+        }
+
+        Self { nvml }
     }
 
     #[allow(dead_code)]
@@ -69,14 +83,14 @@ impl GpuCollector {
         for card in &cards {
             match card.driver_name.as_str() {
                 "nvidia" | "nouveau" => {
-                    if let Some(usage) =
-                        Self::collect_nvidia_for_card(&card.device_id, &card.driver_name)
-                    {
-                        all_gpus.push(GpuData {
-                            device_id: card.device_id.clone(),
-                            driver_name: card.driver_name.clone(),
-                            usage,
-                        });
+                    if let Some(nvml_ref) = self.nvml.as_ref() {
+                        if let Some(usage) = Self::collect_nvidia_for_card(nvml_ref, &card.device_id, &card.driver_name) {
+                            all_gpus.push(GpuData {
+                                device_id: card.device_id.clone(),
+                                driver_name: card.driver_name.clone(),
+                                usage,
+                            });
+                        }
                     }
                 }
                 "amdgpu" | "i915" | "xe" => {
@@ -151,7 +165,7 @@ impl GpuCollector {
     /// cards by comparing PCI bus IDs from `/sys/class/drm/cardN/device/uevent` with
     /// `nvmlDeviceGetPciInfo`. This avoids spawning subprocesses and provides lower-level
     /// GPU access via the official NVIDIA management library.
-    fn collect_nvidia_for_card(card_name: &str, _driver_name: &str) -> Option<f64> {
+    fn collect_nvidia_for_card(nvml: &Nvml, card_name: &str, _driver_name: &str) -> Option<f64> {
         let pci_slot = Self::read_pci_slot_from_uevent(card_name);
 
         if pci_slot.is_empty() {
@@ -161,17 +175,6 @@ impl GpuCollector {
             );
             return Some(0.0);
         }
-
-        let nvml = match Nvml::init() {
-            Ok(n) => n,
-            Err(e) => {
-                debug!(
-                    "NVML not available (NVIDIA driver stack may be missing): {}",
-                    e
-                );
-                return Some(0.0);
-            }
-        };
 
         let count = match nvml.device_count() {
             Ok(c) => c,
