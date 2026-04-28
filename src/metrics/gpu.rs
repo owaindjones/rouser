@@ -195,32 +195,34 @@ impl GpuCollector {
                     // NVML bus_id format: "00000000:09:00.0" (8-digit domain prefix)
                     // sysfs uevent PCI_SLOT_NAME format: "0000:09:00.0" (4-digit domain prefix)
                     if pci_info.bus_id.contains(&pci_slot) {
-                        match device.utilization_rates() {
-                            Ok(util) => {
-                                let dev_name = match device.name() {
-                                    Ok(s) => s,
-                                    Err(_) => "unknown".into(),
-                                };
-                                debug!(
-                                    "Matched sysfs card '{}' (PCI: {}) to NVML GPU '{}', usage: {}%",
-                                    card_name,
-                                    pci_slot,
-                                    dev_name,
-                                    util.gpu
-                                );
-                                return Some(util.gpu as f64);
-                            }
+                        let gpu_usage = match device.utilization_rates() {
+                            Ok(util) => util.gpu as f64,
                             Err(e) => {
-                                let dev_name = match device.name() {
-                                    Ok(s) => s,
-                                    Err(_) => "unknown".into(),
-                                };
-                                debug!(
-                                    "NVML utilization not available for matched GPU '{}': {}",
-                                    dev_name, e
-                                );
+                                debug!("NVML GPU utilization not available: {}", e);
+                                0.0
                             }
+                        };
+
+                        let encoder_usage = device
+                            .encoder_utilization()
+                            .map(|info| info.utilization as f64)
+                            .unwrap_or(0.0);
+
+                        let decoder_usage = device
+                            .decoder_utilization()
+                            .map(|info| info.utilization as f64)
+                            .unwrap_or(0.0);
+
+                        let composite = gpu_usage.max(encoder_usage).max(decoder_usage);
+
+                        if composite > 1.0 || encoder_usage > 0.0 || decoder_usage > 0.0 {
+                            debug!(
+                                "GPU {} (PCI: {}) compute={:.1}% encode={:.1}% decode={:.1}% → {:.1}%",
+                                card_name, pci_slot, gpu_usage, encoder_usage, decoder_usage, composite
+                            );
                         }
+
+                        return Some(composite);
                     }
                 }
             }
