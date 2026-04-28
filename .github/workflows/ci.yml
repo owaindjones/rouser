@@ -424,10 +424,20 @@ jobs:
           
           git-cliff --config cliff.toml --verbose > RELEASE_NOTES.md
           
-          # Create the GitHub Release (skip if it already exists)
-          gh release create "v${VERSION}" \
-            --title "v${VERSION}" \
-            --notes-file RELEASE_NOTES.md 2>/dev/null || echo "Release 'v${VERSION}' may already exist"
+          # Create the GitHub Release (edit if it already exists)
+          gh release view "v${VERSION}" >/dev/null 2>&1 && EXISTING_RELEASE_ID=$(gh release view "v${VERSION}" --json id -q .id) || EXISTING_RELEASE_ID=""
+          
+          if [ -n "$EXISTING_RELEASE_ID" ]; then
+            echo "Release v${VERSION} already exists (ID: ${EXISTING_RELEASE_ID}), updating..." >&2
+            gh release edit "v${VERSION}" \
+              --title "v${VERSION}" \
+              --notes-file RELEASE_NOTES.md || { echo "ERROR: Failed to update release!" >&2; exit 1; }
+          else
+            echo "Creating new GitHub Release v${VERSION}..." >&2
+            gh release create "v${VERSION}" \
+              --title "v${VERSION}" \
+              --notes-file RELEASE_NOTES.md || { echo "ERROR: Failed to create release!" >&2; exit 1; }
+          fi
 
       - name: Upload changelog as artifact for downstream jobs
         if: always()
