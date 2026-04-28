@@ -26,16 +26,17 @@ commit_preprocessors = [
     { pattern = '\(#(\d+)\)', replace = '[#$1](https://github.com/owaindjones/rouser/issues/$1)' },
 ]
 
-[commit_parsers]
-{ message = "^feat", group = "<!-- 0 -->Features" }
-{ message = "^fix", group = "<!-- 1 -->Bug Fixes" }
-{ message = "^perf", group = "<!-- 2 -->Performance Improvements" }
-{ message = "^revert", group = "<!-- 3 -->Reverts" }
-{ message = "^.*!:", group = "<!-- 4 -->Breaking Changes" }
-{ footer = "BREAKING CHANGE", group = "<!-- 4 -->Breaking Changes" }
-{ message = "^docs", group = "<!-- 5 -->Documentation", skip = true }
-{ message = "^test", group = "<!-- 6 -->Testing", skip = true }
-{ message = "^refactor", group = "<!-- 7 -->Code Refactoring", skip = true }
-{ message = "^chore", group = "<!-- 8 -->Chores", skip = true }
-{ message = "^ci", group = "<!-- 9 -->CI", skip = true }
-{ message = ".", default = true, skip = false }
+commit_parsers = [
+    { message = "^feat", group = "<!-- 0 -->Features" },
+    { message = "^fix", group = "<!-- 1 -->Bug Fixes" },
+    { message = "^perf", group = "<!-- 2 -->Performance Improvements" },
+    { message = "^revert", group = "<!-- 3 -->Reverts" },
+    { message = "^.*!:", group = "<!-- 4 -->Breaking Changes" },
+    { footer = "BREAKING CHANGE", group = "<!-- 4 -->Breaking Changes" },
+    { message = "^docs", group = "<!-- 5 -->Documentation", skip = true },
+    { message = "^test", group = "<!-- 6 -->Testing", skip = true },
+    { message = "^refactor", group = "<!-- 7 -->Code Refactoring", skip = true },
+    { message = "^chore", group = "<!-- 8 -->Chores", skip = true },
+    { message = "^ci", group = "<!-- 9 -->CI", skip = true },
+    { message = ".", default = true, skip = false },
+]
