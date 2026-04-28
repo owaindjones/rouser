@@ -255,9 +255,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
-          gh release view "${VERSION}" >/dev/null 2>&1 || exit 0
+          echo "Checking for GitHub Release ${VERSION}..." >&2
+          gh release view "${VERSION}" >/dev/null 2>&1 || { echo "No release found, skipping upload." >&2; exit 0; }
           DEB_VERSION=$(echo "${VERSION}" | sed 's/^v//')
-          gh release upload "${VERSION}" "rouser-${DEB_VERSION}-${{ matrix.arch }}.deb" --clobber
+          deb_file="rouser-${DEB_VERSION}-${{ matrix.arch }}.deb"
+          echo "Uploading ${deb_file} ($(du -h "$deb_file" | cut -f1))..." >&2
+          gh release upload "${VERSION}" "${deb_file}" --clobber
 
       - name: Upload GHA artifact (DEB backup)
         uses: actions/upload-artifact@v4
@@ -316,9 +319,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
-          gh release view "${VERSION}" >/dev/null 2>&1 || exit 0
+          echo "Checking for GitHub Release ${VERSION}..." >&2
+          gh release view "${VERSION}" >/dev/null 2>&1 || { echo "No release found, skipping upload." >&2; exit 0; }
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
-          # Use same approach as DEB upload — direct filename with arch suffix
           rpm_file="rouser-${RPM_VERSION}-${{ matrix.rpm_arch }}.rpm"
           if [ -f "$rpm_file" ]; then
             gh release upload "${VERSION}" "$rpm_file" --clobber
