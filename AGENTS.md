@@ -22,7 +22,7 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 ## Versioning Policy
 
 - **Semantic Versioning (SemVer)** is strictly enforced. All version bumps follow `MAJOR.MINOR.PATCH` format per [semver.org](https://semver.org/).
-- Current version: `v1.0.0` (stable release).
+- Current version: `v1.1.0` (stable release).
 - **Pre-release rule**: Until first stable release, only patch-level changes are expected between minor releases.
   - `v0.0.1`, `v0.0.2`... — bug fixes and minor improvements while pre-1.0
   - `v0.1.0` — first feature release (when ready)
