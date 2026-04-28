@@ -419,12 +419,15 @@ jobs:
         id: cliff
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${GITHUB_REPOSITORY}
         run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          
           git-cliff --config cliff.toml --verbose > RELEASE_NOTES.md
           
-          chmod +x .github/scripts/create-release.py
-          python3 .github/scripts/create-release.py || { echo "ERROR: Failed to create/update release!" >&2; exit 1; }
+          # Create or update release (gh handles existing releases gracefully)
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes-file RELEASE_NOTES.md 2>/dev/null || true
 
       - name: Upload changelog as artifact for downstream jobs
         if: always()
