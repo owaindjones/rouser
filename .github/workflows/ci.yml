@@ -255,9 +255,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
-          gh release view "v${VERSION}" >/dev/null 2>&1 || exit 0
+          gh release view "${VERSION}" >/dev/null 2>&1 || exit 0
           DEB_VERSION=$(echo "${VERSION}" | sed 's/^v//')
-          gh release upload "v${DEB_VERSION}" "rouser-${DEB_VERSION}-${{ matrix.arch }}.deb" --clobber
+          gh release upload "${VERSION}" "rouser-${DEB_VERSION}-${{ matrix.arch }}.deb" --clobber
 
       - name: Upload GHA artifact (DEB backup)
         uses: actions/upload-artifact@v4
@@ -317,7 +317,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
-          gh release view "v${VERSION}" >/dev/null 2>&1 || exit 0
+          gh release view "${VERSION}" >/dev/null 2>&1 || exit 0
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           rpm_file=$(find . -maxdepth 2 -name "rouser-${RPM_VERSION}-*.rpm" 2>/dev/null | head -1)
           if [ -n "$rpm_file" ]; then
@@ -365,9 +365,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
-          gh release view "v${VERSION}" >/dev/null 2>&1 || exit 0
+          gh release view "${VERSION}" >/dev/null 2>&1 || exit 0
           PKG_VERSION=$(echo "${VERSION}" | sed 's/^v//')
-          gh release upload "v${PKG_VERSION}" \
+          gh release upload "${VERSION}" \
             "rouser-pkgbuild-v${PKG_VERSION}.tar.gz" --clobber
 
       - name: Upload GHA artifact (PKGBUILD backup)
