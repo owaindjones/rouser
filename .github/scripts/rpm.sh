@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build an .rpm package for rouser from extracted files using rpmbuild.
 # Usage: ./rpm.sh build <source-dir> <version> <target-arch>
-set -euo pipefail
+set -exu pipefail
 
 ACTION="${1:-help}"
 SOURCE_DIR="${2:-pkg-build}"
