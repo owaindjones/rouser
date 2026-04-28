@@ -339,6 +339,18 @@ jobs:
         with:
           name: rouser-rpm-${{ matrix.rpm_arch }}
 
+      - name: Locate downloaded RPM file
+        run: |
+          echo "Files in working directory after download:" >&2
+          find . -name "*.rpm" 2>/dev/null >&2 || true
+          ls -laR ./rouser-rpm-* 2>&1 || true
+          # download-artifact creates a subdirectory matching the artifact name
+          rpm_dir=$(find . -maxdepth 2 -type d -name "rouser-rpm-${{ matrix.rpm_arch }}" 2>/dev/null | head -1)
+          if [ -n "$rpm_dir" ]; then
+            mv "${rpm_dir}"/*.rpm ./ || true
+            echo "Moved RPM from ${rpm_dir}/ to current directory" >&2
+          fi
+
       - name: Upload RPM release asset (only if GitHub Release exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
