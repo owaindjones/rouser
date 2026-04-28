@@ -382,17 +382,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install git-cliff
+        uses: taiki-e/install-action@git-cliff
+
       - name: Generate release notes and create GitHub Release
         id: cliff
         env:
-          GITHUB_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          
-          # Install git-cliff via official install script (same as the action does)
-          curl -sL https://raw.githubusercontent.com/orhun/git-cliff/refs/heads/main/.github/scripts/install.sh | bash
-          export PATH="$HOME/.local/bin:$PATH"
           
           git-cliff --config cliff.toml --verbose > RELEASE_NOTES.md
           
