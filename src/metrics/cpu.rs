@@ -590,11 +590,11 @@ mod tests {
             cur_freq_khz: 2_500_000,
             max_freq_khz: 5_000_000,
         }; // 2.5GHz current
-        let base = vec![CpuFreq {
+        let base = [CpuFreq {
             cur_freq_khz: 0,
             max_freq_khz: 3_000_000,
         }]; // 3GHz rated max
-        let peak = vec![4_000_000u64]; // previously observed 4GHz
+        let peak = [4_000_000u64]; // previously observed 4GHz
 
         let effective_max = runtime.cur_freq_khz.max(base[0].max_freq_khz).max(peak[0]);
         assert_eq!(effective_max, 4_000_000); // peak wins: max(2.5GHz, 3GHz, 4GHz) = 4GHz
@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn test_frequency_weighted_turbo_boost_tracking() {
         // Simulate turbo boost: core hits 4.8GHz once, then runs at base frequency.
-        let mut peak_freqs = vec![0u64];
+        let mut peak_freqs = [0u64];
 
         // Tick 1: core running at 3.0GHz (base), no peak yet
         assert_eq!(peak_freqs[0], 0);
