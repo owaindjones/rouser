@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build an .rpm package for rouser from extracted files using rpmbuild.
-# Usage: ./rpm.sh build <source-dir> <version> <target-arch>
-set -exu pipefail
+shopt -s pipefail 2>/dev/null || true
+set -euo pipefail
 
 ACTION="${1:-help}"
 SOURCE_DIR="${2:-pkg-build}"
@@ -10,43 +10,35 @@ ARCH="${4:-x86_64}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-RPMBUILD="rpmbuild"
-
-# Strip leading 'v' if present for RPM version field
 RPM_VERSION=$(echo "$VERSION" | sed 's/^v//')
+SOURCE_NAME="rouser-${RPM_VERSION}"
 
-case "$ACTION" in
-  build)
-    RPMBUILD_DIR=$(mktemp -d)
-    trap 'rm -rf "$RPMBUILD_DIR"' EXIT
-    export RPM_BUILD_ROOT="${RPMBUILD_DIR}/BUILDROOT"
-    
-    # Set up standard rpmbuild directory structure
-    mkdir -p "${RPMBUILD_DIR}/BUILD"              "${RPMBUILD_DIR}/RPMS/$ARCH"              "${RPMBUILD_DIR}/SOURCES"              "${RPMBUILD_DIR}/SPECS"              "${RPMBUILD_DIR}/SRPMs"
+RPMTOP="${HOME}/rpmbuild"
+mkdir -p "${RPMTOP}/BUILD" "${RPMTOP}/RPMS/${ARCH}" \
+         "${RPMTOP}/SOURCES" "${RPMTOP}/SPECS" \
+         "${RPMTOP}/SRPMs" "${RPMTOP}/BUILDROOT"
 
-    # Build source tarball content (all under RPMBUILD_DIR)  
-    SOURCE_NAME="rouser-${RPM_VERSION}"
-    mkdir -p "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/config"              "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/systemd"
-    
-    cp "$SOURCE_DIR/rouser"       "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/rouser" 2>/dev/null || true
-    if [ -d "$SOURCE_DIR/config" ] && [ -f "$SOURCE_DIR/config/rouser.toml" ]; then
-      cp "$SOURCE_DIR/config/rouser.toml" "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/config/"
-    elif [ -f "$PROJECT_ROOT/etc/rouser/config.toml.example" ]; then
-      cp "$PROJECT_ROOT/etc/rouser/config.toml.example" "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/config/rouser.toml"
-    fi
-    if ls "$SOURCE_DIR/systemd/"*.service 1>/dev/null 2>&1; then
-      cp "$SOURCE_DIR/systemd/"*.service "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/systemd/" 2>/dev/null || true
-    elif ls "$PROJECT_ROOT/systemd/"*.service 1>/dev/null 2>&1; then
-      cp "$PROJECT_ROOT/systemd/"*.service "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/systemd/"
-    fi
-    
-    tar czf "${RPMBUILD_DIR}/SOURCES/rouser-source.tar.gz" "${SOURCE_NAME}"
+# Assemble all source files under SOURCES/<name>/ for tarball creation
+mkdir -p "${RPMTOP}/SOURCES/${SOURCE_NAME}"
+cp "${SOURCE_DIR}/rouser"       "${RPMTOP}/SOURCES/${SOURCE_NAME}/rouser" 2>/dev/null || true
+if [ -d "$SOURCE_DIR/config" ] && [ -f "$SOURCE_DIR/config/rouser.toml" ]; then
+    mkdir -p "${RPMTOP}/SOURCES/${SOURCE_NAME}"
+    cp "${SOURCE_DIR}/config/rouser.toml"   "${RPMTOP}/SOURCES/${SOURCE_NAME}/rouser.toml"
+fi
+if ls "$SOURCE_DIR/systemd/"*.service 1>/dev/null 2>&1; then
+    mkdir -p "${RPMTOP}/SOURCES/${SOURCE_NAME}/systemd"
+    cp "${SOURCE_DIR}/systemd/"*.service   "${RPMTOP}/SOURCES/${SOURCE_NAME}/systemd/"
+elif ls "$PROJECT_ROOT/systemd/"*.service 1>/dev/null 2>&1; then
+    mkdir -p "${RPMTOP}/SOURCES/${SOURCE_NAME}/systemd"
+    cp "$PROJECT_ROOT/systemd/"*.service    "${RPMTOP}/SOURCES/${SOURCE_NAME}/systemd/"
+fi
 
-    # SPEC file (written to SPECS dir)  
-    cat > "${RPMBUILD_DIR}/SPECS/.rpm-spec" <<'SPECEOF'
+cd "${RPMTOP}/SOURCES" && tar czf rouser-source.tar.gz "${SOURCE_NAME}" && cd -
+
+cat > "${RPMTOP}/SPECS/.rpm-spec" << SPECEOF
 %global debug_package %{nil}
 Name:           rouser
-Version:        @VERSION@
+Version:        ${RPM_VERSION}
 Release:        1%{?dist}
 Summary:        System metrics daemon with sleep inhibition
 License:        MIT
@@ -61,14 +53,19 @@ A Linux daemon that monitors CPU, GPU, network, and disk
 activity to prevent unwanted system suspend or hibernation
 when activity thresholds are exceeded.
 
+
+
+%prep
+%setup -q
+
 %install
 mkdir -p %{buildroot}/usr/bin
 cp rouser       %{buildroot}/usr/bin/
 mkdir -p        %{buildroot}/etc/rouser
-[ -f config/rouser.toml ] && cp config/rouser.toml   %{buildroot}/etc/rouser/config.toml || true
-if [ -d systemd ]; then
-  mkdir -p     %{buildroot}/lib/systemd/system
-  cp           systemd/*.service    %{buildroot}/lib/systemd/system/ || true
+[ -f rouser.toml ] && cp rouser.toml   %{buildroot}/etc/rouser/config.toml || true
+if ls systemd/*.service 1>/dev/null 2>&1; then
+    mkdir -p     %{buildroot}/lib/systemd/system
+    cp           systemd/*.service    %{buildroot}/lib/systemd/system/ || true
 fi
 
 %files
@@ -80,35 +77,17 @@ fi
 systemctl daemon-reload || true
 
 %changelog
-* $(date '+%a %b %d %Y') Release <release@example.com> - @VERSION@
+* $(date '+%a %b %d %Y') Release <release@example.com> - ${RPM_VERSION}
 - Build for release
 SPECEOF
-     
-     sed -i "s|@VERSION@|${RPM_VERSION}|g" "${RPMBUILD_DIR}/SPECS/.rpm-spec"
-     
-     # Run rpmbuild with proper topdir and spec path  
-     $RPMBUILD \
-        --define "_builddir ${RPMBUILD_DIR}/BUILD" \
-        --define "_topdir ${RPMBUILD_DIR}" \
-        --target "$ARCH" \
-        -bb "${RPMBUILD_DIR}/SPECS/.rpm-spec" 2>&1
 
-     # Copy built RPMs to workspace  
-     if ls "${RPMBUILD_DIR}/RPMS/$ARCH/"*.rpm 1>/dev/null 2>&1; then
-       cp "${RPMBUILD_DIR}/RPMS/$ARCH/"*.rpm . 2>/dev/null || true
-     fi
-     
-     rm -rf "$SOURCE_NAME"
-     echo "Built RPM for $ARCH (version $RPM_VERSION)"
+rpmbuild \
+    --target "$ARCH" \
+    -bb "${RPMTOP}/SPECS/.rpm-spec" 2>&1 || { cat "${RPMTOP}/BUILD/*.log" 2>/dev/null; exit 1; }
 
-    ;;
+for rpm_file in "${RPMTOP}/RPMS/${ARCH}/"*.rpm; do
+    [ -f "$rpm_file" ] && cp "$rpm_file" .
+done
 
-
-
-
-
-  *)
-    echo "Usage: $0 build <source-dir> <version> <target-arch>" >&2
-    exit 1
-    ;;
-esac
+rm -rf "${SOURCE_NAME}"
+echo "Built RPM for $ARCH (version $RPM_VERSION)"
