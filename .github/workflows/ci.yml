@@ -381,9 +381,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Install git-cliff
         uses: taiki-e/install-action@git-cliff
+        with:
+          version: "latest"
 
       - name: Generate release notes and create GitHub Release
         id: cliff

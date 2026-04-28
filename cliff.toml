@@ -8,7 +8,7 @@ body = """
 {% if version %}
     ## [{{ version }}] - {{ timestamp | date(format="%Y-%m-%d") }}
 {% endif %}
-{% for group, commits in commits | group_by(group) %}
+{% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | striptags | trim | upper_first }}
     {% for commit in commits %}
         - {% if commit.scope %}*{{ commit.scope }}*: {% endif %}{{ commit.message | trim | upper_first }}{% if commit.github.contributor %} — [@{{ commit.github.username }}](https://github.com/{{ commit.github.username }}){% endif %}
