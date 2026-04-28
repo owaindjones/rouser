@@ -79,9 +79,9 @@ systemctl daemon-reload || true
 - Build for release
 SPECEOF
 
-rpmbuild \
-    --target "$ARCH" \
-    -bb "${RPMTOP}/SPECS/.rpm-spec" 2>&1 || { cat "${RPMTOP}/BUILD/*.log" 2>/dev/null; exit 1; }
+   rpmbuild \
+        --target "$ARCH" \
+        -bb "${RPMTOP}/SPECS/.rpm-spec" 2>&1 || { cat "${RPMTOP}/BUILD/*.log" 2>/dev/null; exit 1; }
 
 for rpm_file in "${RPMTOP}/RPMS/${ARCH}/"*.rpm; do
     [ -f "$rpm_file" ] && cp "$rpm_file" .
@@ -89,9 +89,13 @@ done
 
 rm -rf "${SOURCE_NAME}"
 
+# Rename RPM to predictable name: rouser-{version}-{arch}.rpm
+# rpmbuild produces names like "rouser-1.1.0-1.fc43.x86_64.rpm" — strip the release segment
 for f in rouser-${RPM_VERSION}-*.rpm; do
     if [ -f "$f" ]; then
-        new_name=$(echo "$f" | sed "s/rouser-${RPM_VERSION}-[^-]*-\(.*\)\.rpm/rouser-${RPM_VERSION}-\1.rpm/")
+        no_ext="${f%.rpm}"
+        orig_arch="${no_ext##*.}"
+        new_name="rouser-${RPM_VERSION}-${orig_arch}.rpm"
         mv -- "$f" "$new_name" 2>/dev/null || true
     fi
 done
