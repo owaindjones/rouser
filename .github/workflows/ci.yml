@@ -208,7 +208,7 @@ jobs:
           path: RELEASE_NOTES.md
 
   package-deb:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     needs: [release-build]
     strategy:
       fail-fast: false
@@ -250,12 +250,13 @@ jobs:
           DEB_ARCH="${{ matrix.deb_arch }}"
           .github/scripts/deb.sh build pkg-build "rouser-${RPM_VERSION}-${ARCH}.deb" "$RPM_VERSION" "$DEB_ARCH"
 
-      - name: Upload DEB release asset
-        if: github.event_name == 'release'
+      - name: Upload DEB release asset (only if GitHub Release exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          REF_TAG="${GITHUB_REF#refs/tags/}" || REF_TAG="${{ github.event.release.tag_name }}"
+          gh release view "v${REF_TAG}" >/dev/null 2>&1 || exit 0
+          VERSION=$(echo "${REF_TAG}" | sed 's/^v//')
           gh release upload "v${VERSION}" "rouser-${VERSION}-${{ matrix.arch }}.deb" --clobber
 
       - name: Upload GHA artifact (DEB backup)
@@ -266,7 +267,7 @@ jobs:
           retention-days: 30
 
   package-rpm:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     needs: [release-build]
     strategy:
       fail-fast: false
@@ -311,12 +312,13 @@ jobs:
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           .github/scripts/rpm.sh build pkg-build "$RPM_VERSION" "$ARCH"
 
-      - name: Upload RPM release asset
-        if: github.event_name == 'release'
+      - name: Upload RPM release asset (only if GitHub Release exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          REF_TAG="${GITHUB_REF#refs/tags/}" || REF_TAG="${{ github.event.release.tag_name }}"
+          gh release view "v${REF_TAG}" >/dev/null 2>&1 || exit 0
+          VERSION=$(echo "${REF_TAG}" | sed 's/^v//')
           rpm_file=$(find . -maxdepth 2 -name "rouser-${VERSION}-*.rpm" 2>/dev/null | head -1)
           if [ -n "$rpm_file" ]; then
             gh release upload "v${VERSION}" "$rpm_file" --clobber
@@ -333,7 +335,7 @@ jobs:
           retention-days: 30
 
   package-arch-pkgbuild:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -341,13 +343,10 @@ jobs:
       - name: Download all release tarballs for PKGBUILD source URLs
         run: |
           mkdir -p dist-tarballs/
-          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
-          gh api repos/{owner}/{repo}/releases/assets \
-            --jq '.[] | select(.name | test("linux")) | {name, browser_download_url}' 2>/dev/null || true
 
       - name: Generate PKGBUILD
         env:
-          VERSION: ${{ github.event.release.tag_name }}
+          VERSION: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           chmod +x .github/scripts/pkgbuild.sh
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
@@ -355,15 +354,16 @@ jobs:
 
       - name: Create Arch source archive artifact
         run: |
-          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          VERSION=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/^v//')
           tar czf "rouser-pkgbuild-v${VERSION}.tar.gz" PKGBUILD
 
-      - name: Upload Arch PKGBUILD as release asset
-        if: github.event_name == 'release'
+      - name: Upload Arch PKGBUILD as release asset (only if GitHub Release exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          REF_TAG="${GITHUB_REF#refs/tags/}" || REF_TAG="${{ github.event.release.tag_name }}"
+          gh release view "v${REF_TAG}" >/dev/null 2>&1 || exit 0
+          VERSION=$(echo "${REF_TAG}" | sed 's/^v//')
           gh release upload "v${VERSION}" \
             "rouser-pkgbuild-v${VERSION}.tar.gz" --clobber
 
@@ -410,8 +410,8 @@ jobs:
           path: RELEASE_NOTES.md
 
   deploy-pages:
-    if: github.event_name == 'release'
-    needs: [package-arch-pkgbuild]
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    needs: [auto-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
