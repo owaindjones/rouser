@@ -45,8 +45,6 @@ License:        MIT
 URL:            https://github.com/owaindjones/rouser
 Source0:        %{name}-source.tar.gz
 
-BuildRequires:  systemd-devel >= 240
-BuildRequires:  dbus-devel >= 1.14
 
 %description
 A Linux daemon that monitors CPU, GPU, network, and disk

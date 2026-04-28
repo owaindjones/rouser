@@ -279,7 +279,7 @@ jobs:
           - arch: aarch64
             rpm_arch: aarch64
     runs-on: ubuntu-latest
-    container: almalinux:9
+    container: fedora:latest
     steps:
       - uses: actions/checkout@v4
 
@@ -288,7 +288,7 @@ jobs:
           dnf install -y epel-release && \
           dnf install -y \
             rpm-build redhat-rpm-config \
-            systemd-devel dbus-libs gcc make tar gzip
+            systemd-devel dbus-devel gcc make tar gzip
 
       - name: Download release tarball
         uses: actions/download-artifact@v4
