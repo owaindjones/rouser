@@ -22,6 +22,8 @@ case "$ACTION" in
 
     mkdir -p "$TMPDIR/BUILD" "$TMPDIR/SOURCES" "$TMPDIR/RPMS/$ARCH" "$TMPDIR/SRPMS"
     RPMTOP="$TMPDIR"
+    ORIGINAL_DIR="$(pwd)"
+    cd "$RPMTOP"
 
     # Prepare source tarball (contains just the binary for no-build RPM)
     mkdir -p "rouser-${RPM_VERSION}/config"
@@ -97,6 +99,7 @@ SPECEOF
     fi
 
     rm -rf "rouser-${RPM_VERSION}" SOURCES/rouser-source.tar.gz "${RPMTOP}.rpm-spec"
+    cd "$ORIGINAL_DIR"
     echo "Built RPM for $ARCH (version $RPM_VERSION)"
     ;;
 
