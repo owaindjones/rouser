@@ -17,33 +17,32 @@ RPM_VERSION=$(echo "$VERSION" | sed 's/^v//')
 
 case "$ACTION" in
   build)
-    TMPDIR=$(mktemp -d)
-    trap 'rm -rf "$TMPDIR"' EXIT
+    RPMBUILD_DIR=$(mktemp -d)
+    trap 'rm -rf "$RPMBUILD_DIR"' EXIT
     
-    RPMTOP="$TMPDIR"
-    
-    mkdir -p "${RPMTOP}/SOURCES"
+    # Set up standard rpmbuild directory structure
+    mkdir -p "${RPMBUILD_DIR}/BUILD"              "${RPMBUILD_DIR}/RPMS/$ARCH"              "${RPMBUILD_DIR}/SOURCES"              "${RPMBUILD_DIR}/SPECS"              "${RPMBUILD_DIR}/SRPMs"
 
-    # Build source tarball content  
-    SOURCE_DIR_NAME="rouser-${RPM_VERSION}"
-    mkdir -p "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/config"              "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/systemd"
+    # Build source tarball content (all under RPMBUILD_DIR)  
+    SOURCE_NAME="rouser-${RPM_VERSION}"
+    mkdir -p "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/config"              "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/systemd"
     
-    cp "$SOURCE_DIR/rouser"       "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/rouser" 2>/dev/null || true
+    cp "$SOURCE_DIR/rouser"       "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/rouser" 2>/dev/null || true
     if [ -d "$SOURCE_DIR/config" ] && [ -f "$SOURCE_DIR/config/rouser.toml" ]; then
-      cp "$SOURCE_DIR/config/rouser.toml" "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/config/"
+      cp "$SOURCE_DIR/config/rouser.toml" "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/config/"
     elif [ -f "$PROJECT_ROOT/etc/rouser/config.toml.example" ]; then
-      cp "$PROJECT_ROOT/etc/rouser/config.toml.example" "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/config/rouser.toml"
+      cp "$PROJECT_ROOT/etc/rouser/config.toml.example" "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/config/rouser.toml"
     fi
     if ls "$SOURCE_DIR/systemd/"*.service 1>/dev/null 2>&1; then
-      cp "$SOURCE_DIR/systemd/"*.service "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/systemd/" 2>/dev/null || true
+      cp "$SOURCE_DIR/systemd/"*.service "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/systemd/" 2>/dev/null || true
     elif ls "$PROJECT_ROOT/systemd/"*.service 1>/dev/null 2>&1; then
-      cp "$PROJECT_ROOT/systemd/"*.service "${RPMTOP}/SOURCES/${SOURCE_DIR_NAME}/systemd/"
+      cp "$PROJECT_ROOT/systemd/"*.service "${RPMBUILD_DIR}/SOURCES/${SOURCE_NAME}/systemd/"
     fi
     
-    tar czf "${RPMTOP}/SOURCES/rouser-source.tar.gz" "${SOURCE_DIR_NAME}"
+    tar czf "${RPMBUILD_DIR}/SOURCES/rouser-source.tar.gz" "${SOURCE_NAME}"
 
-    # SPEC file with absolute path reference  
-    cat > "${RPMTOP}/SOURCES/.rpm-spec" <<'SPECEOF'
+    # SPEC file (written to SPECS dir)  
+    cat > "${RPMBUILD_DIR}/SPECS/.rpm-spec" <<'SPECEOF'
 %global debug_package %{nil}
 Name:           rouser
 Version:        @VERSION@
@@ -84,23 +83,25 @@ systemctl daemon-reload || true
 - Build for release
 SPECEOF
      
-     sed -i "s|@VERSION@|${RPM_VERSION}|g" "${RPMTOP}/SOURCES/.rpm-spec"
-
-     # Run rpmbuild with absolute topdir path  
+     sed -i "s|@VERSION@|${RPM_VERSION}|g" "${RPMBUILD_DIR}/SPECS/.rpm-spec"
+     
+     # Run rpmbuild with proper topdir and spec path  
      $RPMBUILD \
-       --define "_topdir ${RPMTOP}" \
+       --define "_topdir ${RPMBUILD_DIR}" \
        --target "$ARCH" \
-       -bb "${RPMTOP}/SOURCES/.rpm-spec" 2>&1
+       -bb "${RPMBUILD_DIR}/SPECS/.rpm-spec" 2>&1
 
-     # Copy built RPMs to workspace (absolute paths)  
-     if ls "${RPMTOP}/RPMS/$ARCH/"*.rpm 1>/dev/null 2>&1; then
-       cp "${RPMTOP}/RPMS/$ARCH/"*.rpm . 2>/dev/null || true
+     # Copy built RPMs to workspace  
+     if ls "${RPMBUILD_DIR}/RPMS/$ARCH/"*.rpm 1>/dev/null 2>&1; then
+       cp "${RPMBUILD_DIR}/RPMS/$ARCH/"*.rpm . 2>/dev/null || true
      fi
      
-     rm -rf "${SOURCE_DIR_NAME}"
+     rm -rf "$SOURCE_NAME"
      echo "Built RPM for $ARCH (version $RPM_VERSION)"
 
     ;;
+
+
 
 
 
