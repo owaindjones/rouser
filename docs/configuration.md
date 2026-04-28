@@ -19,102 +19,71 @@ rouser uses a TOML configuration file to define thresholds, timing parameters, a
 | CLI override | `rouser --config /path/to/config.toml` or `-c /path/to/config.toml` |
 | Default search (sequential) | `./config/rouser.toml` → `~/.config/rouser/config.toml` → `/etc/rouser/config.toml` |
 
-When none of the default paths exist, rouser uses built-in defaults and logs a warning:
+When none of the default paths exist, rouser uses embedded defaults from `config/rouser.toml` and logs a warning:
 
 ```
-No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
+No configuration file found at checked paths — using embedded defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
 ```
 
 ## Complete Configuration Example
 
-```toml
-# rouser config - see docs/configuration.md for full reference
+The following is the default configuration shipped with `rouser` (from `config/rouser.toml`). Copy this file and adjust as needed. This TOML file is embedded at compile time via `include_str!()` and serves as both the shipped config file and the binary's built-in fallback.
 
-name = "rouser"
-update_interval = "5s"
+```toml
+# rouser default configuration — copy this file and adjust as needed.
+# See https://github.com/owaindjones/rouser for documentation on all configuration options.
+
+update_interval = "1s"
 log_level = "info"
 
 [metrics.cpu]
-threshold = 80.0    # CPU usage percentage (0-100) above which to inhibit sleep
-ema_alpha = 0.3     # Exponential moving average smoothing factor (0.0–1.0, higher = less smoothed)
+per_core_threshold = 80.0
+total_threshold = 50.0
+ema_alpha = 0.7
 
 [metrics.gpu]
-threshold = 90.0    # GPU usage percentage (0-100) above which to inhibit sleep
-ema_alpha = 0.3     # EMA smoothing for per-GPU readings
+threshold = 33.3      # GPU usage threshold (percentage)
+ema_alpha = 0.7       # EMA smoothing factor
 
 [metrics.network]
-threshold = 100.0       # Network throughput in Mbps
-ema_alpha = 0.2         # EMA smoothing for network I/O
-exclude_interfaces = ["lo"]    # Exclude from monitoring (default: loopback)
-include_interfaces = []        # Only monitor these; empty means all
-
-[metrics.disk]
-threshold = 50.0              # Disk I/O in MB/s above which to inhibit sleep
-ema_alpha = 0.2               # EMA smoothing for disk activity
-exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]  # Exclude virtual devices
-
-[timing]
-duration_threshold = "30s"   # Min time metrics must exceed threshold before inhibiting
-cooldown_duration = "60s"    # Time after releasing inhibition before re-inhibiting possible
-
-[inhibitor]
-what = "shutdown:idle"       # Lock types to inhibit (colon-separated)
-mode = "block"               # Inhibition mode: block, delay, or block-weak
-```
-
-### Minimal Configuration
-
-With no config file at all, rouser uses these built-in defaults:
-
-```toml
-name = "rouser"
-update_interval = "5s"
-log_level = "info"
-
-[metrics.cpu]
-threshold = 80.0
-ema_alpha = 0.3
-
-[metrics.gpu]
-threshold = 90.0
-ema_alpha = 0.3
-
-[metrics.network]
-threshold = 100.0
-ema_alpha = 0.2
+threshold = 10.0      # Network I/O threshold (Mbps)
+ema_alpha = 0.5       # EMA smoothing factor (lower for network to avoid spikes)
 exclude_interfaces = ["lo"]
 include_interfaces = []
 
 [metrics.disk]
-threshold = 50.0
-ema_alpha = 0.2
+threshold = 10.0      # Disk I/O threshold (MB/s)
+ema_alpha = 0.5       # EMA smoothing factor
 exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
 
+# Timing configuration
 [timing]
-duration_threshold = "30s"
-cooldown_duration = "60s"
+duration_threshold = "5s"    # Min time above threshold before inhibiting sleep
+cooldown_duration = "10s"     # Time below threshold before releasing inhibition
 
 [inhibitor]
-what = "shutdown:idle"
-mode = "block"
+what = "shutdown:idle"     # Lock type: idle, sleep, suspend, shutdown (colon-separated)
+mode = "block"             # Mode: block, delay, block-weak
 ```
 
 ## Root-Level Options
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `name` | string | `"rouser"` | Daemon name for logging (reserved for future use) |
-| `update_interval` | duration | `"5s"` | Time between metric collection cycles. Uses humantime format: `"1s"`, `"30s"`, `"5m"` |
+| `update_interval` | duration | `"1s"` | Time between metric collection cycles. Uses humantime format: `"1s"`, `"30s"`, `"5m"` |
 | `log_level` | string | `"info"` | Logging level: `debug`, `info`, `warn`, `error`. Can also be set via `-l/--log-level` CLI flag or `RUST_LOG` env var |
 
 ## Metrics Configuration
 
-### `[metrics.cpu]` — CPU Usage Threshold
+### `[metrics.cpu]` — CPU Usage Thresholds
+
+CPU usage is measured per-core (frequency-weighted from sysfs cpufreq data) and as a total average. Both thresholds must be considered independently.
 
 | Key | Type | Default (0–100) | Description |
 |-----|------|-----------------|-------------|
-| `threshold` | f64 | `80.0` | CPU usage percentage above which to inhibit sleep |
-| `ema_alpha` | f64 | `0.3` | EMA smoothing factor: higher = more responsive, lower = smoother readings |
+| `per_core_threshold` | f64 | `80.0` | Per-core CPU usage percentage above which to inhibit sleep |
+| `total_threshold` | f64 | `50.0` | Total (averaged across cores) CPU usage percentage above which to inhibit sleep |
+| `ema_alpha` | f64 | `0.7` | EMA smoothing factor: higher = more responsive, lower = smoother readings |
 
 ### `[metrics.gpu]` — GPU Usage Threshold
 
@@ -122,8 +91,8 @@ Per-device GPU collection (NVIDIA via NVML, AMD/Intel via sysfs). Each detected 
 
 | Key | Type | Default (0–100) | Description |
 |-----|------|-----------------|-------------|
-| `threshold` | f64 | `90.0` | GPU usage percentage above which to inhibit sleep |
-| `ema_alpha` | f64 | `0.3` | EMA smoothing factor for per-GPU readings |
+| `threshold` | f64 | `33.3` | GPU usage percentage above which to inhibit sleep |
+| `ema_alpha` | f64 | `0.7` | EMA smoothing factor for per-GPU readings |
 
 ### `[metrics.network]` — Network Throughput Threshold
 
@@ -131,9 +100,9 @@ Network I/O is calculated as total bytes transferred (in + out) across monitored
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `threshold` | f64 | `100.0` | Network throughput in Mbps above which to inhibit sleep |
-| `ema_alpha` | f64 | `0.2` | EMA smoothing factor for network I/O |
-| `exclude_interfaces` | array of strings | `["lo"]` | Interface names to exclude from monitoring |
+| `threshold` | f64 | `10.0` | Network throughput in Mbps above which to inhibit sleep |
+| `ema_alpha` | f64 | `0.5` | EMA smoothing factor for network I/O (lower for network to avoid spikes) |
+| `exclude_interfaces` | array of strings | `["lo"]` | Interface names to exclude from monitoring; loopback excluded by default |
 | `include_interfaces` | array of strings | `[]` | If non-empty, only monitor these interfaces; empty means all available interfaces |
 
 ### `[metrics.disk]` — Disk I/O Threshold
@@ -142,8 +111,8 @@ Disk activity is calculated as total bytes transferred across monitored devices 
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `threshold` | f64 | `50.0` | Disk I/O in MB/s above which to inhibit sleep |
-| `ema_alpha` | f64 | `0.2` | EMA smoothing factor for disk activity |
+| `threshold` | f64 | `10.0` | Disk I/O in MB/s above which to inhibit sleep |
+| `ema_alpha` | f64 | `0.5` | EMA smoothing factor for disk activity |
 | `exclude_device_prefixes` | array of strings | `["loop", "fd", "sr", "cdrom"]` | Device name prefixes to exclude (e.g., `loop*`, `fd*`) |
 
 ## Timing Configuration
@@ -152,10 +121,10 @@ Disk activity is calculated as total bytes transferred across monitored devices 
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `duration_threshold` | duration | `"30s"` | Minimum continuous time metrics must exceed threshold before inhibiting sleep. Prevents brief spikes from triggering inhibition. |
-| `cooldown_duration` | duration | `"60s"` | Time after releasing inhibition during which the daemon won't re-inhibit even if thresholds are exceeded again. Helps with bursty workloads. |
+| `duration_threshold` | duration | `"5s"` | Minimum continuous time metrics must exceed threshold before inhibiting sleep. Prevents brief spikes from triggering inhibition. |
+| `cooldown_duration` | duration | `"10s"` | Time after releasing inhibition during which the daemon won't re-inhibit even if thresholds are exceeded again. Helps with bursty workloads. |
 
-**Note**: There is no `idle_duration` field — the cooldown mechanism replaces it. A metric exceeding threshold for at least `duration_threshold` triggers inhibition; all metrics below their respective thresholds for at least `cooldown_duration` releases inhibition.
+**Note**: There is no `idle_duration` field — the cooldown mechanism replaces it. A metric exceeding threshold for at least `duration_threshold` triggers inhibition; all metrics below their respective thresholds for at least `cooldown_duration` releases inhibition. See [d-bus-inhibition.md](d-bus-inhibition.md) for details on how inhibition works.
 
 ## Inhibition Configuration
 
@@ -163,8 +132,8 @@ Disk activity is calculated as total bytes transferred across monitored devices 
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `what` | string | `"shutdown:idle"` | Lock types to inhibit (colon-separated). Values: `idle`, `sleep`, `suspend`, `shutdown`. Multiple values combined with colons, e.g., `"sleep:suspend"`. |
-| `mode` | string | `"block"` | Inhibition mode. Values: `block` (completely blocks sleep), `delay` (delays sleep for duration of inhibition), `block-weak` (blocks but can be overridden by privileged processes). |
+| `what` | string | `"shutdown:idle"` | Lock types to inhibit (colon-separated). Values: `idle`, `sleep`, `suspend`, `shutdown`. Multiple values combined with colons, e.g., `"sleep:suspend"`. See [d-bus-inhibition.md](d-bus-inhibition.md) for lock type details. |
+| `mode` | string | `"block"` | Inhibition mode. Values: `block` (completely blocks sleep), `delay` (delays sleep for duration of inhibition), `block-weak` (blocks but can be overridden by privileged processes). See [d-bus-inhibition.md](d-bus-inhibition.md) for more on inhibition modes. |
 
 ## Configuration File Security
 
@@ -193,7 +162,7 @@ Output on failure: `Configuration validation failed: <error details>`
 
 ### Dry Run Testing
 
-Test configuration with live metric collection without inhibiting sleep:
+Test configuration with live metric collection without inhibiting sleep. See [command-line.md](command-line.md) for full CLI reference.
 
 ```bash
 # Collect metrics indefinitely in dry-run mode
@@ -214,7 +183,13 @@ There are no `ROUSER_*` environment variable overrides for configuration values 
 
 ## Best Practices
 
-1. **Start with conservative thresholds**: Begin with higher CPU/GPU thresholds (90%) and lower network/disk thresholds
-2. **Use EMA smoothing**: Default alpha values (0.3 for CPU/GPU, 0.2 for network/disk) provide a good balance between responsiveness and noise filtering
+1. **Start with conservative thresholds**: Begin with higher per-core CPU (80%) and GPU (33.3%) thresholds, then lower them based on observed baselines from dry-run logs
+2. **Use EMA smoothing**: Default alpha values provide a good balance between responsiveness and noise filtering for your workload
 3. **Test before production**: Always use `--dry-run` mode to verify thresholds before deploying in daemon mode
 4. **Review logs regularly**: Use debug logging (`RUST_LOG=debug`) to understand your system's baseline activity before finalizing thresholds
+
+## See Also
+
+- [Command Line Reference](command-line.md) — All CLI arguments and usage examples
+- [Metrics Overview](metrics-overview.md) — How CPU, GPU, network, and disk metrics are collected
+- [D-Bus Inhibition](d-bus-inhibition.md) — How sleep inhibition works under the hood

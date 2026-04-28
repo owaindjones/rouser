@@ -1,9 +1,12 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::{self, Write};
 use std::path::Path;
 use std::time::Duration;
 use tracing::{info, warn};
+
+const DEFAULT_CONFIG_TOML: &str = include_str!("../config/rouser.toml");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -13,18 +16,6 @@ pub struct Config {
     pub metrics: Metrics,
     pub timing: TimingConfig,
     pub inhibitor: InhibitionConfig,
-}
-
-fn default_update_interval() -> Duration {
-    Duration::from_secs(5)
-}
-
-fn default_log_level() -> String {
-    "info".to_string()
-}
-
-fn default_cpu_usage() -> f64 {
-    80.0
 }
 
 fn default_gpu_usage() -> f64 {
@@ -42,7 +33,7 @@ fn default_disk_activity() -> f64 {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Thresholds {
-    #[serde(default = "default_cpu_usage")]
+    #[serde(default = "default_cpu_usage_threshold")]
     pub cpu_usage: f64,
     #[serde(default = "default_gpu_usage")]
     pub gpu_usage: f64,
@@ -50,6 +41,10 @@ pub struct Thresholds {
     pub network_io: f64,
     #[serde(default = "default_disk_activity")]
     pub disk_activity: f64,
+}
+
+fn default_cpu_usage_threshold() -> f64 {
+    80.0
 }
 
 #[allow(dead_code)]
@@ -61,10 +56,20 @@ pub struct MetricsConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CpuConfig {
-    #[serde(default = "default_cpu_usage")]
-    pub threshold: f64,
+    #[serde(default = "default_per_core_threshold")]
+    pub per_core_threshold: f64,
+    #[serde(default = "default_total_threshold")]
+    pub total_threshold: f64,
     #[serde(default = "default_ema_alpha_cpu")]
     pub ema_alpha: f64,
+}
+
+fn default_per_core_threshold() -> f64 {
+    80.0
+}
+
+fn default_total_threshold() -> f64 {
+    50.0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -206,7 +211,7 @@ impl ConfigLoader {
                 "Configuration file does not exist, using defaults: {}",
                 self.config_path.display()
             );
-            return self.load_defaults();
+            return ConfigLoader::load_defaults();
         }
 
         let content = fs::read_to_string(&self.config_path).with_context(|| {
@@ -219,47 +224,20 @@ impl ConfigLoader {
         Ok(config)
     }
 
-    fn load_defaults(&self) -> Result<Config> {
-        let config = Config {
-            update_interval: default_update_interval(),
-            log_level: default_log_level(),
-            metrics: Metrics {
-                cpu: CpuConfig {
-                    threshold: default_cpu_usage(),
-                    ema_alpha: default_ema_alpha_cpu(),
-                },
-                gpu: GpuConfig {
-                    threshold: default_gpu_usage(),
-                    ema_alpha: default_ema_alpha_gpu(),
-                },
-                network: NetworkConfig {
-                    threshold: default_network_io(),
-                    ema_alpha: default_ema_alpha_network(),
-                    exclude_interfaces: vec!["lo".to_string()],
-                    include_interfaces: vec![],
-                },
-                disk: DiskConfig {
-                    threshold: default_disk_activity(),
-                    ema_alpha: default_ema_alpha_disk(),
-                    exclude_device_prefixes: vec![
-                        "loop".to_string(),
-                        "fd".to_string(),
-                        "sr".to_string(),
-                        "cdrom".to_string(),
-                    ],
-                },
-            },
-            timing: TimingConfig {
-                duration_threshold: default_duration_threshold(),
-                cooldown_duration: default_cooldown_duration(),
-            },
-            inhibitor: InhibitionConfig {
-                what: default_what(),
-                mode: default_mode(),
-            },
-        };
-
+    pub fn load_defaults() -> Result<Config> {
+        let config: Config = toml::from_str(DEFAULT_CONFIG_TOML)
+            .context("Failed to parse embedded default configuration")?;
         Ok(config)
+    }
+
+    pub fn print_default_config(out: &mut dyn Write) -> io::Result<()> {
+        writeln!(out, "{}", DEFAULT_CONFIG_TOML)?;
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    fn load_fallback(&self) -> Result<Config> {
+        ConfigLoader::load_defaults()
     }
 }
 
@@ -285,7 +263,8 @@ mod tests {
     fn test_metrics_defaults() {
         let metrics = Metrics {
             cpu: CpuConfig {
-                threshold: default_cpu_usage(),
+                per_core_threshold: default_per_core_threshold(),
+                total_threshold: default_total_threshold(),
                 ema_alpha: default_ema_alpha_cpu(),
             },
             gpu: GpuConfig {
@@ -305,7 +284,8 @@ mod tests {
             },
         };
 
-        assert_eq!(metrics.cpu.threshold, 80.0);
+        assert_eq!(metrics.cpu.per_core_threshold, 80.0);
+        assert_eq!(metrics.cpu.total_threshold, 50.0);
         assert_eq!(metrics.gpu.threshold, 90.0);
         assert_eq!(metrics.network.threshold, 100.0);
         assert_eq!(metrics.disk.threshold, 50.0);

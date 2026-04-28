@@ -85,7 +85,7 @@ RUST_LOG=debug rouser -c /etc/rouser/config.toml --dry-run
 Log level precedence (highest to lowest):
 1. CLI flag `-l/--log-level`
 2. Environment variable `RUST_LOG`
-3. Config file field `log_level` in `[rouser]` section
+3. Config file field `log_level` at root level
 4. Hardcoded default `"info"`
 
 **Examples**:
@@ -143,7 +143,6 @@ rouser
 
 # System-wide override (must be created manually)
 sudo tee /etc/rouser/config.toml > /dev/null <<EOF
-name = "rouser"
 update_interval = "10s"
 log_level = "warn"
 ...

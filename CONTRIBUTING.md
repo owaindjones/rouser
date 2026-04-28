@@ -82,6 +82,17 @@ cargo build --release      # Release binary compiles
 cargo doc --no-deps        # Documentation compiles (if public API changed)
 ```
 
+### Documentation Sync Rule
+
+**When you change `config/rouser.toml` or any code that affects default values, thresholds, or config field names:**
+
+1. Update the embedded defaults in `config/rouser.toml`.
+2. Run `rouser --print-config` and diff against the current file to verify consistency.
+3. Update all documentation that references config defaults (README.md, docs/configuration.md) — match the actual TOML values exactly.
+4. Update any sample output blocks in docs to reflect new default values.
+
+This rule prevents drift between embedded defaults and what users see in documentation. When in doubt, treat `config/rouser.toml` as the single source of truth for default values across code and docs.
+
 ---
 
 ## Coding Standards

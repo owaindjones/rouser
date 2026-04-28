@@ -32,32 +32,32 @@ mkdir -p ~/.config/rouser
 cp ./config/rouser.toml ~/.config/rouser/config.toml
 # Or create a custom one — see docs/configuration.md for full reference
 cat > ~/.config/rouser/config.toml << 'EOF'
-name = "rouser"
 update_interval = "5s"
 log_level = "info"
 
 [metrics.cpu]
-threshold = 80.0       # CPU usage % (0–100) above which to inhibit sleep
-ema_alpha = 0.3        # EMA smoothing: higher = more responsive, lower = smoother
+per_core_threshold = 80.0   # CPU max usage % (0–100) above which to inhibit sleep
+total_threshold = 50.0      # Total averaged CPU usage % (default: 50.0)
+ema_alpha = 0.7             # EMA smoothing: higher = more responsive, lower = smoother
 
 [metrics.gpu]
-threshold = 90.0       # GPU usage % per device
-ema_alpha = 0.3
+threshold = 33.3            # GPU usage % per device (default: 33.3)
+ema_alpha = 0.7             # EMA smoothing factor for GPU readings
 
 [metrics.network]
-threshold = 100.0      # Network throughput in Mbps
-ema_alpha = 0.2        # EMA smoothing for network I/O
-exclude_interfaces = ["lo"]    # Exclude from monitoring (default: loopback)
-include_interfaces = []        # Only monitor these; empty means all
+threshold = 10.0            # Network throughput in Mbps (default: 10.0)
+ema_alpha = 0.5             # EMA smoothing for network I/O
+exclude_interfaces = ["lo"] # Exclude loopback from monitoring
+include_interfaces = []     # Only monitor these; empty means all
 
 [metrics.disk]
-threshold = 50.0       # Disk I/O in MB/s above which to inhibit sleep
-ema_alpha = 0.2        # EMA smoothing for disk activity
+threshold = 10.0            # Disk I/O in MB/s (default: 10.0)
+ema_alpha = 0.5             # EMA smoothing for disk activity
 exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]  # Exclude virtual devices
 
 [timing]
-duration_threshold = "30s"   # Min time metrics must exceed threshold before inhibiting
-cooldown_duration = "60s"    # Time after releasing inhibition before re-inhibiting possible
+duration_threshold = "5s"   # Min time metrics must exceed threshold before inhibiting (default: 5s)
+cooldown_duration = "10s"   # Time after releasing inhibition before re-inhibiting possible (default: 10s)
 
 [inhibitor]
 what = "shutdown:idle"       # Lock types: idle, sleep, suspend, shutdown (colon-separated)
@@ -409,9 +409,8 @@ sudo systemctl restart polkit
 **Enable debug logging in config.toml**:
 
 ```toml
-name = "rouser"
 update_interval = "5s"
-log_level = "debug"   # Set at root level, not under [daemon]
+log_level = "debug"   # Set at root level
 ...
 ```
 

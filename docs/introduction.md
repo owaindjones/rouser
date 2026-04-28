@@ -7,7 +7,6 @@
 - Sleep automatically after idle time when no activity is detected
 - Stay awake during high CPU/GPU usage (compiling, rendering, gaming)
 - Remain active during network transfers or disk I/O
-- Be woken by Wake-on-LAN (WOL) packets while remaining asleep otherwise
 
 ## Purpose and Use Cases
 

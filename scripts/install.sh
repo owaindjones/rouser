@@ -66,38 +66,9 @@ if [ "$FROM_REPO" = true ]; then
     if [ -f "$REPO_CONFIG" ]; then
         cp "$REPO_CONFIG" "$CONFIG_DEST"
     else
-        warn "No config file found in repo at ${REPO_CONFIG}, creating minimal default..."
-        cat > "$CONFIG_DEST" << 'EOF'
-update_interval = "1s"
-log_level = "info"
-
-[metrics.cpu]
-threshold = 20.0
-ema_alpha = 0.7
-
-[metrics.gpu]
-threshold = 20.0
-ema_alpha = 0.7
-
-[metrics.network]
-threshold = 10.0
-ema_alpha = 0.5
-exclude_interfaces = ["lo"]
-include_interfaces = []
-
-[metrics.disk]
-threshold = 50.0
-ema_alpha = 0.5
-exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
-
-[timing]
-duration_threshold = "5s"
-cooldown_duration = "30s"
-
-[inhibitor]
-what = "sleep"
-mode = "block"
-EOF
+        info "Generating default config via rouser --print-config..."
+        mkdir -p "$(dirname "$CONFIG_DEST")"
+        $BIN_TARGET --print-config > "$CONFIG_DEST" || warn "Failed to generate default config."
     fi
 
     SERVICE_DEST="$HOME/.config/systemd/user/rouser.service"
@@ -152,38 +123,8 @@ else
     elif [ -f "$TEMP_DIR/rouser/config.toml" ]; then
         cp "$TEMP_DIR/rouser/config.toml" "$CONFIG_DEST"
     else
-        warn "No config file found in archive, creating minimal default..."
-        cat > "$CONFIG_DEST" << 'EOF'
-update_interval = "1s"
-log_level = "info"
-
-[metrics.cpu]
-threshold = 10.0
-ema_alpha = 0.7
-
-[metrics.gpu]
-threshold = 33.3
-ema_alpha = 0.7
-
-[metrics.network]
-threshold = 10.0
-ema_alpha = 0.5
-exclude_interfaces = ["lo"]
-include_interfaces = []
-
-[metrics.disk]
-threshold = 10.0
-ema_alpha = 0.5
-exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
-
-[timing]
-duration_threshold = "5s"
-cooldown_duration = "10s"
-
-[inhibitor]
-what = "sleep"
-mode = "block"
-EOF
+        warn "No config file found in archive, generating via rouser --print-config..."
+        $BIN_TARGET --print-config > "$CONFIG_DEST" || warn "Failed to generate default config."
     fi
 
     SERVICE_DEST="$HOME/.config/systemd/user/rouser.service"

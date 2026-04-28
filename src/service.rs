@@ -49,52 +49,41 @@ impl SmoothingState {
 }
 
 pub struct ThresholdManager {
-    cpu_threshold: f64,
+    cpu_per_core_threshold: f64,
+    cpu_total_threshold: f64,
     gpu_threshold: f64,
     network_threshold: f64,
     disk_threshold: f64,
-    #[allow(dead_code)] // EMA alphas stored for potential future use
-    cpu_ema_alpha: f64,
-    #[allow(dead_code)]
-    gpu_ema_alpha: f64,
-    #[allow(dead_code)]
-    network_ema_alpha: f64,
-    #[allow(dead_code)]
-    disk_ema_alpha: f64,
 }
 
 impl ThresholdManager {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        cpu_threshold: f64,
+        cpu_per_core_threshold: f64,
+        cpu_total_threshold: f64,
         gpu_threshold: f64,
         network_threshold: f64,
         disk_threshold: f64,
-        cpu_ema_alpha: f64,
-        gpu_ema_alpha: f64,
-        network_ema_alpha: f64,
-        disk_ema_alpha: f64,
     ) -> Self {
         Self {
-            cpu_threshold,
+            cpu_per_core_threshold,
+            cpu_total_threshold,
             gpu_threshold,
             network_threshold,
             disk_threshold,
-            cpu_ema_alpha,
-            gpu_ema_alpha,
-            network_ema_alpha,
-            disk_ema_alpha,
         }
     }
 
     pub fn should_inhibit(
         &self,
-        smoothed_cpu: f64,
+        smoothed_cpu_max: f64,
+        smoothed_cpu_avg: f64,
         gpu_smoothed_values: &[f64],
         smoothed_network: f64,
         smoothed_disk: f64,
     ) -> bool {
-        smoothed_cpu > self.cpu_threshold
+        smoothed_cpu_max > self.cpu_per_core_threshold
+            || smoothed_cpu_avg > self.cpu_total_threshold
             || gpu_smoothed_values.iter().any(|&v| v > self.gpu_threshold)
             || smoothed_network > self.network_threshold
             || smoothed_disk > self.disk_threshold
@@ -114,7 +103,8 @@ pub struct DataManager {
     last_collection: Option<std::time::SystemTime>,
     is_dry_run: bool,
     // EMA smoothing state for each metric (and per-GPU)
-    cpu_smooth: SmoothingState,
+    cpu_smooth_max: SmoothingState,
+    cpu_smooth_avg: SmoothingState,
     gpu_smoothing: Vec<SmoothingState>,
     network_smooth: SmoothingState,
     disk_smooth: SmoothingState,
@@ -142,14 +132,11 @@ impl DataService {
 impl DataManager {
     pub async fn new(config: &Config, is_dry_run: bool) -> Result<Self, DataServiceError> {
         let threshold_manager = ThresholdManager::new(
-            config.metrics.cpu.threshold,
+            config.metrics.cpu.per_core_threshold,
+            config.metrics.cpu.total_threshold,
             config.metrics.gpu.threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
-            config.metrics.cpu.ema_alpha,
-            config.metrics.gpu.ema_alpha,
-            config.metrics.network.ema_alpha,
-            config.metrics.disk.ema_alpha,
         );
 
         // Initialize per-GPU smoothing states based on detected GPUs
@@ -172,7 +159,8 @@ impl DataManager {
             previous_inhibited_state: false,
             just_released: false,
             waiting_for_cooldown: false,
-            cpu_smooth: SmoothingState::new(config.metrics.cpu.ema_alpha),
+            cpu_smooth_max: SmoothingState::new(config.metrics.cpu.ema_alpha),
+            cpu_smooth_avg: SmoothingState::new(config.metrics.cpu.ema_alpha),
             gpu_smoothing: (0..num_gpus)
                 .map(|_| SmoothingState::new(config.metrics.gpu.ema_alpha))
                 .collect(),
@@ -185,10 +173,13 @@ impl DataManager {
         let metrics = self.collect_metrics().await?;
         self.last_collection = Some(std::time::SystemTime::now());
 
-        // Apply EMA smoothing to raw metrics
-        let smoothed_cpu = self
-            .cpu_smooth
-            .update(metrics.cpu_usage, config.metrics.cpu.ema_alpha);
+        let smoothed_cpu_max = self
+            .cpu_smooth_max
+            .update(metrics.cpu_usage.per_core_max, config.metrics.cpu.ema_alpha);
+        let smoothed_cpu_avg = self.cpu_smooth_avg.update(
+            metrics.cpu_usage.total_average,
+            config.metrics.cpu.ema_alpha,
+        );
 
         // Smooth each GPU individually and collect smoothed values
         let num_devices = metrics.gpu_usage.len();
@@ -225,8 +216,8 @@ impl DataManager {
         };
 
         debug!(
-            "Metrics: CPU={:.1}% (smoothed: {:.1}%), GPU: {} (smoothed: {:.1}%, {:.1}%), Network={:.2} Mbps (smoothed: {:.2}), Disk={:.2} MB/s (smoothed: {:.2})",
-            metrics.cpu_usage, smoothed_cpu,
+            "Metrics: CPU max={:.1}% avg={:.1}%, GPU: {} (smoothed: {:.1}%, {:.1}%), Network={:.2} Mbps (smoothed: {:.2}), Disk={:.2} MB/s (smoothed: {:.2})",
+            smoothed_cpu_max, smoothed_cpu_avg,
             gpu_debug,
             gpu_smoothed_values.first().copied().unwrap_or(0.0),
             gpu_smoothed_values.get(1).unwrap_or(&0.0),
@@ -235,7 +226,8 @@ impl DataManager {
         );
 
         let should_inhibit = self.threshold_manager.should_inhibit(
-            smoothed_cpu,
+            smoothed_cpu_max,
+            smoothed_cpu_avg,
             &gpu_smoothed_values,
             smoothed_network,
             smoothed_disk,
@@ -406,7 +398,8 @@ mod tests {
             log_level: "info".to_string(),
             metrics: crate::config::Metrics {
                 cpu: crate::config::CpuConfig {
-                    threshold: 80.0,
+                    per_core_threshold: 80.0,
+                    total_threshold: 50.0,
                     ema_alpha: 0.3,
                 },
                 gpu: crate::config::GpuConfig {
@@ -440,14 +433,11 @@ mod tests {
     fn test_threshold_manager_creation() {
         let config = create_test_config();
         let _manager = ThresholdManager::new(
-            config.metrics.cpu.threshold,
+            config.metrics.cpu.per_core_threshold,
+            config.metrics.cpu.total_threshold,
             config.metrics.gpu.threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
-            config.metrics.cpu.ema_alpha,
-            config.metrics.gpu.ema_alpha,
-            config.metrics.network.ema_alpha,
-            config.metrics.disk.ema_alpha,
         );
     }
 
@@ -455,72 +445,56 @@ mod tests {
     fn test_threshold_manager_should_inhibit_high_cpu() {
         let config = create_test_config();
         let manager = ThresholdManager::new(
-            config.metrics.cpu.threshold,
+            config.metrics.cpu.per_core_threshold,
+            config.metrics.cpu.total_threshold,
             config.metrics.gpu.threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
-            config.metrics.cpu.ema_alpha,
-            config.metrics.gpu.ema_alpha,
-            config.metrics.network.ema_alpha,
-            config.metrics.disk.ema_alpha,
         );
 
-        // CPU above threshold (90 > 80)
-        assert!(manager.should_inhibit(90.0, &[50.0], 10.0, 5.0));
+        assert!(manager.should_inhibit(90.0, 30.0, &[50.0], 10.0, 5.0));
     }
 
     #[test]
     fn test_threshold_manager_should_not_inhibit_idle_cpu() {
         let config = create_test_config();
         let manager = ThresholdManager::new(
-            config.metrics.cpu.threshold,
+            config.metrics.cpu.per_core_threshold,
+            config.metrics.cpu.total_threshold,
             config.metrics.gpu.threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
-            config.metrics.cpu.ema_alpha,
-            config.metrics.gpu.ema_alpha,
-            config.metrics.network.ema_alpha,
-            config.metrics.disk.ema_alpha,
         );
 
-        // All metrics below threshold
-        assert!(!manager.should_inhibit(50.0, &[10.0], 10.0, 5.0));
+        assert!(!manager.should_inhibit(50.0, 30.0, &[10.0], 10.0, 5.0));
     }
 
     #[test]
     fn test_threshold_manager_should_inhibit_high_gpu() {
         let config = create_test_config();
         let manager = ThresholdManager::new(
-            config.metrics.cpu.threshold,
+            config.metrics.cpu.per_core_threshold,
+            config.metrics.cpu.total_threshold,
             config.metrics.gpu.threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
-            config.metrics.cpu.ema_alpha,
-            config.metrics.gpu.ema_alpha,
-            config.metrics.network.ema_alpha,
-            config.metrics.disk.ema_alpha,
         );
 
-        // GPU above threshold (95 > 90)
-        assert!(manager.should_inhibit(80.0, &[95.0], 10.0, 5.0));
+        assert!(manager.should_inhibit(80.0, 45.0, &[95.0], 10.0, 5.0));
     }
 
     #[test]
     fn test_threshold_manager_should_inhibit_any_gpu() {
         let config = create_test_config();
         let manager = ThresholdManager::new(
-            config.metrics.cpu.threshold,
+            config.metrics.cpu.per_core_threshold,
+            config.metrics.cpu.total_threshold,
             config.metrics.gpu.threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
-            config.metrics.cpu.ema_alpha,
-            config.metrics.gpu.ema_alpha,
-            config.metrics.network.ema_alpha,
-            config.metrics.disk.ema_alpha,
         );
 
-        // First GPU below, second GPU above threshold
-        assert!(manager.should_inhibit(80.0, &[50.0, 95.0], 10.0, 5.0));
+        assert!(manager.should_inhibit(80.0, 45.0, &[50.0, 95.0], 10.0, 5.0));
     }
 
     #[test]

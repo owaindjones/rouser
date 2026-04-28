@@ -2,7 +2,7 @@
 
 A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded.
 
-![rouser logo](../docs/rouser-logo.svg)
+![rouser logo](./rouser-logo.svg)
 
 ## Quick Start
 
@@ -18,6 +18,7 @@ A Linux daemon that monitors system metrics and inhibits sleep when activity thr
 - [Command Line](command-line.md) — CLI arguments and usage examples
 - [Systemd User Service](systemd-user-service.md) — Running rouser as a service
 - [Metrics Overview](metrics-overview.md) — How CPU, GPU, network, disk metrics are collected
+- [GPU Usage Measurement](gpu-usage-measurement.md) — What NVML, amdgpu, and i915 actually measure
 
 ## Links
 

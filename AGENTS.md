@@ -4,7 +4,8 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 
 ## Core Principles
 
-- **Build before committing**: The code MUST compile (`cargo build`), pass all tests (`cargo test`), and be clean under clippy (`cargo clippy -- -D warnings`) before any git commit. Never ship broken code.
+- **Read CONTRIBUTING.md first**: Before making changes, read [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards, testing conventions, and documentation sync rules that apply to all contributors (agents included). AGENTS.md covers agent-specific behavior; CONTRIBUTING.md covers everything else.
+- **Build before committing**: The code MUST compile (`cargo build`), pass all tests (`cargo test --all-targets`), and be clean under clippy (`cargo clippy --all-targets -- -D warnings`) before any git commit. Never ship broken code. Always match CI commands exactly — `--all-targets` includes test targets which may have lint warnings not visible otherwise.
 - **Conventional commits**: All git commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope): description`. See section below.
 - **Commit frequently when stable**: Make atomic, logical commits whenever the codebase is in a working state (builds, tests pass). Do not batch unrelated changes into a single commit. Each commit should represent one coherent unit of change.
   - **Before every commit**, ensure all changed files are in a good state — no half-written code, incomplete docs, or skipped tests. Code must at minimum compile before committing; full functionality is ideal but a working build is the absolute floor.
@@ -16,7 +17,7 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 ### Agent-Specific Rules (do NOT apply to human developers)
 
 - **No background tasks**: All work must be performed by subagents or in the foreground. Background tasks are not allowed because they often time out or exhaust the context window before completing.
-- **Subagents and subtasks allowed (foreground only)**: Delegating to subagents is encouraged for parallelizable work, but all spawned agents MUST run with `run_in_background=false` (synchronous mode). This ensures agent output is available in-session and prevents context loss from timed-out background tasks. Never spawn a task and forget about it — always collect results before proceeding.
+- **Sequential workers only (foreground)**: Delegating to subagents is allowed, but ONLY one at a time with `run_in_background=false` (synchronous mode). Never run multiple agents concurrently — always wait for each worker to finish before spawning the next. This ensures agent output is available in-session and prevents context loss from timed-out background tasks.
 
 ## Versioning Policy
 
@@ -167,8 +168,8 @@ Before merging or releasing, verify all of the following pass:
 
 ```bash
 cargo fmt --check          # Code formatting
-cargo clippy -- -D warnings  # Lint check
-cargo test                 # Unit tests
+cargo clippy --all-targets -- -D warnings  # Lint check (must match CI exactly — includes test code)
+cargo test --all-targets   # Unit tests (must match CI exactly — includes test targets)
 cargo build --release      # Release build succeeds
 cargo doc --no-deps        # Documentation compiles (if public API changed)
 ```
@@ -198,6 +199,27 @@ When NVML is available but returns zero utilization results while hardware exist
 ### Deprecated FreeDesktop PowerManagement API Must Not Be Used
 
 The old `/org/freedesktop/PowerManagement.Inhibit` API is obsolete (deprecated ~2014) and must not be referenced as a viable approach. Always use `org.freedesktop.login1.Manager.Inhibit`. Document why deprecated approaches were abandoned in AGENTS.MD so future agents don't revisit dead ends.
+
+### config/rouser.toml Is the Source of Truth for All Defaults
+
+`config/rouser.toml` is the single source of truth for all configuration defaults — not `src/config.rs`, not documentation, not code comments. When updating default values:
+
+1. **Always update `config/rouser.toml` first** with the new default value
+2. Then update `src/config.rs` to match (default helper functions like `default_ema_alpha_cpu()`)
+3. Then update all documentation (`docs/configuration.md`, `docs/metrics-overview.md`, etc.)
+
+The code defaults in `config/rouser.toml` are embedded at compile time via `include_str!()` and served as both the shipped config file AND the binary's built-in fallback. Never change a default value without updating all three locations simultaneously.
+
+### D-Bus Inhibition: "sleep" vs "shutdown:idle" in `[inhibitor].what`
+
+The `what` parameter controls which operations rouser inhibits. Two reasonable defaults exist for different deployment profiles:
+
+- **`"sleep"`** (simple) — Good for headless servers and traditional daemon deployments. Blocks sleep/hibernate but does not interfere with desktop environment idle timers or shutdown delays.
+- **`"shutdown:idle"`** (conservative, current default) — Better for workstations/home-labs running DEs like KDE/GNOME. Prevents the system from entering any powered-off or suspended state while metrics are active.
+
+Observed behavior on KDE: `"sleep"` alone may cause KDE to never automatically sleep after inhibition is released, as it interprets the lock as a persistent "don't touch my power management" signal. Conversely, `"shutdown:idle"` lets KDE respect its configured idle delay — if set to 15 minutes, KDE will put the system to sleep 15 minutes after rouser releases its locks.
+
+When writing docs or examples about inhibition behavior, document this difference explicitly so users understand why their DE reacts differently to each option. The default in `config/rouser.toml` is `"shutdown:idle"`.
 
 ## Dependency Policy
 
