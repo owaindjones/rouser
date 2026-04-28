@@ -418,23 +418,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Complete Configuration Example">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#minimal-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Minimal Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -461,10 +444,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#metricscpu-cpu-usage-threshold" class="md-nav__link">
+  <a href="#metricscpu-cpu-usage-thresholds" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [metrics.cpu] — CPU Usage Threshold
+        [metrics.cpu] — CPU Usage Thresholds
       
     </span>
   </a>
@@ -631,6 +614,17 @@
     <span class="md-ellipsis">
       
         Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
       
     </span>
   </a>
@@ -918,23 +912,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Complete Configuration Example">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#minimal-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Minimal Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -961,10 +938,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#metricscpu-cpu-usage-threshold" class="md-nav__link">
+  <a href="#metricscpu-cpu-usage-thresholds" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [metrics.cpu] — CPU Usage Threshold
+        [metrics.cpu] — CPU Usage Thresholds
       
     </span>
   </a>
@@ -1137,6 +1114,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1186,75 +1174,45 @@
 </tr>
 </tbody>
 </table>
-<p>When none of the default paths exist, rouser uses built-in defaults and logs a warning:</p>
-<pre><code>No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
+<p>When none of the default paths exist, rouser uses embedded defaults from <code>config/rouser.toml</code> and logs a warning:</p>
+<pre><code>No configuration file found at checked paths — using embedded defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
 </code></pre>
 <h2 id="complete-configuration-example">Complete Configuration Example</h2>
-<pre><code class="language-toml"># rouser config - see docs/configuration.md for full reference
+<p>The following is the default configuration shipped with <code>rouser</code> (from <code>config/rouser.toml</code>). Copy this file and adjust as needed. This TOML file is embedded at compile time via <code>include_str!()</code> and serves as both the shipped config file and the binary's built-in fallback.</p>
+<pre><code class="language-toml"># rouser default configuration — copy this file and adjust as needed.
+# See https://github.com/owaindjones/rouser for documentation on all configuration options.
 
-name = &quot;rouser&quot;
-update_interval = &quot;5s&quot;
+update_interval = &quot;1s&quot;
 log_level = &quot;info&quot;
 
 [metrics.cpu]
-threshold = 80.0    # CPU usage percentage (0-100) above which to inhibit sleep
-ema_alpha = 0.3     # Exponential moving average smoothing factor (0.0–1.0, higher = less smoothed)
+per_core_threshold = 80.0
+total_threshold = 50.0
+ema_alpha = 0.7
 
 [metrics.gpu]
-threshold = 90.0    # GPU usage percentage (0-100) above which to inhibit sleep
-ema_alpha = 0.3     # EMA smoothing for per-GPU readings
+threshold = 33.3      # GPU usage threshold (percentage)
+ema_alpha = 0.7       # EMA smoothing factor
 
 [metrics.network]
-threshold = 100.0       # Network throughput in Mbps
-ema_alpha = 0.2         # EMA smoothing for network I/O
-exclude_interfaces = [&quot;lo&quot;]    # Exclude from monitoring (default: loopback)
-include_interfaces = []        # Only monitor these; empty means all
-
-[metrics.disk]
-threshold = 50.0              # Disk I/O in MB/s above which to inhibit sleep
-ema_alpha = 0.2               # EMA smoothing for disk activity
-exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]  # Exclude virtual devices
-
-[timing]
-duration_threshold = &quot;30s&quot;   # Min time metrics must exceed threshold before inhibiting
-cooldown_duration = &quot;60s&quot;    # Time after releasing inhibition before re-inhibiting possible
-
-[inhibitor]
-what = &quot;shutdown:idle&quot;       # Lock types to inhibit (colon-separated)
-mode = &quot;block&quot;               # Inhibition mode: block, delay, or block-weak
-</code></pre>
-<h3 id="minimal-configuration">Minimal Configuration</h3>
-<p>With no config file at all, rouser uses these built-in defaults:</p>
-<pre><code class="language-toml">name = &quot;rouser&quot;
-update_interval = &quot;5s&quot;
-log_level = &quot;info&quot;
-
-[metrics.cpu]
-threshold = 80.0
-ema_alpha = 0.3
-
-[metrics.gpu]
-threshold = 90.0
-ema_alpha = 0.3
-
-[metrics.network]
-threshold = 100.0
-ema_alpha = 0.2
+threshold = 10.0      # Network I/O threshold (Mbps)
+ema_alpha = 0.5       # EMA smoothing factor (lower for network to avoid spikes)
 exclude_interfaces = [&quot;lo&quot;]
 include_interfaces = []
 
 [metrics.disk]
-threshold = 50.0
-ema_alpha = 0.2
+threshold = 10.0      # Disk I/O threshold (MB/s)
+ema_alpha = 0.5       # EMA smoothing factor
 exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]
 
+# Timing configuration
 [timing]
-duration_threshold = &quot;30s&quot;
-cooldown_duration = &quot;60s&quot;
+duration_threshold = &quot;5s&quot;    # Min time above threshold before inhibiting sleep
+cooldown_duration = &quot;10s&quot;     # Time below threshold before releasing inhibition
 
 [inhibitor]
-what = &quot;shutdown:idle&quot;
-mode = &quot;block&quot;
+what = &quot;shutdown:idle&quot;     # Lock type: idle, sleep, suspend, shutdown (colon-separated)
+mode = &quot;block&quot;             # Mode: block, delay, block-weak
 </code></pre>
 <h2 id="root-level-options">Root-Level Options</h2>
 <table>
@@ -1268,15 +1226,9 @@ mode = &quot;block&quot;
 </thead>
 <tbody>
 <tr>
-<td><code>name</code></td>
-<td>string</td>
-<td><code>"rouser"</code></td>
-<td>Daemon name for logging (reserved for future use)</td>
-</tr>
-<tr>
 <td><code>update_interval</code></td>
 <td>duration</td>
-<td><code>"5s"</code></td>
+<td><code>"1s"</code></td>
 <td>Time between metric collection cycles. Uses humantime format: <code>"1s"</code>, <code>"30s"</code>, <code>"5m"</code></td>
 </tr>
 <tr>
@@ -1288,7 +1240,8 @@ mode = &quot;block&quot;
 </tbody>
 </table>
 <h2 id="metrics-configuration">Metrics Configuration</h2>
-<h3 id="metricscpu-cpu-usage-threshold"><code>[metrics.cpu]</code> — CPU Usage Threshold</h3>
+<h3 id="metricscpu-cpu-usage-thresholds"><code>[metrics.cpu]</code> — CPU Usage Thresholds</h3>
+<p>CPU usage is measured per-core (frequency-weighted from sysfs cpufreq data) and as a total average. Both thresholds must be considered independently.</p>
 <table>
 <thead>
 <tr>
@@ -1300,15 +1253,21 @@ mode = &quot;block&quot;
 </thead>
 <tbody>
 <tr>
-<td><code>threshold</code></td>
+<td><code>per_core_threshold</code></td>
 <td>f64</td>
 <td><code>80.0</code></td>
-<td>CPU usage percentage above which to inhibit sleep</td>
+<td>Per-core CPU usage percentage above which to inhibit sleep</td>
+</tr>
+<tr>
+<td><code>total_threshold</code></td>
+<td>f64</td>
+<td><code>50.0</code></td>
+<td>Total (averaged across cores) CPU usage percentage above which to inhibit sleep</td>
 </tr>
 <tr>
 <td><code>ema_alpha</code></td>
 <td>f64</td>
-<td><code>0.3</code></td>
+<td><code>0.7</code></td>
 <td>EMA smoothing factor: higher = more responsive, lower = smoother readings</td>
 </tr>
 </tbody>
@@ -1328,13 +1287,13 @@ mode = &quot;block&quot;
 <tr>
 <td><code>threshold</code></td>
 <td>f64</td>
-<td><code>90.0</code></td>
+<td><code>33.3</code></td>
 <td>GPU usage percentage above which to inhibit sleep</td>
 </tr>
 <tr>
 <td><code>ema_alpha</code></td>
 <td>f64</td>
-<td><code>0.3</code></td>
+<td><code>0.7</code></td>
 <td>EMA smoothing factor for per-GPU readings</td>
 </tr>
 </tbody>
@@ -1354,20 +1313,20 @@ mode = &quot;block&quot;
 <tr>
 <td><code>threshold</code></td>
 <td>f64</td>
-<td><code>100.0</code></td>
+<td><code>10.0</code></td>
 <td>Network throughput in Mbps above which to inhibit sleep</td>
 </tr>
 <tr>
 <td><code>ema_alpha</code></td>
 <td>f64</td>
-<td><code>0.2</code></td>
-<td>EMA smoothing factor for network I/O</td>
+<td><code>0.5</code></td>
+<td>EMA smoothing factor for network I/O (lower for network to avoid spikes)</td>
 </tr>
 <tr>
 <td><code>exclude_interfaces</code></td>
 <td>array of strings</td>
 <td><code>["lo"]</code></td>
-<td>Interface names to exclude from monitoring</td>
+<td>Interface names to exclude from monitoring; loopback excluded by default</td>
 </tr>
 <tr>
 <td><code>include_interfaces</code></td>
@@ -1392,13 +1351,13 @@ mode = &quot;block&quot;
 <tr>
 <td><code>threshold</code></td>
 <td>f64</td>
-<td><code>50.0</code></td>
+<td><code>10.0</code></td>
 <td>Disk I/O in MB/s above which to inhibit sleep</td>
 </tr>
 <tr>
 <td><code>ema_alpha</code></td>
 <td>f64</td>
-<td><code>0.2</code></td>
+<td><code>0.5</code></td>
 <td>EMA smoothing factor for disk activity</td>
 </tr>
 <tr>
@@ -1424,18 +1383,18 @@ mode = &quot;block&quot;
 <tr>
 <td><code>duration_threshold</code></td>
 <td>duration</td>
-<td><code>"30s"</code></td>
+<td><code>"5s"</code></td>
 <td>Minimum continuous time metrics must exceed threshold before inhibiting sleep. Prevents brief spikes from triggering inhibition.</td>
 </tr>
 <tr>
 <td><code>cooldown_duration</code></td>
 <td>duration</td>
-<td><code>"60s"</code></td>
+<td><code>"10s"</code></td>
 <td>Time after releasing inhibition during which the daemon won't re-inhibit even if thresholds are exceeded again. Helps with bursty workloads.</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Note</strong>: There is no <code>idle_duration</code> field — the cooldown mechanism replaces it. A metric exceeding threshold for at least <code>duration_threshold</code> triggers inhibition; all metrics below their respective thresholds for at least <code>cooldown_duration</code> releases inhibition.</p>
+<p><strong>Note</strong>: There is no <code>idle_duration</code> field — the cooldown mechanism replaces it. A metric exceeding threshold for at least <code>duration_threshold</code> triggers inhibition; all metrics below their respective thresholds for at least <code>cooldown_duration</code> releases inhibition. See <a href="d-bus-inhibition.html">d-bus-inhibition.md</a> for details on how inhibition works.</p>
 <h2 id="inhibition-configuration">Inhibition Configuration</h2>
 <h3 id="inhibitor-section"><code>[inhibitor]</code> Section</h3>
 <table>
@@ -1452,13 +1411,13 @@ mode = &quot;block&quot;
 <td><code>what</code></td>
 <td>string</td>
 <td><code>"shutdown:idle"</code></td>
-<td>Lock types to inhibit (colon-separated). Values: <code>idle</code>, <code>sleep</code>, <code>suspend</code>, <code>shutdown</code>. Multiple values combined with colons, e.g., <code>"sleep:suspend"</code>.</td>
+<td>Lock types to inhibit (colon-separated). Values: <code>idle</code>, <code>sleep</code>, <code>suspend</code>, <code>shutdown</code>. Multiple values combined with colons, e.g., <code>"sleep:suspend"</code>. See <a href="d-bus-inhibition.html">d-bus-inhibition.md</a> for lock type details.</td>
 </tr>
 <tr>
 <td><code>mode</code></td>
 <td>string</td>
 <td><code>"block"</code></td>
-<td>Inhibition mode. Values: <code>block</code> (completely blocks sleep), <code>delay</code> (delays sleep for duration of inhibition), <code>block-weak</code> (blocks but can be overridden by privileged processes).</td>
+<td>Inhibition mode. Values: <code>block</code> (completely blocks sleep), <code>delay</code> (delays sleep for duration of inhibition), <code>block-weak</code> (blocks but can be overridden by privileged processes). See <a href="d-bus-inhibition.html">d-bus-inhibition.md</a> for more on inhibition modes.</td>
 </tr>
 </tbody>
 </table>
@@ -1478,7 +1437,7 @@ rouser -c /etc/rouser/config.toml --validate-config
 <p>Output on success: <code>Configuration validation passed</code>
 Output on failure: <code>Configuration validation failed: &lt;error details&gt;</code></p>
 <h3 id="dry-run-testing">Dry Run Testing</h3>
-<p>Test configuration with live metric collection without inhibiting sleep:</p>
+<p>Test configuration with live metric collection without inhibiting sleep. See <a href="command-line.html">command-line.md</a> for full CLI reference.</p>
 <pre><code class="language-bash"># Collect metrics indefinitely in dry-run mode
 rouser -c /etc/rouser/config.toml --dry-run
 
@@ -1510,11 +1469,17 @@ RUST_LOG=debug rouser -c /etc/rouser/config.toml --dry-run
 <p>There are no <code>ROUSER_*</code> environment variable overrides for configuration values — all settings must come from the TOML file or be overridden at runtime via CLI flags.</p>
 <h2 id="best-practices">Best Practices</h2>
 <ol>
-<li><strong>Start with conservative thresholds</strong>: Begin with higher CPU/GPU thresholds (90%) and lower network/disk thresholds</li>
-<li><strong>Use EMA smoothing</strong>: Default alpha values (0.3 for CPU/GPU, 0.2 for network/disk) provide a good balance between responsiveness and noise filtering</li>
+<li><strong>Start with conservative thresholds</strong>: Begin with higher per-core CPU (80%) and GPU (33.3%) thresholds, then lower them based on observed baselines from dry-run logs</li>
+<li><strong>Use EMA smoothing</strong>: Default alpha values provide a good balance between responsiveness and noise filtering for your workload</li>
 <li><strong>Test before production</strong>: Always use <code>--dry-run</code> mode to verify thresholds before deploying in daemon mode</li>
 <li><strong>Review logs regularly</strong>: Use debug logging (<code>RUST_LOG=debug</code>) to understand your system's baseline activity before finalizing thresholds</li>
 </ol>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="command-line.html">Command Line Reference</a> — All CLI arguments and usage examples</li>
+<li><a href="metrics-overview.html">Metrics Overview</a> — How CPU, GPU, network, and disk metrics are collected</li>
+<li><a href="d-bus-inhibition.html">D-Bus Inhibition</a> — How sleep inhibition works under the hood</li>
+</ul>
 
 
 

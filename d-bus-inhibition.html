@@ -1227,7 +1227,12 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Default</strong>: rouser defaults to <code>"shutdown:idle"</code>, which prevents idle transitions. Add <code>"sleep"</code> if you also want to block sleep/hibernate operations during activity:</p>
+<p><strong>Default</strong>: rouser defaults to <code>"shutdown:idle"</code>. The choice between <code>"sleep"</code> and <code>"shutdown:idle"</code> affects how desktop environments behave:</p>
+<ul>
+<li><strong><code>"sleep"</code></strong> — Simple, good for headless servers. Blocks sleep/hibernate but does not interfere with DE idle timers. Observed issue on KDE: may cause the system to never automatically sleep after inhibition is released, as it interprets the lock as a persistent "don't touch my power management" signal.</li>
+<li><strong><code>"shutdown:idle"</code></strong> — Conservative default, better for workstations/home-labs running DEs like KDE/GNOME. Prevents powered-off/suspended state transitions while metrics are active but lets the DE respect its configured idle delay (e.g., if KDE is set to sleep after 15 minutes of inactivity, it will put the system to sleep 15 minutes after rouser releases locks).</li>
+</ul>
+<p>To change between options:</p>
 <pre><code class="language-toml">[inhibitor]
 what = &quot;idle:sleep&quot;   # Block both idle and sleep
 mode = &quot;block&quot;

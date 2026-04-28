@@ -1746,6 +1746,11 @@ chmod +x ~/.local/bin/rouser
 <p>The installer script fetches the latest release, installs the binary, config, and enables systemd user service automatically:</p>
 <pre><code class="language-bash">curl -fsSL https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh | bash
 </code></pre>
+<p>For safety, review or verify the script before running it:</p>
+<pre><code class="language-bash">curl -fSL -o install.sh https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh
+# Inspect: cat install.sh   or   sha256sum install.sh  to record for future verification
+bash install.sh
+</code></pre>
 <p>See <code>scripts/install.sh --help</code> for options.</p>
 <h3 id="option-3-manual-download-from-release">Option 3: Manual Download from Release</h3>
 <p>Download pre-built archives from GitHub Releases matching your architecture:</p>
@@ -1796,36 +1801,36 @@ systemctl --user daemon-reload  # if installing service file
 cp ./config/rouser.toml ~/.config/rouser/config.toml
 </code></pre>
 <p><strong>Example configuration</strong>:</p>
-<pre><code class="language-toml">name = &quot;rouser&quot;
-update_interval = &quot;5s&quot;
+<pre><code class="language-toml">update_interval = &quot;5s&quot;
 log_level = &quot;info&quot;
 
 [metrics.cpu]
-threshold = 80.0       # CPU usage % above which to inhibit sleep
-ema_alpha = 0.3        # EMA smoothing: higher = more responsive
+per_core_threshold = 80.0       # Per-core CPU max usage % above which to inhibit sleep
+total_threshold = 50.0          # Total averaged CPU usage % (default: 50.0)
+ema_alpha = 0.7                 # EMA smoothing: higher = more responsive
 
 [metrics.gpu]
-threshold = 90.0       # GPU usage % per device
-ema_alpha = 0.3
+threshold = 33.3                # GPU usage % per device (default: 33.3)
+ema_alpha = 0.7                 # EMA smoothing factor for GPU readings
 
 [metrics.network]
-threshold = 100.0      # Network throughput in Mbps
-ema_alpha = 0.2        # EMA smoothing for network I/O
-exclude_interfaces = [&quot;lo&quot;]    # Exclude loopback from monitoring
-include_interfaces = []        # Empty = monitor all interfaces
+threshold = 10.0                # Network throughput in Mbps (default: 10.0)
+ema_alpha = 0.5                 # EMA smoothing for network I/O
+exclude_interfaces = [&quot;lo&quot;]     # Exclude loopback from monitoring
+include_interfaces = []         # Empty = monitor all interfaces
 
 [metrics.disk]
-threshold = 50.0       # Disk I/O in MB/s above which to inhibit sleep
-ema_alpha = 0.2        # EMA smoothing for disk activity
+threshold = 10.0                # Disk I/O in MB/s (default: 10.0)
+ema_alpha = 0.5                 # EMA smoothing for disk activity
 exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &quot;cdrom&quot;]  # Exclude virtual devices
 
 [timing]
-duration_threshold = &quot;30s&quot;   # Min time metrics must exceed threshold before inhibiting
-cooldown_duration = &quot;60s&quot;    # Time after releasing inhibition before re-inhibiting possible
+duration_threshold = &quot;5s&quot;       # Min time metrics must exceed threshold before inhibiting (default: 5s)
+cooldown_duration = &quot;10s&quot;       # Time after releasing inhibition before re-inhibiting possible (default: 10s)
 
 [inhibitor]
-what = &quot;shutdown:idle&quot;       # Lock types to inhibit (colon-separated)
-mode = &quot;block&quot;               # Inhibition mode: block, delay, or block-weak
+what = &quot;shutdown:idle&quot;          # Lock types to inhibit (colon-separated). See D-Bus Inhibition docs for details.
+mode = &quot;block&quot;                  # Inhibition mode: block, delay, or block-weak
 </code></pre>
 <p>See <a href="configuration.html">Configuration Reference</a> for full option descriptions.</p>
 <h2 id="testing-configuration">Testing Configuration</h2>
@@ -1845,12 +1850,12 @@ rouser --dry-run
 RUST_LOG=debug rouser -c ~/.config/rouser/config.toml --dry-run -l debug
 </code></pre>
 <p>Sample output in dry-run mode:</p>
-<pre><code>CPU threshold: 80%, EMA alpha: 0.30
-GPU threshold: 90%, EMA alpha: 0.30
-Network threshold: 100 Mbps, EMA alpha: 0.20
-Disk threshold: 50 MB/s, EMA alpha: 0.20
-Duration threshold: 30s
-Cooldown duration: 60s
+<pre><code>CPU max threshold: 80%, CPU avg threshold: 50%, EMA alpha: 0.70
+GPU threshold: 33.3%, EMA alpha: 0.70
+Network threshold: 10 Mbps, EMA alpha: 0.50
+Disk threshold: 10 MB/s, EMA alpha: 0.50
+Duration threshold: 5s
+Cooldown duration: 10s
 </code></pre>
 <h2 id="running-the-daemon">Running the Daemon</h2>
 <h3 id="manual-execution">Manual Execution</h3>
@@ -1901,16 +1906,16 @@ systemd-inhibit --list
 <li>
 <p>If inhibition works, you can temporarily lower the CPU threshold to <code>1</code> to test:
    ```toml
-   # In config.toml — set thresholds very low just for testing
-   [metrics.cpu]
-   threshold = 1.0    # Will trigger on any significant activity
-   ema_alpha = 0.3</p>
-</li>
-</ol>
+    # In config.toml — set thresholds very low just for testing
+    [metrics.cpu]
+    per_core_threshold = 1.0       # Will trigger on any significant activity
+    total_threshold = 1.0</p>
 <p>[timing]
    duration_threshold = "5s"   # Short test window
    cooldown_duration = "10s"
    ```</p>
+</li>
+</ol>
 <p>Then run <code>rouser</code> and check <code>loginctl list-inhibitors</code>. Restore thresholds after testing.</p>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <h3 id="service-wont-start-after-logout">Service Won't Start After Logout</h3>
@@ -1938,22 +1943,21 @@ systemd-inhibit --list
 <p>Then <code>sudo systemctl restart polkit</code>.</p>
 <h3 id="debug-logging">Debug Logging</h3>
 <p>Enable verbose logging to see per-device metric readings:</p>
-<pre><code class="language-toml"># In config.toml — set log_level at root level
-name = &quot;rouser&quot;
+<pre><code class="language-toml"># In config.toml — log_level is at root level
 update_interval = &quot;5s&quot;
-log_level = &quot;debug&quot;     # NOT under [daemon] — rouser uses flat structure now
+log_level = &quot;debug&quot;
 </code></pre>
 <p>Or override via CLI (takes priority over config):</p>
 <pre><code class="language-bash">rouser --dry-run -l debug
 </code></pre>
 <h2 id="example-configurations">Example Configurations</h2>
 <h3 id="home-server-low-activity-baseline">Home Server (low activity baseline)</h3>
-<pre><code class="language-toml">name = &quot;rouser&quot;
-update_interval = &quot;5s&quot;
+<pre><code class="language-toml">update_interval = &quot;10s&quot;
 log_level = &quot;info&quot;
 
 [metrics.cpu]
-threshold = 70.0
+per_core_threshold = 70.0
+total_threshold = 50.0
 ema_alpha = 0.3
 
 [metrics.gpu]
@@ -1979,8 +1983,12 @@ what = &quot;sleep:idle&quot;
 mode = &quot;block&quot;
 </code></pre>
 <h3 id="development-workstation-high-activity-tolerance">Development Workstation (high activity tolerance)</h3>
-<pre><code class="language-toml">[metrics.cpu]
-threshold = 90.0       # Only inhibit during heavy compilation/builds
+<pre><code class="language-toml">update_interval = &quot;5s&quot;
+log_level = &quot;info&quot;
+
+[metrics.cpu]
+per_core_threshold = 90.0       # Only inhibit during heavy compilation/builds
+total_threshold = 70.0
 ema_alpha = 0.3
 
 [metrics.gpu]

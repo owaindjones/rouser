@@ -10,8 +10,6 @@
       
       
       
-        <link rel="next" href="introduction.html">
-      
       
         
       
@@ -21,7 +19,7 @@
     
     
       
-        <title>rouser</title>
+        <title>GPU Usage Measurement - rouser</title>
       
     
     
@@ -62,7 +60,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#rouser" class="md-skip">
+        <a href="#gpu-usage-measurement" class="md-skip">
           Skip to content
         </a>
       
@@ -98,7 +96,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Overview
+              GPU Usage Measurement
             
           </span>
         </div>
@@ -215,37 +213,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="index.html" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
         
   
   
@@ -261,59 +232,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#quick-start" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Start
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Documentation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -669,10 +587,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#quick-start" class="md-nav__link">
+  <a href="#supported-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Start
+        Supported Drivers
       
     </span>
   </a>
@@ -680,10 +598,99 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#documentation" class="md-nav__link">
+  <a href="#what-each-driver-measures" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Documentation
+        What Each Driver Measures
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What Each Driver Measures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nvidia-nvml-gpu_busy_percent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NVIDIA NVML (gpu_busy_percent)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#amd-amdgpu-gpu_busy_percent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMD amdgpu (gpu_busy_percent)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intel-i915-xe-gpu_busy_percent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intel i915 / xe (gpu_busy_percent)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Differences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Differences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#practical-implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical Implications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-this-matters-for-sleep-inhibition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why This Matters for Sleep Inhibition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#no-frequency-weighting-on-gpu-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No Frequency Weighting on GPU Usage
       
     </span>
   </a>
@@ -691,10 +698,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
+  <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Links
+        See Also
       
     </span>
   </a>
@@ -721,29 +728,105 @@
   
 
 
-<h1 id="rouser">rouser</h1>
-<p>A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded.</p>
-<p><img alt="rouser logo" src="rouser-logo.svg" /></p>
-<h2 id="quick-start">Quick Start</h2>
-<ol>
-<li><strong>Install</strong>: <code>curl -fsSL https://raw.githubusercontent.com/owaindjones/rouser/main/scripts/install.sh | bash</code></li>
-<li><strong>Configure</strong>: Copy the default config and adjust thresholds: <code>mkdir -p ~/.config/rouser &amp;&amp; cp config/rouser.toml ~/.config/rouser/config.toml</code></li>
-<li><strong>Test</strong>: Run in dry-run mode first — <code>rouser --dry-run</code></li>
-<li><strong>Run as service</strong>: <code>systemctl --user enable --now rouser.service</code></li>
-</ol>
-<h2 id="documentation">Documentation</h2>
+<h1 id="gpu-usage-measurement">GPU Usage Measurement</h1>
+<p>This document describes how rouser measures GPU utilization across different vendors, what each driver actually reports, and why these measurements are not directly comparable as percentages.</p>
+<h2 id="supported-drivers">Supported Drivers</h2>
+<p>rouser supports three families of GPU drivers:</p>
+<table>
+<thead>
+<tr>
+<th>Driver</th>
+<th>Vendor</th>
+<th>Data Source</th>
+<th>Collection Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>NVML</strong> (<code>libnvidia-ml.so</code>)</td>
+<td>NVIDIA proprietary / Nouveau (via NVML)</td>
+<td>NVML library</td>
+<td><code>nvmlDeviceGetUtilizationRates()</code> via PCI bus ID matching to sysfs cards</td>
+</tr>
+<tr>
+<td><strong>amdgpu</strong></td>
+<td>AMD GPUs</td>
+<td><code>/sys/class/drm/cardX/device/gpu_busy_percent</code></td>
+<td>Direct sysfs file read, computed by SMU firmware</td>
+</tr>
+<tr>
+<td><strong>i915 / xe</strong></td>
+<td>Intel integrated/discrete GPUs (Arc)</td>
+<td><code>/sys/class/drm/cardX/device/gpu_busy_percent</code></td>
+<td>PMU engine busy ticks exposed via kernel counter</td>
+</tr>
+</tbody>
+</table>
+<p>NVIDIA is the only vendor where rouser uses an external library. AMD and Intel are read directly from sysfs with no additional dependencies. The NVML library (<code>libnvidia-ml.so</code>) is loaded dynamically at runtime — if it fails to load (no NVIDIA driver installed), rouser falls back gracefully without error.</p>
+<h2 id="what-each-driver-measures">What Each Driver Measures</h2>
+<p>Despite all exposing a value in the range 0–100%, <strong>the three drivers measure different things</strong>. The percentage means something slightly different depending on which GPU vendor is being monitored.</p>
+<h3 id="nvidia-nvml-gpu_busy_percent">NVIDIA NVML (<code>gpu_busy_percent</code>)</h3>
+<p><strong>Definition</strong>: <em>"Percent of time over the past sample period during which one or more kernels was executing on the GPU."</em> — <a href="https://docs.nvidia.com/deploy/nvml-api/structnvmlUtilization__t.html">NVML API Reference</a></p>
+<p>The sample window is adaptive: 1 second for older products, down to ~167ms (1/6s) on newer architectures. This means NVIDIA readings can be noisier at short polling intervals compared to the more stable AMD/Intel firmware counters.</p>
+<p>NVML measures <strong>SM (Streaming Multiprocessor) compute activity</strong> — specifically whether CUDA or OpenCL kernels are running shader cores. It does not directly account for:
+- Video encode/decode engine usage (handled separately via <code>nvmlDeviceGetEncoderUtilization()</code> / <code>nvmlDeviceGetDecoderUtilization()</code>)
+- Display compositing without kernel execution
+- Memory controller activity (reported as a separate metric)</p>
+<h3 id="amd-amdgpu-gpu_busy_percent">AMD amdgpu (<code>gpu_busy_percent</code>)</h3>
+<p><strong>Definition</strong>: <em>"The SMU firmware computes a percentage of load based on the aggregate activity level in the IP cores."</em> — <a href="https://docs.kernel.org/gpu/amdgpu/pm.html">Kernel Documentation</a></p>
+<p>The System Management Unit (SMU) is a dedicated microcontroller on the AMD GPU that tracks <strong>all GPU engines collectively</strong> — GFX, Compute, SDMA, VCN/UVD encoders and decoders. The percentage represents aggregate hardware block busy time across all IP cores as seen by the SMU firmware.</p>
+<p>This means amdgpu's <code>gpu_busy_percent</code> will register activity from media workloads (video playback, encoding) that NVML might report near-zero for on an NVIDIA card.</p>
+<h3 id="intel-i915-xe-gpu_busy_percent">Intel i915 / xe (<code>gpu_busy_percent</code>)</h3>
+<p><strong>Definition</strong>: <em>"Percentage of time that the GPU was active."</em> — <a href="https://docs.kernel.org/gpu/i915/index.html">i915 Kernel Documentation</a> / <a href="https://docs.xe.cloud/">xe Driver Docs</a></p>
+<p>Measured via PMU (Performance Monitoring Unit) counters from the GuC (Graphics Microcontroller). The counter tracks total GT (Graphics Technology) engine activity including render, copy, video decode, and compute engines. Similar in scope to amdgpu's aggregate approach but implemented at the hardware PMU level rather than a separate firmware coprocessor.</p>
+<h2 id="key-differences">Key Differences</h2>
+<table>
+<thead>
+<tr>
+<th>Driver</th>
+<th>What is Measured</th>
+<th>Sample Period</th>
+<th>Granularity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NVML</td>
+<td>SM compute kernels only (~1s to 167ms)</td>
+<td>Short, adaptive</td>
+<td>Compute-focused</td>
+</tr>
+<tr>
+<td>amdgpu</td>
+<td>All IP cores aggregate via SMU firmware</td>
+<td>~1 second</td>
+<td>Overall engine activity</td>
+</tr>
+<tr>
+<td>i915 / xe</td>
+<td>GT engine ticks via PMU counters</td>
+<td>Varies by workload</td>
+<td>Overall engine activity</td>
+</tr>
+</tbody>
+</table>
+<h3 id="practical-implications">Practical Implications</h3>
+<p><strong>NVML is compute-centric.</strong> A GPU running only video decode (H.264/HEVC) or display compositing may show near-zero NVML utilization, whereas the same workload would register on AMD/Intel since those count all engines including encoders, copy engines, and media blocks.</p>
+<p><strong>Sample windows differ.</strong> NVIDIA's adaptive 1s to ~167ms window means its readings are inherently noisier at short polling intervals compared to the more stable firmware-level counters used by AMD and Intel. This can cause slightly different threshold crossing behavior when comparing mixed-vendor GPU workloads.</p>
+<h3 id="why-this-matters-for-sleep-inhibition">Why This Matters for Sleep Inhibition</h3>
+<p>rouser applies a single configurable GPU utilization threshold across all GPUs regardless of vendor:</p>
+<pre><code class="language-toml">[metrics.gpu]
+threshold = 20   # Inhibit sleep if any GPU exceeds this percentage
+ema_alpha = 0.3
+</code></pre>
+<p>Because the three drivers measure different things, a "20% on NVIDIA" reading does not represent the same workload as "20% on AMD". However, for rouser's purpose — detecting whether the GPU is actively in use rather than precise benchmarking — this inconsistency is acceptable. All three drivers answer the question reliably enough: <em>"Is something using this GPU right now?"</em></p>
+<p>If per-vendor thresholds become necessary (e.g., <code>gpu_threshold_nvidia = 20</code> vs <code>gpu_threshold_amd = 40</code>), that can be addressed in a future enhancement to the configuration format.</p>
+<h2 id="no-frequency-weighting-on-gpu-usage">No Frequency Weighting on GPU Usage</h2>
+<p>Unlike CPU usage, which applies per-core frequency weighting (<code>raw_usage * current_freq / max_frequency</code> at <code>src/metrics/cpu.rs:404-436</code>), GPU utilization is reported as raw values from the driver with only EMA smoothing applied in the service loop. This is intentional — all three drivers normalize their busy percentage to a 0–100% scale regardless of current clock speed, so frequency weighting would be redundant.</p>
+<h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="quickstart.html">Quick Start Guide</a> — Step-by-step getting started</li>
-<li><a href="configuration.html">Configuration Reference</a> — All config options explained</li>
-<li><a href="command-line.html">Command Line</a> — CLI arguments and usage examples</li>
-<li><a href="systemd-user-service.html">Systemd User Service</a> — Running rouser as a service</li>
-<li><a href="metrics-overview.html">Metrics Overview</a> — How CPU, GPU, network, disk metrics are collected</li>
-<li><a href="gpu-usage-measurement.html">GPU Usage Measurement</a> — What NVML, amdgpu, and i915 actually measure</li>
-</ul>
-<h2 id="links">Links</h2>
-<ul>
-<li><a href="../CONTRIBUTING.md">Contributing Guide</a></li>
-<li><a href="../AGENTS.md">Agent Guidelines (AI/LLM developers)</a></li>
+<li><a href="metrics-overview.html">Metrics Overview</a> — How rouser collects system metrics</li>
+<li><a href="averaging.html">Averaging and Thresholds</a> — EMA smoothing explained</li>
 </ul>
 
 

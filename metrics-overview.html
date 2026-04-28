@@ -665,6 +665,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#driver-measurement-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Driver Measurement Differences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aggregation-strategy-per-device-reporting-over-averaging" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1476,6 +1487,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#driver-measurement-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Driver Measurement Differences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aggregation-strategy-per-device-reporting-over-averaging" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1958,25 +1980,25 @@
 <tr>
 <td><strong>CPU Usage</strong></td>
 <td><code>/proc/stat</code></td>
-<td>Configurable (default: 5s)</td>
-<td>Aggregate CPU usage across all cores</td>
+<td>Top-level <code>update_interval</code> config</td>
+<td>Per-core maximum and total average CPU usage (frequency-weighted)</td>
 </tr>
 <tr>
 <td><strong>GPU Usage</strong></td>
 <td>NVML (<code>libnvidia-ml.so</code>) or <code>/sys/class/drm/</code></td>
-<td>Configurable (default: 5s)</td>
+<td>Configurable via top-level <code>update_interval</code></td>
 <td>GPU utilization percentage per device</td>
 </tr>
 <tr>
 <td><strong>Network I/O</strong></td>
 <td><code>/proc/net/dev</code></td>
-<td>Configurable (default: 5s)</td>
+<td>Configurable via top-level <code>update_interval</code></td>
 <td>Network throughput in Mbps</td>
 </tr>
 <tr>
 <td><strong>Disk Activity</strong></td>
 <td><code>/proc/diskstats</code></td>
-<td>Configurable (default: 5s)</td>
+<td>Configurable via top-level <code>update_interval</code></td>
 <td>Disk read/write in MB/s</td>
 </tr>
 </tbody>
@@ -2046,7 +2068,7 @@ cpu1 23456 1234 234567 789012 12345 123 56 789 0 0
 <p>rouser uses a <strong>two-sample delta</strong> approach to calculate CPU usage:</p>
 <ol>
 <li>Read current values from <code>/proc/stat</code></li>
-<li>Wait for polling interval (default: 5 seconds)</li>
+<li>Wait for polling interval (set via top-level <code>update_interval</code>)</li>
 <li>Read new values</li>
 <li>Calculate the difference between samples</li>
 <li>Compute usage percentage based on idle vs non-idle time</li>
@@ -2121,14 +2143,15 @@ cat /sys/class/drm/card0/device/gpu_busy_percent
 rocm-smi --showgpuutilization
 </code></pre>
 <p><strong>Requirements</strong>:
-- AMD ROCm drivers or Intel i915 driver installed
-- <code>uvm</code> (Unified Virtual Memory) subsystem loaded
-- Access to <code>/sys/class/drm/cardX/device/</code></p>
+- AMD amdgpu drivers or Intel i915/xe driver installed
+- Access to <code>/sys/class/drm/cardX/device/gpu_busy_percent</code> (readable by the rouser process user)</p>
 <p><strong>Implementation</strong>:
 - Scans <code>/sys/class/drm/</code> directory for GPU devices
 - Reads <code>gpu_busy_percent</code> from each device
 - Reports per-device utilization independently (no averaging)
 - Falls back to 0% if no GPUs detected</p>
+<h3 id="driver-measurement-differences">Driver Measurement Differences</h3>
+<p>NVML, amdgpu, and i915 all report a 0–100% value but measure different things under the hood. NVIDIA's SM kernel utilization, AMD's aggregate IP core activity via SMU firmware, and Intel's GT engine ticks are not directly comparable as percentages. See <a href="gpu-usage-measurement.html">GPU Usage Measurement</a> for a detailed breakdown of what each driver reports and why this doesn't affect rouser's sleep inhibition behavior in practice.</p>
 <h3 id="aggregation-strategy-per-device-reporting-over-averaging">Aggregation Strategy — Per-Device Reporting Over Averaging</h3>
 <p>rouser reports each physical GPU <strong>individually</strong> rather than aggregating across devices. Each detected GPU is compared independently against the configured threshold:</p>
 <pre><code>card0(nvidia): 95%   ← above 90% threshold → inhibits sleep
@@ -2161,7 +2184,7 @@ network_io_mbps = (bytes_transferred * 8.0) / interval_seconds / 1_000_000.0
 <h3 id="interface-filtering">Interface Filtering</h3>
 <p>rouser supports two filtering strategies:</p>
 <h4 id="exclude-interfaces">Exclude Interfaces</h4>
-<p>By default, loopback (<code>lo</code>) is excluded:</p>
+<p>No interfaces are excluded by default — all available interfaces are monitored. To exclude specific interfaces (e.g., loopback):</p>
 <pre><code class="language-toml">[network]
 exclude_interfaces = [&quot;lo&quot;]
 </code></pre>
@@ -2189,7 +2212,7 @@ include_interfaces = [&quot;eth0&quot;, &quot;ens192&quot;]
 <pre><code>259:0 md0 rw 1000 5000 100000 500000 0 0 0 0 100 2000 3000
 259:1 md1 rw 500 2500 50000 250000 0 0 0 0 50 1000 1500
 </code></pre>
-<p>Fields: <code>major minor name reads merged sectors writes merged sec_wait ected sectors</code></p>
+<p>Fields (simplified): <code>major minor name reads_merged sectors_read writes_merged sectors_written ...</code></p>
 <h3 id="calculation-method_2">Calculation Method</h3>
 <ol>
 <li>Read current sector counts for each device</li>
@@ -2287,8 +2310,7 @@ exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &qu
 <h2 id="collection-timing">Collection Timing</h2>
 <h3 id="polling-interval">Polling Interval</h3>
 <p>The polling interval is a top-level config field:</p>
-<pre><code class="language-toml">name = &quot;rouser&quot;
-update_interval = &quot;5s&quot;   # Default: 5 seconds — time between metric collection cycles
+<pre><code class="language-toml">update_interval = &quot;1s&quot;   # Time between metric collection cycles (default)
 log_level = &quot;info&quot;
 ...
 </code></pre>
@@ -2383,8 +2405,7 @@ error!(&quot;No disk devices available&quot;);
 </table>
 <h3 id="optimization-tips">Optimization Tips</h3>
 <p>To reduce resource usage:</p>
-<pre><code class="language-toml"># Increase polling interval (default 5s)
-name = &quot;rouser&quot;
+<pre><code class="language-toml"># Increase polling interval (configurable via top-level update_interval)
 update_interval = &quot;10s&quot;   # Less responsive but lower overhead
 
 [metrics.network]
@@ -2395,6 +2416,7 @@ exclude_device_prefixes = [&quot;loop&quot;, &quot;fd&quot;, &quot;sr&quot;, &qu
 </code></pre>
 <h2 id="see-also">See Also</h2>
 <ul>
+<li><a href="gpu-usage-measurement.html">GPU Usage Measurement</a> — Driver measurement differences (NVML vs amdgpu vs i915/xe)</li>
 <li><a href="averaging.html">Averaging Explained</a> - Understanding threshold calculations with EMA</li>
 <li><a href="configuration.html">Configuration Reference</a> - Configuration options for metrics</li>
 </ul>

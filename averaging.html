@@ -1569,12 +1569,12 @@ Result: Oscillation dampened from ±20% to ±3.2%
 </ol>
 <h3 id="example-configurations">Example Configurations</h3>
 <p><strong>Home Server</strong> (bursty network/disk):</p>
-<pre><code class="language-toml">name = &quot;rouser&quot;
-update_interval = &quot;5s&quot;
+<pre><code class="language-toml">update_interval = &quot;5s&quot;
 log_level = &quot;info&quot;
 
 [metrics.cpu]
-threshold = 80.0
+per_core_threshold = 80.0
+total_threshold = 60.0
 ema_alpha = 0.1        # Default smoothing for CPU
 
 [metrics.gpu]
@@ -1598,8 +1598,12 @@ what = &quot;sleep:idle&quot;
 mode = &quot;block&quot;
 </code></pre>
 <p><strong>Development Workstation</strong> (consistent CPU/GPU):</p>
-<pre><code class="language-toml">[metrics.cpu]
-threshold = 90.0
+<pre><code class="language-toml">update_interval = &quot;5s&quot;
+log_level = &quot;info&quot;
+
+[metrics.cpu]
+per_core_threshold = 90.0
+total_threshold = 70.0
 ema_alpha = 0.15       # More responsive for compilation bursts
 
 [metrics.gpu]
@@ -1623,8 +1627,12 @@ what = &quot;shutdown:idle:sleep:suspend&quot;
 mode = &quot;block&quot;
 </code></pre>
 <p><strong>Gaming System</strong> (quick response):</p>
-<pre><code class="language-toml">[metrics.cpu]
-threshold = 85.0
+<pre><code class="language-toml">update_interval = &quot;3s&quot;
+log_level = &quot;info&quot;
+
+[metrics.cpu]
+per_core_threshold = 85.0
+total_threshold = 60.0
 ema_alpha = 0.2        # Quick spike detection
 
 [metrics.gpu]
