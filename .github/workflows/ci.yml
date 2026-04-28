@@ -363,30 +363,38 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
+          set -x
           VERSION="${VERSION}"
-          echo "Checking for release ${VERSION}..." >&2
+          echo "=== DEBUG UPLOAD ===" >&2
+          echo "Version: ${VERSION}" >&2
+          gh version 2>&1 || true
           
-          gh release view "${VERSION}" >/dev/null 2>&1 || { 
-            echo "No GitHub Release found, skipping upload." >&2; 
-            exit 0; 
+          # Check for release existence  
+          GH_OUTPUT=$(gh release view "${VERSION}" 2>&1) && \
+            echo "Release found:" >&2 && \
+            echo "$GH_OUTPUT" | head -5 >&2 || { 
+              echo "No GitHub Release found: $GH_OUTPUT" >&2; exit 0; 
           }
           
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           rpm_file="rouser-${RPM_VERSION}-${{ matrix.rpm_arch }}.rpm"
+          echo "Looking for: ${rpm_file}" >&2
+          ls -la "${rpm_file}" 2>&1 || true
           
-          if [ -f "$rpm_file" ]; then
-            FILESIZE=$(du -h "$rpm_file" | cut -f1)
-            echo "Uploading ${rpm_file} (${FILESIZE})..." >&2
-            gh release upload "${VERSION}" "${rpm_file}" --clobber && \
-              echo "RPM upload succeeded for ${{ matrix.rpm_arch }}" || { 
-                echo "ERROR: RPM upload failed!" >&2; exit 1; 
-              }
-          else
-            echo "ERROR: Expected file not found: ${rpm_file}" >&2
-            ls -la *.rpm 2>&1 || true
+          if [ ! -f "$rpm_file" ]; then
+            echo "ERROR: RPM file not found!" >&2
             find . -name "*.rpm" 2>/dev/null | head -5 || true
             exit 1
           fi
+          
+          FILESIZE=$(du -h "$rpm_file" | cut -f1)
+          UPLOAD_OUTPUT=$(gh release upload "${VERSION}" "${rpm_file}" --clobber 2>&1) && \
+            echo "Upload output: ${UPLOAD_OUTPUT}" >&2 || { 
+              echo "ERROR: Upload failed. Output:" >&2; 
+              echo "$UPLOAD_OUTPUT" >&2; 
+              exit 1; 
+          }
+
 
   package-arch-pkgbuild:
     if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
