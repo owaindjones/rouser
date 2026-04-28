@@ -88,4 +88,12 @@ for rpm_file in "${RPMTOP}/RPMS/${ARCH}/"*.rpm; do
 done
 
 rm -rf "${SOURCE_NAME}"
+
+for f in rouser-${RPM_VERSION}-*.rpm; do
+    if [ -f "$f" ]; then
+        new_name=$(echo "$f" | sed "s/rouser-${RPM_VERSION}-[^-]*-\(.*\)\.rpm/rouser-${RPM_VERSION}-\1.rpm/")
+        mv -- "$f" "$new_name" 2>/dev/null || true
+    fi
+done
+
 echo "Built RPM for $ARCH (version $RPM_VERSION)"

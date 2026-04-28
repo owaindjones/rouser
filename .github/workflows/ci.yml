@@ -318,12 +318,15 @@ jobs:
         run: |
           gh release view "${VERSION}" >/dev/null 2>&1 || exit 0
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
-          rpm_file=$(find . -maxdepth 2 -name "rouser-${RPM_VERSION}-*.rpm" 2>/dev/null | head -1)
-          if [ -n "$rpm_file" ]; then
+          # Use same approach as DEB upload — direct filename with arch suffix
+          rpm_file="rouser-${RPM_VERSION}-${{ matrix.rpm_arch }}.rpm"
+          if [ -f "$rpm_file" ]; then
             gh release upload "${VERSION}" "$rpm_file" --clobber
           else
-            echo "No RPM file found for ${{ matrix.rpm_arch }}" >&2
-            ls -R *.rpm 2>/dev/null || true
+            echo "DEBUG: Looking for RPM file..." >&2
+            find . -name "*.rpm" 2>/dev/null || true
+            ls -la *.rpm 2>&1 || true
+            exit 1
           fi
 
       - name: Upload GHA artifact (RPM backup)
