@@ -90,7 +90,7 @@ SPECEOF
      $RPMBUILD \
        --define "_topdir ${RPMTOP}" \
        --target "$ARCH" \
-       -ba "${RPMTOP}/SOURCES/.rpm-spec" 2>&1
+       -bb "${RPMTOP}/SOURCES/.rpm-spec" 2>&1
 
      # Copy built RPMs to workspace (absolute paths)  
      if ls "${RPMTOP}/RPMS/$ARCH/"*.rpm 1>/dev/null 2>&1; then
