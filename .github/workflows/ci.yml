@@ -253,11 +253,11 @@ jobs:
       - name: Upload DEB release asset (only if GitHub Release exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
         run: |
-          REF_TAG="${GITHUB_REF#refs/tags/}" || REF_TAG="${{ github.event.release.tag_name }}"
-          gh release view "v${REF_TAG}" >/dev/null 2>&1 || exit 0
-          VERSION=$(echo "${REF_TAG}" | sed 's/^v//')
-          gh release upload "v${VERSION}" "rouser-${VERSION}-${{ matrix.arch }}.deb" --clobber
+          gh release view "v${VERSION}" >/dev/null 2>&1 || exit 0
+          DEB_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          gh release upload "v${DEB_VERSION}" "rouser-${DEB_VERSION}-${{ matrix.arch }}.deb" --clobber
 
       - name: Upload GHA artifact (DEB backup)
         uses: actions/upload-artifact@v4
@@ -315,13 +315,13 @@ jobs:
       - name: Upload RPM release asset (only if GitHub Release exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
         run: |
-          REF_TAG="${GITHUB_REF#refs/tags/}" || REF_TAG="${{ github.event.release.tag_name }}"
-          gh release view "v${REF_TAG}" >/dev/null 2>&1 || exit 0
-          VERSION=$(echo "${REF_TAG}" | sed 's/^v//')
-          rpm_file=$(find . -maxdepth 2 -name "rouser-${VERSION}-*.rpm" 2>/dev/null | head -1)
+          gh release view "v${VERSION}" >/dev/null 2>&1 || exit 0
+          RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          rpm_file=$(find . -maxdepth 2 -name "rouser-${RPM_VERSION}-*.rpm" 2>/dev/null | head -1)
           if [ -n "$rpm_file" ]; then
-            gh release upload "v${VERSION}" "$rpm_file" --clobber
+            gh release upload "v${RPM_VERSION}" "$rpm_file" --clobber
           else
             echo "No RPM file found for ${{ matrix.rpm_arch }}" >&2
             ls -R *.rpm 2>/dev/null || true
@@ -354,19 +354,21 @@ jobs:
           .github/scripts/pkgbuild.sh generate PKGBUILD "$RPM_VERSION"
 
       - name: Create Arch source archive artifact
+        env:
+          VERSION: ${{ github.ref_name }}
         run: |
-          VERSION=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/^v//')
-          tar czf "rouser-pkgbuild-v${VERSION}.tar.gz" PKGBUILD
+          PKG_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          tar czf "rouser-pkgbuild-v${PKG_VERSION}.tar.gz" PKGBUILD
 
       - name: Upload Arch PKGBUILD as release asset (only if GitHub Release exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
         run: |
-          REF_TAG="${GITHUB_REF#refs/tags/}" || REF_TAG="${{ github.event.release.tag_name }}"
-          gh release view "v${REF_TAG}" >/dev/null 2>&1 || exit 0
-          VERSION=$(echo "${REF_TAG}" | sed 's/^v//')
-          gh release upload "v${VERSION}" \
-            "rouser-pkgbuild-v${VERSION}.tar.gz" --clobber
+          gh release view "v${VERSION}" >/dev/null 2>&1 || exit 0
+          PKG_VERSION=$(echo "${VERSION}" | sed 's/^v//')
+          gh release upload "v${PKG_VERSION}" \
+            "rouser-pkgbuild-v${PKG_VERSION}.tar.gz" --clobber
 
       - name: Upload GHA artifact (PKGBUILD backup)
         uses: actions/upload-artifact@v4
