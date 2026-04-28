@@ -342,7 +342,7 @@ jobs:
 
       - name: Locate and move RPM file to working directory
         run: |
-          echo "Files in rpm-files/ after download:" >&2
+          echo "=== DEBUG: Files in rpm-files/ after download ===" >&2
           ls -laR ./rpm-files/ 2>&1 || true
           find . -name "*.rpm" 2>/dev/null >&2 || true
           mv rpm-files/*.rpm ./ 2>/dev/null && echo "Moved RPM file to working directory" || { echo "ERROR: Failed to move RPM!" >&2; exit 1; }
@@ -352,19 +352,35 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
-          echo "Checking for GitHub Release ${VERSION}..." >&2
-          gh release view "${VERSION}" >/dev/null 2>&1 || { echo "No release found, skipping upload." >&2; exit 0; }
+          echo "=== DEBUG RPM UPLOAD ===" >&2
+          echo "VERSION=${VERSION}" >&2
+          
+          # Check for release existence  
+          GH_OUTPUT=$(gh release view "${VERSION}" 2>&1) || { echo "DEBUG: No release found via gh, skipping." >&2; exit 0; }
+          echo "DEBUG: Release found: ${GH_OUTPUT:0:200}" >&2
+
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
           rpm_file="rouser-${RPM_VERSION}-${{ matrix.rpm_arch }}.rpm"
-          if [ -f "$rpm_file" ]; then
-            echo "Uploading ${rpm_file} ($(du -h "$rpm_file" | cut -f1))..." >&2
-            gh release upload "${VERSION}" "${rpm_file}" --clobber && echo "RPM upload succeeded." || { echo "ERROR: RPM upload failed!" >&2; exit 1; }
-          else
-            echo "ERROR: No RPM file found at ${rpm_file}" >&2
+          
+          echo "DEBUG: Looking for file: ${rpm_file}" >&2
+          ls -la "${rpm_file}" 2>&1 || true
+
+          if [ ! -f "$rpm_file" ]; then
+            echo "ERROR: RPM file not found at expected path!" >&2
             find . -name "*.rpm" 2>/dev/null | head -5 || true
-            ls -la *.rpm 2>&1 || true
             exit 1
           fi
+
+          echo "Uploading ${rpm_file} ($(du -h "$rpm_file" | cut -f1))..." >&2
+          
+          # Try direct upload with verbose output  
+          UPLOAD_OUTPUT=$(gh release upload "${VERSION}" "${rpm_file}" --clobber 2>&1) || { 
+            echo "ERROR: gh release upload failed!" >&2
+            echo "DEBUG: Output was: ${UPLOAD_OUTPUT}" >&2
+            exit 1; 
+          }
+          
+          echo "Upload output: ${UPLOAD_OUTPUT}" >&2
 
   package-arch-pkgbuild:
     if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
