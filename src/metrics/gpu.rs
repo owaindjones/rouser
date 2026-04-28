@@ -39,13 +39,14 @@ pub struct GpuCollector {
 impl GpuCollector {
     pub fn new() -> Self {
         debug!("GPU collector initialized (sysfs-first enumeration)");
-        let nvml = Nvml::init().map_err(|e| {
-            debug!(
-                "NVML not available at startup (NVIDIA driver stack may be missing): {}",
-                e
-            );
-        })
-        .ok();
+        let nvml = Nvml::init()
+            .map_err(|e| {
+                debug!(
+                    "NVML not available at startup (NVIDIA driver stack may be missing): {}",
+                    e
+                );
+            })
+            .ok();
 
         if nvml.is_some() {
             debug!("NVML initialized successfully and cached for reuse");
@@ -84,7 +85,11 @@ impl GpuCollector {
             match card.driver_name.as_str() {
                 "nvidia" | "nouveau" => {
                     if let Some(nvml_ref) = self.nvml.as_ref() {
-                        if let Some(usage) = Self::collect_nvidia_for_card(nvml_ref, &card.device_id, &card.driver_name) {
+                        if let Some(usage) = Self::collect_nvidia_for_card(
+                            nvml_ref,
+                            &card.device_id,
+                            &card.driver_name,
+                        ) {
                             all_gpus.push(GpuData {
                                 device_id: card.device_id.clone(),
                                 driver_name: card.driver_name.clone(),

@@ -105,10 +105,10 @@ impl CpuCollector {
 
         let now = std::time::SystemTime::now();
 
-        let runtime_freqs: Vec<CpuFreq> = curr_ticks.iter().enumerate()
-            .map(|(i, (name, _))| {
-                read_runtime_cur_freq(name, i, &self.base_freqs_at_startup)
-            })
+        let runtime_freqs: Vec<CpuFreq> = curr_ticks
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| read_runtime_cur_freq(name, i, &self.base_freqs_at_startup))
             .collect();
 
         let mut any_freq_available = false;
@@ -168,7 +168,8 @@ impl CpuCollector {
     /// Check if frequency scaling data is available for this core.
     #[allow(dead_code)]
     pub fn has_freq_scaling(&self) -> bool {
-        !self.base_freqs_at_startup.is_empty() && self.peak_freqs_since_startup.iter().any(|&p| p > 0)
+        !self.base_freqs_at_startup.is_empty()
+            && self.peak_freqs_since_startup.iter().any(|&p| p > 0)
     }
 }
 
@@ -176,7 +177,11 @@ impl CpuCollector {
 fn cache_base_frequencies() -> Vec<CpuFreq> {
     let mut freqs = Vec::new();
 
-    for entry in fs::read_dir("/sys/devices/system/cpu").ok().into_iter().flatten() {
+    for entry in fs::read_dir("/sys/devices/system/cpu")
+        .ok()
+        .into_iter()
+        .flatten()
+    {
         let path = match entry.map(|e| e.path()).ok() {
             Some(p) => p,
             None => continue,
@@ -194,22 +199,26 @@ fn cache_base_frequencies() -> Vec<CpuFreq> {
             continue;
         }
 
-     let cpufreq_base = format!("/sys/devices/system/cpu/{}/cpufreq", name);
+        let cpufreq_base = format!("/sys/devices/system/cpu/{}/cpufreq", name);
         let cpufreq_exists = fs::exists(&cpufreq_base).unwrap_or(false);
 
         if cpufreq_exists {
             freqs.push(CpuFreq {
-                cur_freq_khz: read_single_freq(
-                    &format!("{}/cpuinfo_cur_freq", cpufreq_base), 1.0,
-                ),
-                max_freq_khz: match read_single_freq(&format!("{}/cpuinfo_max_freq", cpufreq_base), 1.0) {
+                cur_freq_khz: read_single_freq(&format!("{}/cpuinfo_cur_freq", cpufreq_base), 1.0),
+                max_freq_khz: match read_single_freq(
+                    &format!("{}/cpuinfo_max_freq", cpufreq_base),
+                    1.0,
+                ) {
                     0 => read_single_freq(
-                        &format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name), 1.0,
+                        &format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name),
+                        1.0,
                     ),
                     v => v,
                 },
             });
-        } else if let Ok(max_val) = fs::read_to_string(format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name)) {
+        } else if let Ok(max_val) =
+            fs::read_to_string(format!("/sys/devices/system/cpu/{}/cpuinfo_max_freq", name))
+        {
             if let Ok(freq_hz) = max_val.trim().parse::<f64>() {
                 freqs.push(CpuFreq {
                     cur_freq_khz: (freq_hz / 1000.0) as u64, // no cur available, use max as estimate
@@ -223,7 +232,10 @@ fn cache_base_frequencies() -> Vec<CpuFreq> {
         }
     }
 
-    debug!("Cached base frequencies for {} core(s) at startup", freqs.len());
+    debug!(
+        "Cached base frequencies for {} core(s) at startup",
+        freqs.len()
+    );
     freqs
 }
 
@@ -266,8 +278,7 @@ fn read_runtime_cur_freq(core_name: &str, core_idx: usize, base_freqs: &[CpuFreq
 
 /// Read CPU core tick data from /proc/stat. No sysfs interaction — no FD pressure.
 fn read_core_ticks() -> Result<Vec<(String, CpuCoreTicks)>, CpuError> {
-    let content = fs::read_to_string("/proc/stat")
-        .map_err(|e| CpuError::IoError(e.to_string()))?;
+    let content = fs::read_to_string("/proc/stat").map_err(|e| CpuError::IoError(e.to_string()))?;
 
     let mut core_ticks = Vec::new();
     for line in content.lines() {
@@ -327,7 +338,8 @@ fn store_state(collector: &mut CpuCollector, curr_ticks: Vec<(String, CpuCoreTic
         }
         None => {
             collector.last_stats = Some(
-                curr_ticks.iter()
+                curr_ticks
+                    .iter()
                     .map(|(_, t)| CpuCoreStats {
                         user: t.user,
                         nice: t.nice,
@@ -406,15 +418,15 @@ fn calculate_usage(
         // actual_usage_percent = raw_usage * (current_freq / max_frequency)
         let weighted_usage = if any_freq_available {
             let f = &runtime_freqs[i];
-            
+
             // Determine the effective maximum frequency for this core:
             // Use the highest of: current, base max (from startup cache), or peak observed since boot.
             // This handles turbo boost scenarios where a core briefly hits higher frequencies.
             let cur = f.cur_freq_khz;
-            let base_max = if i < base_freqs.len() { 
-                base_freqs[i].max_freq_khz 
-            } else { 
-                f.max_freq_khz 
+            let base_max = if i < base_freqs.len() {
+                base_freqs[i].max_freq_khz
+            } else {
+                f.max_freq_khz
             };
             let peak = if i < peak_freqs_since_startup.len() {
                 peak_freqs_since_startup[i]
@@ -574,13 +586,19 @@ mod tests {
     fn test_frequency_weighted_calculation() {
         // Verify: raw 100% usage at half max frequency → weighted ≈ 50%
         // Formula: raw * (cur / max(cur, base_max, peak)) = 100 * (2.5GHz / 5.0GHz) = 50%
-        let runtime = CpuFreq { cur_freq_khz: 2_500_000, max_freq_khz: 5_000_000 }; // 2.5GHz current
-        let base = vec![CpuFreq { cur_freq_khz: 0, max_freq_khz: 3_000_000 }]; // 3GHz rated max
+        let runtime = CpuFreq {
+            cur_freq_khz: 2_500_000,
+            max_freq_khz: 5_000_000,
+        }; // 2.5GHz current
+        let base = vec![CpuFreq {
+            cur_freq_khz: 0,
+            max_freq_khz: 3_000_000,
+        }]; // 3GHz rated max
         let peak = vec![4_000_000u64]; // previously observed 4GHz
 
         let effective_max = runtime.cur_freq_khz.max(base[0].max_freq_khz).max(peak[0]);
         assert_eq!(effective_max, 4_000_000); // peak wins: max(2.5GHz, 3GHz, 4GHz) = 4GHz
-        
+
         let weighted = 100.0 * (runtime.cur_freq_khz as f64 / effective_max as f64);
         assert!((weighted - 62.5).abs() < 0.01); // 100% * (2.5/4.0) = 62.5%
     }
@@ -589,21 +607,21 @@ mod tests {
     fn test_frequency_weighted_turbo_boost_tracking() {
         // Simulate turbo boost: core hits 4.8GHz once, then runs at base frequency.
         let mut peak_freqs = vec![0u64];
-        
+
         // Tick 1: core running at 3.0GHz (base), no peak yet
         assert_eq!(peak_freqs[0], 0);
-        
+
         // Simulate observing turbo boost of 4.8GHz
         let cur_at_turbo = 4_800_000u64; // 4.8GHz in kHz
         if cur_at_turbo > peak_freqs[0] {
             peak_freqs[0] = cur_at_turbo;
         }
-        
+
         // Tick 2: core back to 3.0GHz, but peak is still tracked at 4.8GHz
         let cur_normal = 3_000_000u64; // 3.0GHz in kHz
         let effective_max = cur_normal.max(3_000_000).max(peak_freqs[0]); // base_max=3GHz, peak=4.8GHz
         assert_eq!(effective_max, 4_800_000); // turbo boost is the reference
-        
+
         let raw = 50.0;
         let weighted = raw * (cur_normal as f64 / effective_max as f64);
         assert!((weighted - 31.25).abs() < 0.01); // 50% * (3.0/4.8) ≈ 31.25%
@@ -613,12 +631,12 @@ mod tests {
     fn test_frequency_weighted_no_turbo() {
         // No turbo boost observed: effective_max = max(cur, base_max, peak=0)
         let cur = 2_500_000u64; // 2.5GHz current
-        let base_max = 3_000_000u64; // 3GHz rated max  
+        let base_max = 3_000_000u64; // 3GHz rated max
         let peak = 0u64;
 
         let effective_max = cur.max(base_max).max(peak);
         assert_eq!(effective_max, 3_000_000); // base_max wins
-        
+
         let raw = 80.0;
         let weighted = raw * (cur as f64 / effective_max as f64);
         assert!((weighted - 66.67).abs() < 0.1);
