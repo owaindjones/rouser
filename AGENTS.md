@@ -226,3 +226,61 @@ When writing docs or examples about inhibition behavior, document this differenc
 - For hardware-specific access (NVIDIA GPUs), use the NVML library (`libnvidia-ml.so`) loaded dynamically at runtime via `nvml-wrapper` — no separate binary dependency required since it ships with NVIDIA drivers alongside nvidia-smi itself.
 - When adding a new dependency: justify in the commit message, prefer widely-packaged crates, avoid unmaintained crates.
 - Current external dependencies: `libnvidia-ml.so` (NVIDIA proprietary drivers only, loaded dynamically at runtime), no separate binary dependencies.
+
+## CI/CD Pipeline Debugging with GitHub API
+
+When debugging failing CI pipelines in-session, the GitHub REST API provides faster diagnostics than waiting for the GHA web UI or trying to read step-level logs programmatically. This is especially valuable when working with agents in the loop where context window and time are limited.
+
+### Workflow Runs — Check Status of Recent Runs
+
+```bash
+# Get latest 5 workflow runs across all workflows (use ?workflow_id=X for specific)
+gh api repos/{owner}/{repo}/actions/runs?per_page=5 \
+  | jq -r '.workflow_runs[] | "Run \(.id) | event:\(.event) | status:\(.status)/\(.conclusion) | sha:\(.head_sha[0:7])"'
+```
+
+### Jobs Within a Run — See Which Specific Job/Step Failed
+
+```bash
+# Get all jobs for a specific run (replace RUN_ID from above)
+gh api repos/{owner}/{repo}/actions/runs/RUN_ID/jobs?per_page=100 \
+  | jq -r '.jobs[] | "\(.conclusion): \(.name)"' | sort
+```
+
+### Release Assets — Verify What's Actually on a Release After CI Completes
+
+```bash
+gh api repos/{owner}/{repo}/releases?per_page=10 \
+  | jq -r '.[] | select(.tag_name == "vX.Y.Z") | .assets[].name'
+```
+
+### Why This Works Better Than Alternatives
+
+- **GHA web UI**: Requires manual browser interaction; no API access for step-level log contents (step `logs_url` returns falsy in API responses even when logs exist).
+- **Step-level logs**: The GitHub Actions API does not expose per-step log URLs via `/jobs` or `/runs/{id}/attempts/1/jobs` endpoints without additional authentication headers that are often unavailable to agent sessions. Use run-level job summaries (`conclusion` field) instead — if a specific step fails but the overall job shows `success`, check for conditional steps that may have errored silently (e.g., upload scripts with non-zero exit codes caught by shell error handling).
+- **Wait time**: API calls return immediately; waiting for GHA UI to update can take 5–10 minutes after a tag push.
+
+### Practical Debugging Flow
+
+```bash
+# 1. Push tag → wait ~30 seconds → check latest runs
+gh api repos/{owner}/{repo}/actions/runs?per_page=3 | jq -r '.workflow_runs[:2][] | "\(.id): \(.status)/\(.conclusion)"'
+
+# 2. Pick the newest run ID, list all jobs
+gh api repos/{owner}/{repo}/actions/runs/RUN_ID/jobs?per_page=100 \
+  | jq -r '.jobs[] | select(.conclusion != "success") | "\(.name): \(.conclusion)"'
+
+# 3. Check release assets (if run was triggered by tag/release)
+gh api repos/{owner}/{repo}/releases?per_page=5 \
+  | jq -r 'map(select(.tag_name == "vX.Y.Z"))[0].assets[]?.name // empty' | sort
+
+# 4. If a job failed, visit the GHA web UI directly for step logs:
+echo "https://github.com/{owner}/{repo}/actions/runs/RUN_ID"
+```
+
+### Common Pitfalls When Debugging CI with Agents
+
+- **YAML indentation errors**: A single-space indent instead of two spaces under `jobs:` causes silent parse failures that mask all real runtime errors. Validate YAML syntax before blaming script logic: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"`.
+- **Missing `needs` dependencies**: If a job references another via `needs: [foo]`, and `foo` is conditional (`if:`), the dependent job inherits that condition — it will skip if the dependency was skipped. Always verify both jobs have matching trigger conditions.
+- **Container vs runner environment mismatch**: Steps running in containers (e.g., `container: fedora:latest`) cannot access tools on the host runner (like `gh` CLI). Split containerized build steps from upload/CLI steps that run on `ubuntu-latest` without a container.
+- **Artifact download path defaults to `.`**: When using `actions/download-artifact@v4`, always specify `path: some-dir/` explicitly, then move files with `mv some-dir/* .` before consuming them — default behavior may merge artifacts unpredictably.
