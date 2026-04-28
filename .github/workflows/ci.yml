@@ -279,9 +279,11 @@ jobs:
         include:
           - arch: x86_64
             rpm_arch: x86_64
+            runner: ubuntu-latest
           - arch: aarch64
             rpm_arch: aarch64
-    runs-on: ubuntu-latest
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
