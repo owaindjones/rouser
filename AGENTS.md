@@ -5,7 +5,7 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 ## Core Principles
 
 - **Read CONTRIBUTING.md first**: Before making changes, read [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards, testing conventions, and documentation sync rules that apply to all contributors (agents included). AGENTS.md covers agent-specific behavior; CONTRIBUTING.md covers everything else.
-- **Build before committing**: The code MUST compile (`cargo build`), pass all tests (`cargo test`), and be clean under clippy (`cargo clippy -- -D warnings`) before any git commit. Never ship broken code.
+- **Build before committing**: The code MUST compile (`cargo build`), pass all tests (`cargo test --all-targets`), and be clean under clippy (`cargo clippy --all-targets -- -D warnings`) before any git commit. Never ship broken code. Always match CI commands exactly — `--all-targets` includes test targets which may have lint warnings not visible otherwise.
 - **Conventional commits**: All git commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope): description`. See section below.
 - **Commit frequently when stable**: Make atomic, logical commits whenever the codebase is in a working state (builds, tests pass). Do not batch unrelated changes into a single commit. Each commit should represent one coherent unit of change.
   - **Before every commit**, ensure all changed files are in a good state — no half-written code, incomplete docs, or skipped tests. Code must at minimum compile before committing; full functionality is ideal but a working build is the absolute floor.
@@ -168,8 +168,8 @@ Before merging or releasing, verify all of the following pass:
 
 ```bash
 cargo fmt --check          # Code formatting
-cargo clippy -- -D warnings  # Lint check
-cargo test                 # Unit tests
+cargo clippy --all-targets -- -D warnings  # Lint check (must match CI exactly — includes test code)
+cargo test --all-targets   # Unit tests (must match CI exactly — includes test targets)
 cargo build --release      # Release build succeeds
 cargo doc --no-deps        # Documentation compiles (if public API changed)
 ```
