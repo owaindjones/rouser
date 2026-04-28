@@ -289,7 +289,13 @@ jobs:
 
       - name: Install RPM build dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y rpm-build gcc make tar gzip
+          apt-get update && apt-get install -y rpm-build gcc make tar gzip
+
+      - name: Debug environment
+        run: |
+          echo "Runner OS: $(cat /etc/os-release 2>/dev/null | head -3 || uname -a)" >&2
+          echo "Arch: $(uname -m)" >&2
+          which rpmbuild rpm gcc make tar gzip 2>&1 || true
 
       - name: Download release tarball
         uses: actions/download-artifact@v4
