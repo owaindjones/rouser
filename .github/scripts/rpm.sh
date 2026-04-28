@@ -87,6 +87,11 @@ systemctl daemon-reload || true
 SPECEOF
 
     sed -i "s|@VERSION@|${RPM_VERSION}|g" "${RPMTOP}.rpm-spec"
+    echo "DEBUG: RPMTOP=$RPMTOP"
+    echo "DEBUG: pwd=$(pwd)"
+    echo "DEBUG: SOURCES contents:" && ls -la "$RPMTOP/SOURCES/" 2>&1 || true
+    echo "DEBUG: spec file exists:" && ls -la "${RPMTOP}.rpm-spec" 2>&1 || true
+
 
     $RPMBUILD \
       --define "_topdir $RPMTOP" \
