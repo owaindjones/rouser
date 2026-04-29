@@ -20,7 +20,9 @@
 /// regardless of vendor. This ensures consistent labeling across mixed-vendor systems:
 /// `GPU log output shows "card0(nvidia): 45%", "card1(amdgpu): 78%"` instead of
 /// the previous inconsistent mix of "GPU0(nvidia)" and "card1(amdgpu)".
+use nvml_wrapper::enum_wrappers::device::Clock;
 use nvml_wrapper::Nvml;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use tracing::{debug, warn};
@@ -32,8 +34,23 @@ pub struct EnumGpu {
     pub driver_name: String,
 }
 
+/// Per-device frequency tracking state for NVIDIA NVML freq-weighted usage.
+struct NvmlState {
+    /// Per-card max observed graphics clock in MHz (tracks turbo boost peaks).
+    peak_freq_mhz: HashMap<String, u32>,
+}
+
+impl NvmlState {
+    fn new() -> Self {
+        Self {
+            peak_freq_mhz: HashMap::new(),
+        }
+    }
+}
+
 pub struct GpuCollector {
     nvml: Option<Nvml>,
+    nvml_state: NvmlState,
 }
 
 impl GpuCollector {
@@ -52,7 +69,10 @@ impl GpuCollector {
             debug!("NVML initialized successfully and cached for reuse");
         }
 
-        Self { nvml }
+        Self {
+            nvml,
+            nvml_state: NvmlState::new(),
+        }
     }
 
     #[allow(dead_code)]
@@ -71,7 +91,7 @@ impl GpuCollector {
     /// and routes to the appropriate collection method:
     /// - NVIDIA/Nouveau → NVML library (`libnvidia-ml.so`) matched by PCI bus ID
     /// - AMD/Intel → direct sysfs `gpu_busy_percent` read
-    pub async fn collect(&self) -> Result<Vec<GpuData>, GpuError> {
+    pub async fn collect(&mut self) -> Result<Vec<GpuData>, GpuError> {
         let cards = self.enumerate_gpus();
 
         if cards.is_empty() {
@@ -87,6 +107,7 @@ impl GpuCollector {
                     if let Some(nvml_ref) = self.nvml.as_ref() {
                         if let Some(usage) = Self::collect_nvidia_for_card(
                             nvml_ref,
+                            &mut self.nvml_state,
                             &card.device_id,
                             &card.driver_name,
                         ) {
@@ -164,13 +185,25 @@ impl GpuCollector {
         cards
     }
 
-    /// Collect utilization for an NVIDIA/Nouveau card via NVML.
+    /// Collect utilization for an NVIDIA/Nouveau card via NVML with frequency-weighted usage.
     ///
     /// Uses the NVML library (same approach as nvtop). Matches NVML devices to sysfs
     /// cards by comparing PCI bus IDs from `/sys/class/drm/cardN/device/uevent` with
     /// `nvmlDeviceGetPciInfo`. This avoids spawning subprocesses and provides lower-level
     /// GPU access via the official NVIDIA management library.
-    fn collect_nvidia_for_card(nvml: &Nvml, card_name: &str, _driver_name: &str) -> Option<f64> {
+    ///
+    /// Frequency-weighted: NVML utilization_rates() reports percentage of time SMs were busy
+    /// at their *current* clock speed, not normalized to max rated frequency. A GPU running
+    /// 200MHz at 100% usage is effectively only ~6% loaded vs its 3200MHz peak — the same
+    /// principle as CPU freq-weighting (`src/metrics/cpu.rs`). We compute:
+    ///   effective_max = max(current_freq, max_rated_freq, observed_peak)
+    ///   weighted_compute_usage = raw_gpu_pct * (current_freq / effective_max)
+    fn collect_nvidia_for_card(
+        nvml: &Nvml,
+        nvml_state: &mut NvmlState,
+        card_name: &str,
+        _driver_name: &str,
+    ) -> Option<f64> {
         let pci_slot = Self::read_pci_slot_from_uevent(card_name);
 
         if pci_slot.is_empty() {
@@ -195,12 +228,52 @@ impl GpuCollector {
                     // NVML bus_id format: "00000000:09:00.0" (8-digit domain prefix)
                     // sysfs uevent PCI_SLOT_NAME format: "0000:09:00.0" (4-digit domain prefix)
                     if pci_info.bus_id.contains(&pci_slot) {
-                        let gpu_usage = match device.utilization_rates() {
+                        let raw_gpu_usage = match device.utilization_rates() {
                             Ok(util) => util.gpu as f64,
                             Err(e) => {
                                 debug!("NVML GPU utilization not available: {}", e);
                                 0.0
                             }
+                        };
+
+                        // Frequency-weighted compute usage: NVML reports % busy at current clock,
+                        // need to normalize against max rated frequency for accurate load measurement.
+                        let (current_freq_mhz, max_rated_freq_mhz) = match (
+                            device.clock_info(Clock::Graphics),
+                            device.max_clock_info(Clock::Graphics),
+                        ) {
+                            (Ok(cur), Ok(max)) => (cur as f64, max as f64),
+                            (Err(e_cur), Err(_e_max)) => {
+                                debug!(
+                                    "NVML clock info not available for {}: current={}",
+                                    e_cur, raw_gpu_usage
+                                );
+                                return Some(raw_gpu_usage);
+                            }
+                            _ => {
+                                debug!(
+                                    "NVML clock info partially unavailable for {}, using raw usage",
+                                    card_name
+                                );
+                                return Some(raw_gpu_usage);
+                            }
+                        };
+
+                        // Track max observed frequency (handles turbo boost beyond rated max).
+                        let peak = nvml_state
+                            .peak_freq_mhz
+                            .entry(card_name.to_string())
+                            .or_insert(0);
+                        if current_freq_mhz > *peak as f64 {
+                            *peak = current_freq_mhz as u32;
+                        }
+
+                        let effective_max =
+                            current_freq_mhz.max(max_rated_freq_mhz).max(*peak as f64);
+                        let weighted_compute_usage = if effective_max > 0.0 {
+                            raw_gpu_usage * (current_freq_mhz / effective_max)
+                        } else {
+                            raw_gpu_usage
                         };
 
                         let encoder_usage = device
@@ -213,12 +286,15 @@ impl GpuCollector {
                             .map(|info| info.utilization as f64)
                             .unwrap_or(0.0);
 
-                        let composite = gpu_usage.max(encoder_usage).max(decoder_usage);
+                        // Encoder/decoder engines run at fixed clocks (not scaled by boost),
+                        // so their raw percentages are already normalized — no freq weighting needed.
+                        let composite =
+                            weighted_compute_usage.max(encoder_usage).max(decoder_usage);
 
-                        if composite > 1.0 || encoder_usage > 0.0 || decoder_usage > 0.0 {
+                        if encoder_usage > 0.0 || decoder_usage > 0.0 {
                             debug!(
                                 "GPU {} (PCI: {}) compute={:.1}% encode={:.1}% decode={:.1}% → {:.1}%",
-                                card_name, pci_slot, gpu_usage, encoder_usage, decoder_usage, composite
+                                card_name, pci_slot, weighted_compute_usage, encoder_usage, decoder_usage, composite
                             );
                         }
 
