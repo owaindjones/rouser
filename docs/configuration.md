@@ -38,11 +38,11 @@ log_level = "info"
 
 [metrics.cpu]
 per_core_threshold = 80.0
-total_threshold = 50.0
+total_threshold = 25.0
 ema_alpha = 0.7
 
 [metrics.gpu]
-threshold = 33.3      # GPU usage threshold (percentage)
+threshold = 15.0      # GPU usage threshold (percentage)
 ema_alpha = 0.7       # EMA smoothing factor
 
 [metrics.network]
@@ -82,7 +82,7 @@ CPU usage is measured per-core (frequency-weighted from sysfs cpufreq data) and 
 | Key | Type | Default (0–100) | Description |
 |-----|------|-----------------|-------------|
 | `per_core_threshold` | f64 | `80.0` | Per-core CPU usage percentage above which to inhibit sleep |
-| `total_threshold` | f64 | `50.0` | Total (averaged across cores) CPU usage percentage above which to inhibit sleep |
+| `total_threshold` | f64 | `25.0` | Total (averaged across cores) CPU usage percentage above which to inhibit sleep |
 | `ema_alpha` | f64 | `0.7` | EMA smoothing factor: higher = more responsive, lower = smoother readings |
 
 ### `[metrics.gpu]` — GPU Usage Threshold
@@ -91,7 +91,7 @@ Per-device GPU collection (NVIDIA via NVML, AMD/Intel via sysfs). Each detected 
 
 | Key | Type | Default (0–100) | Description |
 |-----|------|-----------------|-------------|
-| `threshold` | f64 | `33.3` | GPU usage percentage above which to inhibit sleep |
+| `threshold` | f64 | `15.0` | GPU usage percentage above which to inhibit sleep |
 | `ema_alpha` | f64 | `0.7` | EMA smoothing factor for per-GPU readings |
 
 ### `[metrics.network]` — Network Throughput Threshold
@@ -183,7 +183,7 @@ There are no `ROUSER_*` environment variable overrides for configuration values 
 
 ## Best Practices
 
-1. **Start with conservative thresholds**: Begin with higher per-core CPU (80%) and GPU (33.3%) thresholds, then lower them based on observed baselines from dry-run logs
+1. **Start with conservative thresholds**: Begin with higher per-core CPU (80%) and GPU (15%) thresholds, then lower them based on observed baselines from dry-run logs
 2. **Use EMA smoothing**: Default alpha values provide a good balance between responsiveness and noise filtering for your workload
 3. **Test before production**: Always use `--dry-run` mode to verify thresholds before deploying in daemon mode
 4. **Review logs regularly**: Use debug logging (`RUST_LOG=debug`) to understand your system's baseline activity before finalizing thresholds

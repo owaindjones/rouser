@@ -4,7 +4,7 @@ use tracing::{debug, info, warn};
 use crate::config::Config;
 
 use crate::inhibit::InhibitionState;
-use crate::metrics::{CpuCollector, DiskCollector, GpuCollector, Metrics, NetworkCollector};
+use crate::metrics::{disk_display_string, gpu_display_string, network_display_string, sorted_gpu_display, TickMetrics, CpuCollector, DiskCollector, GpuCollector, NetworkCollector};
 
 #[derive(Debug, Clone)]
 pub struct SmoothingState {
@@ -169,7 +169,7 @@ impl DataManager {
         })
     }
 
-    pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
+  pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
         let metrics = self.collect_metrics().await?;
         self.last_collection = Some(std::time::SystemTime::now());
 
@@ -181,8 +181,7 @@ impl DataManager {
             config.metrics.cpu.ema_alpha,
         );
 
-        // Smooth each GPU individually and collect smoothed values
-        let num_devices = metrics.gpu_usage.len();
+          let num_devices = metrics.gpu_usage.len();
         while self.gpu_smoothing.len() < num_devices {
             self.gpu_smoothing
                 .push(SmoothingState::new(config.metrics.gpu.ema_alpha));
@@ -197,32 +196,29 @@ impl DataManager {
             }
         }
 
+        let sorted_entries = sorted_gpu_display(&metrics.gpu_usage, &gpu_smoothed_values);
+        let gpu_debug = gpu_display_string(&sorted_entries);
+
         let smoothed_network = self
             .network_smooth
-            .update(metrics.network_io, config.metrics.network.ema_alpha);
+            .update(metrics.network_throughput.total_mbps, config.metrics.network.ema_alpha);
+        let network_log = network_display_string(
+            metrics.network_throughput.total_mbps,
+            &metrics.network_throughput.per_interface,
+        );
+
         let smoothed_disk = self
             .disk_smooth
-            .update(metrics.disk_activity, config.metrics.disk.ema_alpha);
-
-        let gpu_debug: String = if !metrics.gpu_usage.is_empty() {
-            metrics
-                .gpu_usage
-                .iter()
-                .map(|g| format!("{}({}): {:.1}%", g.device_id, g.driver_name, g.usage))
-                .collect::<Vec<_>>()
-                .join(", ")
-        } else {
-            "None".to_string()
-        };
+            .update(metrics.disk_throughput.total_mb_per_s, config.metrics.disk.ema_alpha);
+        let disk_log = disk_display_string(
+            metrics.disk_throughput.interval_secs,
+            metrics.disk_throughput.total_mb_per_s,
+            &metrics.disk_throughput.per_device,
+        );
 
         debug!(
-            "Metrics: CPU max={:.1}% avg={:.1}%, GPU: {} (smoothed: {:.1}%, {:.1}%), Network={:.2} Mbps (smoothed: {:.2}), Disk={:.2} MB/s (smoothed: {:.2})",
-            smoothed_cpu_max, smoothed_cpu_avg,
-            gpu_debug,
-            gpu_smoothed_values.first().copied().unwrap_or(0.0),
-            gpu_smoothed_values.get(1).unwrap_or(&0.0),
-            metrics.network_io, smoothed_network,
-            metrics.disk_activity, smoothed_disk
+            "Metrics: CPU max={:.1}% avg={:.1}%, GPU: {}, Network={}, Disk={}",
+            smoothed_cpu_max, smoothed_cpu_avg, gpu_debug, network_log, disk_log
         );
 
         let should_inhibit = self.threshold_manager.should_inhibit(
@@ -329,25 +325,25 @@ impl DataManager {
         Ok(())
     }
 
-    async fn collect_metrics(&mut self) -> Result<Metrics, DataServiceError> {
+   async fn collect_metrics(&mut self) -> Result<TickMetrics, DataServiceError> {
         let cpu_usage = self.cpu.collect().await.map_err(|e| DataServiceError {
             inner: format!("CPU collection failed: {}", e),
         })?;
         let gpu_usage = self.gpu.collect().await.map_err(|e| DataServiceError {
             inner: format!("GPU collection failed: {}", e),
         })?;
-        let network_io = self.network.collect().await.map_err(|e| DataServiceError {
+        let network_throughput = self.network.collect().await.map_err(|e| DataServiceError {
             inner: format!("Network collection failed: {}", e),
         })?;
-        let disk_activity = self.disk.collect().await.map_err(|e| DataServiceError {
+        let disk_throughput = self.disk.collect().await.map_err(|e| DataServiceError {
             inner: format!("Disk collection failed: {}", e),
         })?;
 
-        Ok(Metrics {
+        Ok(TickMetrics {
             cpu_usage,
             gpu_usage,
-            network_io,
-            disk_activity,
+            network_throughput,
+            disk_throughput,
         })
     }
 

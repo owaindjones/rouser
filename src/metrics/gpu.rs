@@ -55,24 +55,12 @@ pub struct GpuCollector {
 
 impl GpuCollector {
     pub fn new() -> Self {
-        debug!("GPU collector initialized (sysfs-first enumeration)");
-        let nvml = Nvml::init()
-            .map_err(|e| {
-                debug!(
-                    "NVML not available at startup (NVIDIA driver stack may be missing): {}",
-                    e
-                );
-            })
-            .ok();
-
-        if nvml.is_some() {
-            debug!("NVML initialized successfully and cached for reuse");
-        }
-
+        let nvml = Nvml::init().ok();
         Self {
             nvml,
             nvml_state: NvmlState::new(),
         }
+
     }
 
     #[allow(dead_code)]
@@ -137,15 +125,8 @@ impl GpuCollector {
             }
         }
 
-        if all_gpus.is_empty() && !cards.is_empty() {
+  if all_gpus.is_empty() && !cards.is_empty() {
             warn!("No valid GPU data collected; check that NVIDIA drivers are loaded");
-        } else if !all_gpus.is_empty() {
-            for gpu in &all_gpus {
-                debug!(
-                    "GPU {} ({}): {:.1}%",
-                    gpu.device_id, gpu.driver_name, gpu.usage
-                );
-            }
         }
 
         Ok(all_gpus)
@@ -181,8 +162,7 @@ impl GpuCollector {
             });
         }
 
-        debug!("Enumerated {} GPU card(s) from /sys/class/drm", cards.len());
-        cards
+ cards
     }
 
     /// Collect utilization for an NVIDIA/Nouveau card via NVML with frequency-weighted usage.
@@ -291,12 +271,10 @@ impl GpuCollector {
                         let composite =
                             weighted_compute_usage.max(encoder_usage).max(decoder_usage);
 
-                        if encoder_usage > 0.0 || decoder_usage > 0.0 {
-                            debug!(
-                                "GPU {} (PCI: {}) compute={:.1}% encode={:.1}% decode={:.1}% → {:.1}%",
-                                card_name, pci_slot, weighted_compute_usage, encoder_usage, decoder_usage, composite
-                            );
-                        }
+                        debug!(
+                            "GPU {} (PCI: {}) compute_raw={:.1}% freq_ratio={}/{:.0}→{:.1}% encode={:.1}% decode={:.1}% → composite={:.1}%",
+                            card_name, pci_slot, raw_gpu_usage, current_freq_mhz as u32, max_rated_freq_mhz as u32, weighted_compute_usage, encoder_usage, decoder_usage, composite
+                        );
 
                         return Some(composite);
                     }

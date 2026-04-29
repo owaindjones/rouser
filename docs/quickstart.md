@@ -90,11 +90,10 @@ log_level = "info"
 
 [metrics.cpu]
 per_core_threshold = 80.0       # Per-core CPU max usage % above which to inhibit sleep
-total_threshold = 50.0          # Total averaged CPU usage % (default: 50.0)
-ema_alpha = 0.7                 # EMA smoothing: higher = more responsive
+total_threshold = 25.0          # Total averaged CPU usage % (default: 25.0)
 
 [metrics.gpu]
-threshold = 33.3                # GPU usage % per device (default: 33.3)
+threshold = 15.0                # GPU usage % per device (default: 15.0)
 ema_alpha = 0.7                 # EMA smoothing factor for GPU readings
 
 [metrics.network]
@@ -145,8 +144,8 @@ RUST_LOG=debug rouser -c ~/.config/rouser/config.toml --dry-run -l debug
 
 Sample output in dry-run mode:
 ```
-CPU max threshold: 80%, CPU avg threshold: 50%, EMA alpha: 0.70
-GPU threshold: 33.3%, EMA alpha: 0.70
+CPU max threshold: 80%, CPU avg threshold: 25%, EMA alpha: 0.70
+GPU threshold: 15.0%, EMA alpha: 0.70
 Network threshold: 10 Mbps, EMA alpha: 0.50
 Disk threshold: 10 MB/s, EMA alpha: 0.50
 Duration threshold: 5s

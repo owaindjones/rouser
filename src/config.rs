@@ -18,16 +18,16 @@ pub struct Config {
     pub inhibitor: InhibitionConfig,
 }
 
-fn default_gpu_usage() -> f64 {
-    90.0
+fn default_gpu_threshold() -> f64 {
+    15.0
 }
 
 fn default_network_io() -> f64 {
-    100.0
+    10.0
 }
 
 fn default_disk_activity() -> f64 {
-    50.0
+    10.0
 }
 
 #[allow(dead_code)]
@@ -35,7 +35,7 @@ fn default_disk_activity() -> f64 {
 pub struct Thresholds {
     #[serde(default = "default_cpu_usage_threshold")]
     pub cpu_usage: f64,
-    #[serde(default = "default_gpu_usage")]
+    #[serde(default = "default_gpu_threshold")]
     pub gpu_usage: f64,
     #[serde(default = "default_network_io")]
     pub network_io: f64,
@@ -69,12 +69,12 @@ fn default_per_core_threshold() -> f64 {
 }
 
 fn default_total_threshold() -> f64 {
-    50.0
+    25.0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GpuConfig {
-    #[serde(default = "default_gpu_usage")]
+    #[serde(default = "default_gpu_threshold")]
     pub threshold: f64,
     #[serde(default = "default_ema_alpha_gpu")]
     pub ema_alpha: f64,
@@ -131,19 +131,19 @@ fn default_cooldown_duration() -> Duration {
 }
 
 fn default_ema_alpha_cpu() -> f64 {
-    0.3
+    0.7
 }
 
 fn default_ema_alpha_gpu() -> f64 {
-    0.3
+    0.7
 }
 
 fn default_ema_alpha_network() -> f64 {
-    0.2
+    0.5
 }
 
 fn default_ema_alpha_disk() -> f64 {
-    0.2
+    0.5
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -182,8 +182,6 @@ impl ConfigLoader {
         }
     }
 
-    // Validation is now done by load() which fully deserializes into Config,
-    // catching all serde errors (wrong field names, invalid values).
     #[allow(dead_code)]
     pub fn validate(&self) -> Result<()> {
         if !self.config_path.exists() {
@@ -197,7 +195,6 @@ impl ConfigLoader {
             format!("Failed to read config file: {}", self.config_path.display())
         })?;
 
-        // Fully deserialize into Config struct to catch all serde errors
         let _config: Config =
             toml::from_str(&content).with_context(|| "Failed to parse TOML configuration")?;
 
@@ -252,7 +249,6 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let config_path = dir.path().join("config.toml");
 
-        // Create an empty config file
         fs::write(&config_path, "").unwrap();
 
         let config_path = config_path.to_path_buf();
@@ -268,7 +264,7 @@ mod tests {
                 ema_alpha: default_ema_alpha_cpu(),
             },
             gpu: GpuConfig {
-                threshold: default_gpu_usage(),
+                threshold: default_gpu_threshold(),
                 ema_alpha: default_ema_alpha_gpu(),
             },
             network: NetworkConfig {
@@ -285,14 +281,14 @@ mod tests {
         };
 
         assert_eq!(metrics.cpu.per_core_threshold, 80.0);
-        assert_eq!(metrics.cpu.total_threshold, 50.0);
-        assert_eq!(metrics.gpu.threshold, 90.0);
-        assert_eq!(metrics.network.threshold, 100.0);
-        assert_eq!(metrics.disk.threshold, 50.0);
-        assert_eq!(metrics.cpu.ema_alpha, 0.3);
-        assert_eq!(metrics.gpu.ema_alpha, 0.3);
-        assert_eq!(metrics.network.ema_alpha, 0.2);
-        assert_eq!(metrics.disk.ema_alpha, 0.2);
+        assert_eq!(metrics.cpu.total_threshold, 25.0);
+        assert_eq!(metrics.gpu.threshold, 15.0);
+        assert_eq!(metrics.network.threshold, 10.0);
+        assert_eq!(metrics.disk.threshold, 10.0);
+        assert_eq!(metrics.cpu.ema_alpha, 0.7);
+        assert_eq!(metrics.gpu.ema_alpha, 0.7);
+        assert_eq!(metrics.network.ema_alpha, 0.5);
+        assert_eq!(metrics.disk.ema_alpha, 0.5);
     }
 
     #[test]
