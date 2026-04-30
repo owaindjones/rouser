@@ -367,17 +367,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download all release tarballs for PKGBUILD source URLs
-        run: |
-          mkdir -p dist-tarballs/
+      - name: Download x86_64 release tarball for PKGBUILD checksum generation
+        uses: actions/download-artifact@v4
+        with:
+          name: rouser-release-x86_64-linux
+          path: dist-tarballs/x86_64/
 
-      - name: Generate PKGBUILD
+      - name: Download aarch64 release tarball for PKGBUILD checksum generation
+        uses: actions/download-artifact@v4
+        with:
+          name: rouser-release-aarch64-linux
+          path: dist-tarballs/aarch64/
+
+      - name: Generate PKGBUILD from local artifacts
         env:
           VERSION: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           chmod +x .github/scripts/pkgbuild.sh
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
-          .github/scripts/pkgbuild.sh generate PKGBUILD "$RPM_VERSION"
+          X86_64_TARBALL="dist-tarballs/x86_64/rouser-v${RPM_VERSION}-linux-x86_64.tar.gz"
+          AARCH64_TARBALL="dist-tarballs/aarch64/rouser-v${RPM_VERSION}-linux-aarch64.tar.gz"
+          .github/scripts/pkgbuild.sh generate PKGBUILD "$RPM_VERSION" \
+            --x86_64-tarball "$X86_64_TARBALL" \
+            --aarch64-tarball "$AARCH64_TARBALL"
 
       - name: Create Arch source archive artifact
         env:
