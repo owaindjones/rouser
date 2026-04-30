@@ -219,7 +219,7 @@ All `uses:` references are pinned to immutable commit SHAs. The following table 
 | dtolnay/rust-toolchain | `@29eef336d9b2848a0b548edc03f92a220660cdb8` | stable (branch HEAD) | Immutable branch reference; CI installs cross-compilation targets at this SHA. Branch can move — verify against `stable` tag before updating. |
 | Swatinem/rust-cache | `@cf9339e04bb8069e37c71ff4a0e6a970f35d6f7d` | v2.7.0 | Cache keys use static strings or matrix values only — no user input in key derivation |
 | taiki-e/install-action (v2) | `@7769b73c2ec98c38dfcf2e18c83cfd4880c038c1` | v2 | Used for zizmor, cargo-audit, and cross toolchain installation |
-| taiki-e/install-action (git-cliff) | `@da05eb556833b50ca7fb270969753095bcb9d5ad` | latest | Tool-name reference for git-cliff; uses `version: "latest"` so always fetches newest release |
+| taiki-e/install-action (git-cliff) | `@v2` | v2 | Renovate manages SHA digest updates via `helpers:pinGitHubActionDigestsToSemver`; tool specified explicitly as `tool: git-cliff` |
 | actions/upload-artifact | `@ea165f8d65b6e75b540449e92b4886f43607fa02` | v4.6.2 | Release artifact uploads with scoped write permissions per job |
 | actions/download-artifact | `@d3f86a106a0bac45b974a628896c90dbdf5c8093` | v4.3.0 | Downloads CI artifacts for packaging jobs; patterns are deterministic |
 
@@ -233,37 +233,14 @@ curl -sf "https://api.github.com/repos/OWNER/REPO/git/ref/tags/TAG" \
 
 Document any new pinning in this table and add a comment on the `uses:` line matching the format above.
 
-### Automated Action Update Strategy (Renovate + Dependabot)
+### Automated Dependency Updates
 
-GitHub Actions are a supply-chain attack surface — the [Palo Alto Networks Unit 42 worm](https://unit42.paloaltonetworks.com/github-repo-takeover-malicious-github-actions/) demonstrated how compromised actions can inject code into thousands of downstream repos. Pinning to immutable SHAs mitigates tag hijacking, but requires manual updates when action authors release new versions. Two tools automate this safely:
+Both GitHub Actions dependencies and Rust crate dependencies are updated automatically via scheduled dependency bots:
 
-**Renovate (recommended)** — Supports automatic digest pinning with version comment preservation via the `helpers:pinGitHubActionDigestsToSemver` preset. When enabled in `.github/renovate.json`:
+- **Renovate** (`.github/renovate.json`) — Maintains SHA pinning for all `uses:` references in workflow files via the `helpers:pinGitHubActionDigestsToSemver` preset. Opens PRs when pinned SHAs need updating to match latest version tags, preserving version comments and including release notes for review.
+- **Dependabot** (`.github/dependabot.yml`) — Monitors `Cargo.toml` and GitHub Actions references on a weekly schedule. Opens PRs for Rust dependency bumps (`actions/checkout@v4` → `@v4.x.y`).
 
-```json
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "helpers:pinGitHubActionDigestsToSemver"
-  ]
-}
-```
-
-Renovate will automatically open PRs whenever the pinned version tag (e.g., `# v4.3.1` in a comment) moves to point at a newer commit SHA. It preserves the version comment format, updates the full SHA digest accordingly, and includes release notes in the PR body for review. This is the most complete solution — it handles both initial pinning of bare tags and ongoing digest maintenance.
-
-**Dependabot (built-in)** — GitHub's native dependency updater supports `github-actions` as a package ecosystem. Configure in `.github/dependabot.yml`:
-
-```yaml
-version: 2
-updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-```
-
-Dependabot monitors `uses:` references against action release tags and opens PRs for version bumps. **Note**: Dependabot updates the tag reference (e.g., `@v4` → `@v4.x.y`) but does NOT automatically pin to commit SHAs. To combine Dependabot's convenience with SHA pinning, use it alongside a manual review process or pair it with Renovate's digest mode for existing pinned references.
-
-**Recommendation**: Use both — Dependabot for version bump PRs (e.g., `actions/checkout@v4` → `actions/checkout@v4.3.2`) and Renovate for SHA pinning maintenance on workflows that already use full commit SHAs. Renovate's digest updates run independently of version bumps, so they complement rather than conflict with Dependabot.
+Together they cover all update surfaces: Renovate handles digest maintenance for already-pinned workflow actions; Dependabot handles version bump PRs for both Rust crates and action tags.
 
 ### Artifact Verification
 
