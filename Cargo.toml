@@ -18,7 +18,7 @@ zbus = "4"
 dbus = "0.9.7"
 
 # TOML configuration parsing (pure Rust, secure)
-toml = "0.8"
+toml = "1.1"
 
 # Logging and tracing
 tracing = "0.1"
