@@ -159,9 +159,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          
-          git-cliff --config cliff.toml --verbose > RELEASE_NOTES.md
-          
+
+          # Compute commit range between previous tag and HEAD to avoid accumulating changelogs.
+          # git rev-list --tags lists tagged commits; --skip=1 skips the current (most recent) tag.
+          PREV_TAG=$(git describe --tags --abbrev=0 $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            git-cliff --config cliff.toml "${PREV_TAG}..HEAD" > RELEASE_NOTES.md
+          else
+            # First release — no previous tag exists; include all commits.
+            git-cliff --config cliff.toml > RELEASE_NOTES.md
+          fi
+
           # Create or update release (gh handles existing releases gracefully)
           gh release create "v${VERSION}" \
             --title "v${VERSION}" \
