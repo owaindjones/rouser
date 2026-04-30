@@ -1,0 +1,1426 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>rouser - Agent Guidelines - rouser</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rouser-agent-guidelines" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="rouser" class="md-header__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rouser
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              rouser - Agent Guidelines
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="rouser" class="md-nav__button md-logo" aria-label="rouser" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rouser
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/owaindjones/rouser" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    owaindjones/rouser
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="configuration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systemd-user-service.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systemd User Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metrics-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="averaging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Averaging & EMA Smoothing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="d-bus-inhibition.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D-Bus Inhibition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-guide.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ci-workflow.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Principles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Principles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent-specific-rules-do-not-apply-to-human-developers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent-Specific Rules (do NOT apply to human developers)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#versioning-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versioning Policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Versioning Policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#version-bump-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version Bump Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version-management-in-cargotoml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version Management in Cargo.toml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#git-tagging-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Git Tagging Convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binary-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary Artifacts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#git-commit-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Git Commit Conventions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Git Commit Conventions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scope-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope Guidelines
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#async-tokio-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async / Tokio Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#xdg-base-directory-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XDG Base Directory Compliance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics-collection-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics Collection Conventions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Metrics Collection Conventions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#per-device-reporting-over-aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-device reporting over aggregation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpu-metrics-data-sources-by-vendor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GPU metrics — data sources by vendor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-structure-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Structure Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-ci-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; CI Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lessons Learned
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lessons Learned">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nvml-library-loading-is-dynamic-handle-initialization-failures-gracefully" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NVML Library Loading Is Dynamic — Handle Initialization Failures Gracefully
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pci-bus-id-format-mismatch-between-nvml-and-sysfs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PCI Bus ID Format Mismatch Between NVML and Sysfs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#driver-detection-must-cover-all-vendors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Driver Detection Must Cover All Vendors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-qa-with-debug-logging-on-real-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual QA with Debug Logging on Real Hardware
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fail-fast-with-diagnostics-for-gpu-collection-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fail-Fast with Diagnostics for GPU Collection Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deprecated-freedesktop-powermanagement-api-must-not-be-used" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecated FreeDesktop PowerManagement API Must Not Be Used
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configrousertoml-is-the-source-of-truth-for-all-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config/rouser.toml Is the Source of Truth for All Defaults
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-bus-inhibition-sleep-vs-shutdownidle-in-inhibitorwhat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D-Bus Inhibition: "sleep" vs "shutdown:idle" in [inhibitor].what
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependency-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cicd-pipeline-debugging-with-github-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI/CD Pipeline Debugging with GitHub API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CI/CD Pipeline Debugging with GitHub API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#workflow-runs-check-status-of-recent-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow Runs — Check Status of Recent Runs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jobs-within-a-run-see-which-specific-jobstep-failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs Within a Run — See Which Specific Job/Step Failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#release-assets-verify-whats-actually-on-a-release-after-ci-completes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release Assets — Verify What's Actually on a Release After CI Completes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-this-works-better-than-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why This Works Better Than Alternatives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#practical-debugging-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical Debugging Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-pitfalls-when-debugging-ci-with-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Pitfalls When Debugging CI with Agents
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rouser-agent-guidelines">rouser - Agent Guidelines</h1>
+<p>These guidelines are specific to <strong>AI/LLM agents</strong> working on this codebase. Human developers should follow <a href="CONTRIBUTING.html">CONTRIBUTING.md</a>.</p>
+<h2 id="core-principles">Core Principles</h2>
+<ul>
+<li><strong>Read CONTRIBUTING.md first</strong>: Before making changes, read <a href="CONTRIBUTING.html">CONTRIBUTING.md</a> for coding standards, testing conventions, and documentation sync rules that apply to all contributors (agents included). AGENTS.md covers agent-specific behavior; CONTRIBUTING.md covers everything else.</li>
+<li><strong>Build before committing</strong>: The code MUST compile (<code>cargo build</code>), pass all tests (<code>cargo test --all-targets</code>), and be clean under clippy (<code>cargo clippy --all-targets -- -D warnings</code>) before any git commit. Never ship broken code. Always match CI commands exactly — <code>--all-targets</code> includes test targets which may have lint warnings not visible otherwise.</li>
+<li><strong>Conventional commits</strong>: All git commit messages follow <a href="https://www.conventionalcommits.org/">Conventional Commits</a> format: <code>type(scope): description</code>. See section below.</li>
+<li><strong>Commit frequently when stable</strong>: Make atomic, logical commits whenever the codebase is in a working state (builds, tests pass). Do not batch unrelated changes into a single commit. Each commit should represent one coherent unit of change.</li>
+<li><strong>Before every commit</strong>, ensure all changed files are in a good state — no half-written code, incomplete docs, or skipped tests. Code must at minimum compile before committing; full functionality is ideal but a working build is the absolute floor.</li>
+<li><strong>Upon finishing each task</strong>, immediately commit all changes with a descriptive message. Do not defer commits across tasks.</li>
+<li>For larger units of work (major refactoring, big new feature), split into small, manageable commits rather than one massive commit to preserve history granularity and make rollbacks easier.</li>
+<li><strong>Follow existing patterns first</strong>: Before proposing new patterns or structures, search for and follow established conventions in the codebase. When in doubt, match what's already there.</li>
+<li><strong>Graceful degradation over panics</strong>: Metric collectors return <code>Result</code> types and fall back to zero values on failure. The daemon continues operating even when individual metrics are unavailable.</li>
+</ul>
+<h3 id="agent-specific-rules-do-not-apply-to-human-developers">Agent-Specific Rules (do NOT apply to human developers)</h3>
+<ul>
+<li><strong>No background tasks</strong>: All work must be performed by subagents or in the foreground. Background tasks are not allowed because they often time out or exhaust the context window before completing.</li>
+<li><strong>Sequential workers only (foreground)</strong>: Delegating to subagents is allowed, but ONLY one at a time with <code>run_in_background=false</code> (synchronous mode). Never run multiple agents concurrently — always wait for each worker to finish before spawning the next. This ensures agent output is available in-session and prevents context loss from timed-out background tasks.</li>
+<li><strong>Never introduce <code>unsafe</code> code without explicit instruction</strong>: Do not add <code>unsafe {}</code> blocks, FFI bindings, or pointer operations unless the user explicitly requests it with a clear justification. Rust's safety guarantees are a primary design goal of this project.</li>
+<li><strong>Preserve CI/CD least-privilege permissions</strong>: When editing GitHub Actions workflows, never widen existing permission scopes. Always use job-level <code>permissions:</code> blocks — never workflow-level broad grants like <code>permissions: contents: write</code>. Each job should have only the minimum permissions it requires (<code>contents: read</code> for linting/testing jobs).</li>
+<li><strong>Never weaken dependency pinning in CI</strong>: When modifying workflow actions references, prefer immutable commit SHAs over mutable tags. If a tag is used (e.g., <code>@v4</code>), document the SHA version in code comments or security docs so reviewers can verify it matches an expected release.</li>
+<li><strong>Validate all external input</strong>: Any file path, environment variable, CLI argument, or config value that originates outside the program must be validated before use. Never assume user-provided values are safe — apply bounds checks for numeric ranges and whitelist validation for string enums.</li>
+<li><strong>Follow docs/security.md patterns</strong>: Read <code>docs/security.md</code> before making changes to CI workflows, packaging scripts, install scripts, or security-related code. Reference it when explaining why a particular pattern is used (e.g., TOCTOU avoidance in temp file handling).</li>
+</ul>
+<h2 id="versioning-policy">Versioning Policy</h2>
+<ul>
+<li><strong>Semantic Versioning (SemVer)</strong> is strictly enforced. All version bumps follow <code>MAJOR.MINOR.PATCH</code> format per <a href="https://semver.org/">semver.org</a>.</li>
+<li><strong>Pre-release rule</strong>: Until first stable release, only patch-level changes are expected between minor releases.</li>
+<li><code>v0.0.1</code>, <code>v0.0.2</code>... — bug fixes and minor improvements while pre-1.0</li>
+<li><code>v0.1.0</code> — first feature release (when ready)</li>
+<li><code>vX.Y.Z</code> post-1.0: MAJOR for breaking changes, MINOR for new features, PATCH for bugfixes</li>
+</ul>
+<h3 id="version-bump-rules">Version Bump Rules</h3>
+<table>
+<thead>
+<tr>
+<th>Change Type</th>
+<th>Version Bump</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Breaking API change (config format, CLI args)</td>
+<td>MAJOR or MINOR (pre-1.0: MINOR)</td>
+<td><code>v0.1.0 → v0.2.0</code></td>
+</tr>
+<tr>
+<td>New feature / capability</td>
+<td>MINOR (pre-1.0: minor patch)</td>
+<td><code>v0.0.3 → v0.0.4</code></td>
+</tr>
+<tr>
+<td>Bug fix, no behavior change</td>
+<td>PATCH</td>
+<td><code>v0.0.4 → v0.0.5</code></td>
+</tr>
+<tr>
+<td>CI/CD, packaging, docs-only</td>
+<td>No version bump needed (unless it affects user-visible behavior)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="version-management-in-cargotoml">Version Management in Cargo.toml</h3>
+<ul>
+<li>Update <code>[package] version = "..."</code> before any release tag.</li>
+<li>Never commit a version bump without an associated release PR or explicit user request.</li>
+<li>The <code>--version</code> flag is derived from Cargo.toml by clap's automatic version handling — no manual sync needed.</li>
+</ul>
+<h3 id="git-tagging-convention">Git Tagging Convention</h3>
+<ul>
+<li>Pre-release: <code>v0.0.X</code> (e.g., <code>git tag -a v0.0.1 -m "Patch: fix config path resolution"</code>)</li>
+<li>Release candidates: <code>v0.1.0-rc.1</code>, etc.</li>
+<li>Stable releases: <code>vX.Y.Z</code> with annotated tags and release notes</li>
+</ul>
+<p><strong>Never release without explicit user instruction.</strong> If the user asks to release, bump version first, then tag, then create GitHub release.</p>
+<h2 id="binary-artifacts">Binary Artifacts</h2>
+<ul>
+<li><strong>Never copy the compiled <code>rouser</code> binary</strong> into the repo root or any tracked directory. The <code>.gitignore</code> already covers <code>/target/</code>; do not create standalone copies like <code>cp target/debug/rouser rouser</code>.</li>
+<li>Run binaries directly from their build output: <code>./target/debug/rouser</code> for debug, <code>./target/release/rouser</code> for release builds.</li>
+<li>Never commit binary artifacts (compiled executables, <code>.rlib</code>, etc.) to git.</li>
+</ul>
+<h2 id="git-commit-conventions">Git Commit Conventions</h2>
+<h3 id="format">Format</h3>
+<pre><code>type(scope): description
+
+[optional body explaining why]
+</code></pre>
+<p><strong>Rules:</strong>
+- Lowercase subject line (after the scope colon)
+- No period at end of subject line
+- Subject line max 72 characters
+- Body wraps at 72 characters
+- Use imperative mood: "add feature", not "added" or "adds"</p>
+<h3 id="types">Types</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>When to use</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>feat</code></td>
+<td>New functionality</td>
+<td><code>feat(gpu): add per-device GPU reporting</code></td>
+</tr>
+<tr>
+<td><code>fix</code></td>
+<td>Bug fixes restoring expected behavior</td>
+<td><code>fix(service): correct log level parsing</code></td>
+</tr>
+<tr>
+<td><code>refactor</code></td>
+<td>Code changes with no external behavior change</td>
+<td><code>refactor(gpu): restructure collection methods</code></td>
+</tr>
+<tr>
+<td><code>test</code></td>
+<td>Adding or modifying tests only</td>
+<td><code>test(service): add EMA convergence tests</code></td>
+</tr>
+<tr>
+<td><code>docs</code></td>
+<td>Documentation-only changes</td>
+<td><code>docs(readme): update GPU monitoring section</code></td>
+</tr>
+<tr>
+<td><code>chore</code></td>
+<td>Build/config/tooling changes that don't affect source code</td>
+<td><code>chore(deps): bump toml to 0.8</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="scope-guidelines">Scope Guidelines</h3>
+<p>Use the affected module as scope: <code>service</code>, <code>config</code>, <code>gpu</code>, <code>cpu</code>, <code>network</code>, <code>disk</code>, <code>inhibit</code>, or omit for cross-cutting changes.</p>
+<h2 id="logging-conventions">Logging Conventions</h2>
+<ul>
+<li>Use the <code>tracing</code> crate (<code>debug!</code>, <code>info!</code>, <code>warn!</code>, <code>error!</code> macros).</li>
+<li><strong>State-change-only logging</strong>: When tracking persistent states (inhibition, connection status), only emit INFO logs on actual state transitions. Do not log every polling cycle when state is unchanged. Track previous state and compare at the end of each tick/loop iteration.</li>
+</ul>
+<h2 id="error-handling-conventions">Error Handling Conventions</h2>
+<ul>
+<li>Use <code>thiserror</code> for library-facing error types with descriptive variants.</li>
+<li>Use <code>anyhow::Result&lt;T&gt;</code> for binary-level entry points (<code>main.rs</code>).</li>
+<li>Metric collectors return <code>Result&lt;value, CollectorError&gt;</code> — callers handle errors gracefully (fallback to zero).</li>
+<li>Never silently swallow errors: log them at minimum via <code>warn!</code> or <code>error!</code>.</li>
+</ul>
+<h2 id="async-tokio-conventions">Async / Tokio Conventions</h2>
+<ul>
+<li>All I/O-bound operations are async; CPU-bound work should be spawned blocking (<code>tokio::task::spawn_blocking</code>).</li>
+<li>Use <code>tokio::time::sleep</code> for polling intervals, never blocking <code>std::thread::sleep</code> in async contexts.</li>
+<li>The main loop uses <code>tokio::select!</code> for shutdown signal handling.</li>
+</ul>
+<h2 id="configuration-conventions">Configuration Conventions</h2>
+<ul>
+<li>TOML format via the <code>toml</code> crate with serde derive macros.</li>
+<li>All config values have sensible defaults defined as <code>fn default_*() -&gt; T</code> helper functions.</li>
+<li>Optional fields use <code>#[serde(default)]</code>; required overrides use <code>#[serde(default = "default_fn")]</code>.</li>
+<li>Duration parsing uses <code>humantime_serde</code> for human-readable format (e.g., <code>"5s"</code>, <code>"30m"</code>).</li>
+</ul>
+<h2 id="xdg-base-directory-compliance">XDG Base Directory Compliance</h2>
+<p>All file paths on disk must conform to the <a href="https://specifications.freedesktop.org/basedir-spec/">XDG Base Directory Specification</a>:</p>
+<ul>
+<li><strong>User binaries</strong>: <code>${XDG_BIN_HOME:-$HOME/.local/bin}</code> — use shell expansion pattern <code>"${XDG_BIN_HOME:-$HOME/.local/bin}/binary_name"</code> in install scripts and systemd service files.</li>
+<li><strong>User configs</strong>: <code>${XDG_CONFIG_HOME:-$HOME/.config}</code> — config directories are created under this path with fallback to <code>$HOME/.config</code> when the variable is unset.</li>
+<li><strong>System-level overrides</strong> (root): <code>/etc/rouser/config.toml</code> for system-wide defaults, written on first run if rouser runs as root and no user config exists.</li>
+</ul>
+<p>Never hardcode <code>~/.local/bin/</code> or <code>~/.config/</code>. Always use the shell expansion pattern with a fallback: <code>"${XDG_BIN_HOME:-$HOME/.local/bin}"</code> (not <code>${XDG_DATA_HOME}../bin}</code> — that is missing the <code>/</code> between <code>$XDG_DATA_HOME</code> and <code>..</code>, producing invalid paths like <code>share../bin</code>).</p>
+<h2 id="metrics-collection-conventions">Metrics Collection Conventions</h2>
+<h3 id="per-device-reporting-over-aggregation">Per-device reporting over aggregation</h3>
+<p>Each physical device should be reported individually. Aggregation across devices happens at the threshold-checking layer, not during collection. This enables:
+- Accurate per-GPU logging (<code>card0(nvidia): 45.2%, card1(amdgpu): 78.1%</code>)
+- Per-device EMA smoothing for stable readings
+- Better diagnostics when one device is anomalous</p>
+<h3 id="gpu-metrics-data-sources-by-vendor">GPU metrics — data sources by vendor</h3>
+<table>
+<thead>
+<tr>
+<th>Vendor</th>
+<th>Data source</th>
+<th>Device identification</th>
+<th>Driver detection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NVIDIA</td>
+<td>NVML library (<code>libnvidia-ml.so</code>) via <code>nvml-wrapper</code> crate</td>
+<td>Matched to sysfs card via PCI bus ID from uevent file → <code>"cardN"</code></td>
+<td>Always <code>"nvidia"</code> (NVML implies proprietary driver)</td>
+</tr>
+<tr>
+<td>AMD</td>
+<td><code>/sys/class/drm/cardN/device/gpu_busy_percent</code></td>
+<td>Sysfs card path (<code>card0</code>, <code>card1</code>)</td>
+<td>Symlink at <code>device/driver</code> target</td>
+</tr>
+<tr>
+<td>Intel</td>
+<td>Same sysfs path as AMD</td>
+<td>Sysfs card path</td>
+<td>Symlink: <code>i915</code> or <code>xe</code> driver</td>
+</tr>
+</tbody>
+</table>
+<p><strong>GpuData struct fields:</strong>
+- <code>device_id: String</code> — human-readable device identifier (e.g., <code>"card0"</code>, <code>"card1"</code>)
+- <code>driver_name: String</code> — kernel driver name (e.g., <code>"nvidia"</code>, <code>"amdgpu"</code>, <code>"i915"</code>, <code>"xe"</code>, <code>"unknown"</code>)
+- <code>usage: f64</code> — utilization percentage (0.0–100.0)</p>
+<p><strong>NVIDIA NVML approach:</strong> NVIDIA GPU monitoring uses the NVML library (<code>libnvidia-ml.so</code>) loaded dynamically at runtime via the <code>nvml-wrapper</code> Rust crate. The same API is used by <code>nvidia-smi</code>, nvtop, and other NVIDIA tools. Device enumeration uses <code>device_by_index()</code>, matching to sysfs cards via PCI bus ID comparison between NVML's <code>pci_info.bus_id</code> and <code>/sys/class/drm/cardN/device/uevent</code> (<code>PCI_SLOT_NAME</code>). This eliminates subprocess spawning overhead entirely.</p>
+<h2 id="code-structure-conventions">Code Structure Conventions</h2>
+<pre><code>src/
+├── main.rs          # CLI entry point, clap args, dry-run/daemon modes
+├── lib.rs           # Public module re-exports
+├── config.rs        # Config structs + ConfigLoader (TOML parsing)
+├── service.rs       # DataService/DataManager core loop, threshold checking, EMA smoothing
+├── inhibit.rs       # D-Bus sleep inhibition via zbus v4
+└── metrics/
+    ├── mod.rs       # Metrics struct + module re-exports
+    ├── cpu.rs       # /proc/stat CPU collection
+    ├── gpu.rs       # NVML (NVIDIA via nvml-wrapper) + sysfs (AMD/Intel) GPU collection
+    ├── network.rs   # /proc/net/dev network I/O
+    └── disk.rs      # /proc/diskstats disk activity
+</code></pre>
+<h2 id="testing-conventions">Testing Conventions</h2>
+<ul>
+<li>Unit tests in the same file under <code>#[cfg(test)] mod tests { ... }</code> modules.</li>
+<li>Test function names follow: <code>test_&lt;module&gt;_&lt;scenario&gt;_expected_behavior</code>.</li>
+<li>Run full test suite before any commit: <code>cargo test --all-targets</code>.</li>
+<li>Mock external I/O where possible (file paths, command outputs).</li>
+</ul>
+<h2 id="build-ci-checklist">Build &amp; CI Checklist</h2>
+<p>Before merging or releasing, verify all of the following pass:</p>
+<pre><code class="language-bash">cargo fmt --check          # Code formatting
+cargo clippy --all-targets -- -D warnings  # Lint check (must match CI exactly — includes test code)
+cargo test --all-targets   # Unit tests (must match CI exactly — includes test targets)
+cargo build --release      # Release build succeeds
+cargo doc --no-deps        # Documentation compiles (if public API changed)
+</code></pre>
+<h2 id="lessons-learned">Lessons Learned</h2>
+<h3 id="nvml-library-loading-is-dynamic-handle-initialization-failures-gracefully">NVML Library Loading Is Dynamic — Handle Initialization Failures Gracefully</h3>
+<p>The <code>nvml-wrapper</code> crate dynamically loads <code>libnvidia-ml.so</code> at runtime. On systems without NVIDIA drivers, <code>Nvml::init()</code> returns an error rather than panicking. Always check the result and fall back gracefully (e.g., return 0% utilization) instead of failing the entire metrics collection. NVML initialization is thread-safe — calling it multiple times reuses the same loaded library instance internally.</p>
+<h3 id="pci-bus-id-format-mismatch-between-nvml-and-sysfs">PCI Bus ID Format Mismatch Between NVML and Sysfs</h3>
+<p>NVML reports bus IDs in 8-digit domain format (<code>"00000000:09:00.0"</code>) while sysfs uevent files use 4-digit domain format (<code>"0000:09:00.0"</code>). When matching NVML devices to sysfs cards, always check if the shorter sysfs PCI slot is a substring of the NVML bus ID rather than requiring exact string equality.</p>
+<h3 id="driver-detection-must-cover-all-vendors">Driver Detection Must Cover All Vendors</h3>
+<p>Driver detection functions must recognize ALL driver types present on target systems, including proprietary drivers like <code>"nvidia"</code> and <code>"nouveau"</code>. If a card's driver isn't recognized, it falls through to <code>"unknown"</code> which breaks the skip logic in collectors — NVIDIA cards may appear as duplicate entries or be silently dropped.</p>
+<h3 id="manual-qa-with-debug-logging-on-real-hardware">Manual QA with Debug Logging on Real Hardware</h3>
+<p>Unit tests cannot verify actual GPU detection or real hardware interaction. Always run <code>RUST_LOG=debug ./target/debug/rouser --config &lt;path&gt; --dry-run</code> to see what collectors actually produce before considering a change complete. This catches NVML initialization failures, PCI matching issues, and sysfs path problems that unit tests miss.</p>
+<h3 id="fail-fast-with-diagnostics-for-gpu-collection-failures">Fail-Fast with Diagnostics for GPU Collection Failures</h3>
+<p>When NVML is available but returns zero utilization results while hardware exists in sysfs, log a <code>warn!</code> message rather than silently returning empty data. This helps operators distinguish between "no GPUs" and "GPU monitoring tool failed." Keep sysfs as the canonical device enumeration source — NVML devices are matched to sysfs cards by PCI bus ID, not vice versa.</p>
+<h3 id="deprecated-freedesktop-powermanagement-api-must-not-be-used">Deprecated FreeDesktop PowerManagement API Must Not Be Used</h3>
+<p>The old <code>/org/freedesktop/PowerManagement.Inhibit</code> API is obsolete (deprecated ~2014) and must not be referenced as a viable approach. Always use <code>org.freedesktop.login1.Manager.Inhibit</code>. Document why deprecated approaches were abandoned in AGENTS.MD so future agents don't revisit dead ends.</p>
+<h3 id="configrousertoml-is-the-source-of-truth-for-all-defaults">config/rouser.toml Is the Source of Truth for All Defaults</h3>
+<p><code>config/rouser.toml</code> is the single source of truth for all configuration defaults — not <code>src/config.rs</code>, not documentation, not code comments. When updating default values:</p>
+<ol>
+<li><strong>Always update <code>config/rouser.toml</code> first</strong> with the new default value</li>
+<li>Then update <code>src/config.rs</code> to match (default helper functions like <code>default_ema_alpha_cpu()</code>)</li>
+<li>Then update all documentation (<code>docs/configuration.md</code>, <code>docs/metrics-overview.md</code>, etc.)</li>
+</ol>
+<p>The code defaults in <code>config/rouser.toml</code> are embedded at compile time via <code>include_str!()</code> and served as both the shipped config file AND the binary's built-in fallback. Never change a default value without updating all three locations simultaneously.</p>
+<h3 id="d-bus-inhibition-sleep-vs-shutdownidle-in-inhibitorwhat">D-Bus Inhibition: "sleep" vs "shutdown:idle" in <code>[inhibitor].what</code></h3>
+<p>The <code>what</code> parameter controls which operations rouser inhibits. Two reasonable defaults exist for different deployment profiles:</p>
+<ul>
+<li><strong><code>"sleep"</code></strong> (simple) — Good for headless servers and traditional daemon deployments. Blocks sleep/hibernate but does not interfere with desktop environment idle timers or shutdown delays.</li>
+<li><strong><code>"shutdown:idle"</code></strong> (conservative, current default) — Better for workstations/home-labs running DEs like KDE/GNOME. Prevents the system from entering any powered-off or suspended state while metrics are active.</li>
+</ul>
+<p>Observed behavior on KDE: <code>"sleep"</code> alone may cause KDE to never automatically sleep after inhibition is released, as it interprets the lock as a persistent "don't touch my power management" signal. Conversely, <code>"shutdown:idle"</code> lets KDE respect its configured idle delay — if set to 15 minutes, KDE will put the system to sleep 15 minutes after rouser releases its locks.</p>
+<p>When writing docs or examples about inhibition behavior, document this difference explicitly so users understand why their DE reacts differently to each option. The default in <code>config/rouser.toml</code> is <code>"shutdown:idle"</code>.</p>
+<h2 id="dependency-policy">Dependency Policy</h2>
+<ul>
+<li>Prefer stdlib and crate ecosystem over external binary dependencies where possible.</li>
+<li>For hardware-specific access (NVIDIA GPUs), use the NVML library (<code>libnvidia-ml.so</code>) loaded dynamically at runtime via <code>nvml-wrapper</code> — no separate binary dependency required since it ships with NVIDIA drivers alongside nvidia-smi itself.</li>
+<li>When adding a new dependency: justify in the commit message, prefer widely-packaged crates, avoid unmaintained crates.</li>
+<li>Current external dependencies: <code>libnvidia-ml.so</code> (NVIDIA proprietary drivers only, loaded dynamically at runtime), no separate binary dependencies.</li>
+</ul>
+<h2 id="cicd-pipeline-debugging-with-github-api">CI/CD Pipeline Debugging with GitHub API</h2>
+<p>When debugging failing CI pipelines in-session, the GitHub REST API provides faster diagnostics than waiting for the GHA web UI or trying to read step-level logs programmatically. This is especially valuable when working with agents in the loop where context window and time are limited.</p>
+<h3 id="workflow-runs-check-status-of-recent-runs">Workflow Runs — Check Status of Recent Runs</h3>
+<pre><code class="language-bash"># Get latest 5 workflow runs across all workflows (use ?workflow_id=X for specific)
+gh api repos/{owner}/{repo}/actions/runs?per_page=5 \
+  | jq -r '.workflow_runs[] | &quot;Run \(.id) | event:\(.event) | status:\(.status)/\(.conclusion) | sha:\(.head_sha[0:7])&quot;'
+</code></pre>
+<h3 id="jobs-within-a-run-see-which-specific-jobstep-failed">Jobs Within a Run — See Which Specific Job/Step Failed</h3>
+<pre><code class="language-bash"># Get all jobs for a specific run (replace RUN_ID from above)
+gh api repos/{owner}/{repo}/actions/runs/RUN_ID/jobs?per_page=100 \
+  | jq -r '.jobs[] | &quot;\(.conclusion): \(.name)&quot;' | sort
+</code></pre>
+<h3 id="release-assets-verify-whats-actually-on-a-release-after-ci-completes">Release Assets — Verify What's Actually on a Release After CI Completes</h3>
+<pre><code class="language-bash">gh api repos/{owner}/{repo}/releases?per_page=10 \
+  | jq -r '.[] | select(.tag_name == &quot;vX.Y.Z&quot;) | .assets[].name'
+</code></pre>
+<h3 id="why-this-works-better-than-alternatives">Why This Works Better Than Alternatives</h3>
+<ul>
+<li><strong>GHA web UI</strong>: Requires manual browser interaction; no API access for step-level log contents (step <code>logs_url</code> returns falsy in API responses even when logs exist).</li>
+<li><strong>Step-level logs</strong>: The GitHub Actions API does not expose per-step log URLs via <code>/jobs</code> or <code>/runs/{id}/attempts/1/jobs</code> endpoints without additional authentication headers that are often unavailable to agent sessions. Use run-level job summaries (<code>conclusion</code> field) instead — if a specific step fails but the overall job shows <code>success</code>, check for conditional steps that may have errored silently (e.g., upload scripts with non-zero exit codes caught by shell error handling).</li>
+<li><strong>Wait time</strong>: API calls return immediately; waiting for GHA UI to update can take 5–10 minutes after a tag push.</li>
+</ul>
+<h3 id="practical-debugging-flow">Practical Debugging Flow</h3>
+<pre><code class="language-bash"># 1. Push tag → wait ~30 seconds → check latest runs
+gh api repos/{owner}/{repo}/actions/runs?per_page=3 | jq -r '.workflow_runs[:2][] | &quot;\(.id): \(.status)/\(.conclusion)&quot;'
+
+# 2. Pick the newest run ID, list all jobs
+gh api repos/{owner}/{repo}/actions/runs/RUN_ID/jobs?per_page=100 \
+  | jq -r '.jobs[] | select(.conclusion != &quot;success&quot;) | &quot;\(.name): \(.conclusion)&quot;'
+
+# 3. Check release assets (if run was triggered by tag/release)
+gh api repos/{owner}/{repo}/releases?per_page=5 \
+  | jq -r 'map(select(.tag_name == &quot;vX.Y.Z&quot;))[0].assets[]?.name // empty' | sort
+
+# 4. If a job failed, visit the GHA web UI directly for step logs:
+echo &quot;https://github.com/{owner}/{repo}/actions/runs/RUN_ID&quot;
+</code></pre>
+<h3 id="common-pitfalls-when-debugging-ci-with-agents">Common Pitfalls When Debugging CI with Agents</h3>
+<ul>
+<li><strong>YAML indentation errors</strong>: A single-space indent instead of two spaces under <code>jobs:</code> causes silent parse failures that mask all real runtime errors. Validate YAML syntax before blaming script logic: <code>python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"</code>.</li>
+<li><strong>Missing <code>needs</code> dependencies</strong>: If a job references another via <code>needs: [foo]</code>, and <code>foo</code> is conditional (<code>if:</code>), the dependent job inherits that condition — it will skip if the dependency was skipped. Always verify both jobs have matching trigger conditions.</li>
+<li><strong>Container vs runner environment mismatch</strong>: Steps running in containers (e.g., <code>container: fedora:latest</code>) cannot access tools on the host runner (like <code>gh</code> CLI). Split containerized build steps from upload/CLI steps that run on <code>ubuntu-latest</code> without a container.</li>
+<li><strong>Artifact download path defaults to <code>.</code></strong>: When using <code>actions/download-artifact@v4</code>, always specify <code>path: some-dir/</code> explicitly, then move files with <code>mv some-dir/* .</code> before consuming them — default behavior may merge artifacts unpredictably.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

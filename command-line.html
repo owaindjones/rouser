@@ -274,41 +274,14 @@
   
   
     <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
+      <a href="installation.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quick Start
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quick Start
+    Installation
   
 
     
@@ -649,17 +622,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#missing-configuration-file-non-fatal" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing Configuration File (non-fatal)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#missing-gpu-libraries-non-fatal" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -676,13 +638,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#argument-precedence-for-config-resolution" class="md-nav__link">
+  <a href="#config-resolution-and-merging" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Argument Precedence for Config Resolution
+        Config Resolution and Merging
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Config Resolution and Merging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#auto-install-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-install Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1155,17 +1134,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#missing-configuration-file-non-fatal" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing Configuration File (non-fatal)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#missing-gpu-libraries-non-fatal" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1182,13 +1150,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#argument-precedence-for-config-resolution" class="md-nav__link">
+  <a href="#config-resolution-and-merging" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Argument Precedence for Config Resolution
+        Config Resolution and Merging
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Config Resolution and Merging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#auto-install-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-install Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1241,26 +1226,25 @@
 <tbody>
 <tr>
 <td><code>-c, --config &lt;CONFIG&gt;</code></td>
-<td>Path to configuration file (overrides all defaults)</td>
+<td>Path to a single configuration file (overrides merge behavior)</td>
 <td>—</td>
 </tr>
 </tbody>
 </table>
-<p>When no <code>--config</code> flag is provided, rouser searches sequentially for the first existing config file:</p>
+<p>By default, rouser loads and merges multiple config sources in priority order (lowest → highest):</p>
 <ol>
-<li><code>./config/rouser.toml</code> — repo-packaged default</li>
-<li><code>$HOME/.config/rouser/config.toml</code> — XDG user config</li>
-<li><code>/etc/rouser/config.toml</code> — system-wide config</li>
+<li><strong>Embedded defaults</strong> — compiled-in TOML from <code>config/rouser.toml</code></li>
+<li><code>/etc/rouser/config.toml</code> — system-wide user overrides</li>
+<li><code>$XDG_CONFIG_HOME/rouser/config.toml</code> or <code>~/.config/rouser/config.toml</code> — per-user overrides</li>
 </ol>
-<p>If none of these paths exist, rouser uses built-in defaults and logs a warning:</p>
-<pre><code>No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
-</code></pre>
+<p>When a specified config file path exists, its values override the embedded defaults (deep merge: nested tables are merged field-by-field). When it does not exist and rouser is running as root, the default config is automatically installed at <code>/etc/rouser/config.toml</code>. For non-root users, the default is auto-installed at <code>~/.config/rouser/config.toml</code>.</p>
+<p>When <code>--config</code> is explicitly provided, only that single file is loaded (no merging). This takes priority over all other config sources.</p>
 <p><strong>Examples</strong>:</p>
-<pre><code class="language-bash"># Use custom config path (takes priority over all defaults)
+<pre><code class="language-bash"># Use custom config path (single file, no merging)
 rouser --config /path/to/custom-config.toml
 rouser -c /etc/my-custom-rouser.toml
 
-# Let rouser search default paths sequentially
+# Auto-merge: embedded defaults + user/system overrides
 rouser
 </code></pre>
 <h3 id="validation">Validation</h3>
@@ -1379,21 +1363,21 @@ rouser --dry-run
 rouser --validate-config
 </code></pre>
 <h3 id="custom-configuration-paths">Custom Configuration Paths</h3>
-<pre><code class="language-bash"># Use repo-packaged default if present in current directory
-cp config/rouser.toml /tmp/test-dir/ &amp;&amp; cd /tmp/test-dir &amp;&amp; rouser
+<pre><code class="language-bash"># Use custom config (single file, no merging with defaults)
+rouser -c /etc/my-custom-rouser.toml
 
-# User-level XDG config (if it exists at ~/.config/rouser/config.toml)
+# Auto-merge: embedded defaults + system user overrides + per-user overrides
 rouser
 
-# System-wide override (must be created manually)
+# System-wide override (auto-installed if running as root on first start)
 sudo tee /etc/rouser/config.toml &gt; /dev/null &lt;&lt;EOF
 update_interval = &quot;10s&quot;
 log_level = &quot;warn&quot;
 ...
 EOF
-rouser  # will find and use /etc/rouser/config.toml
+rouser  # will merge with embedded defaults
 
-# Explicit path (always takes priority)
+# Explicit path (always takes priority, single file load)
 rouser -c /opt/custom/rouser-config.toml
 </code></pre>
 <h3 id="debugging-with-logging">Debugging with Logging</h3>
@@ -1472,24 +1456,26 @@ RUST_LOG=rouser::metrics=debug,rouser::service=warn rouser --dry-run
 <pre><code class="language-bash">rouser --validate-config /path/to/bad.toml
 # Output: Configuration validation failed: Failed to parse TOML configuration: expected `=`, found end-of-file at line 1 column 10
 </code></pre>
-<h3 id="missing-configuration-file-non-fatal">Missing Configuration File (non-fatal)</h3>
-<p>When no config file is found in any default path, rouser uses built-in defaults with a warning:</p>
-<pre><code class="language-bash">rouser --dry-run -l debug
-# Output includes: No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
-</code></pre>
 <h3 id="missing-gpu-libraries-non-fatal">Missing GPU Libraries (non-fatal)</h3>
 <p>When NVML (<code>libnvidia-ml.so</code>) is not available but NVIDIA hardware exists in sysfs, rouser logs a warning and continues with other metrics. No error exit occurs — the daemon degrades gracefully.</p>
-<h2 id="argument-precedence-for-config-resolution">Argument Precedence for Config Resolution</h2>
-<p>Config path resolution follows this order (highest to lowest):</p>
+<h2 id="config-resolution-and-merging">Config Resolution and Merging</h2>
+<p>Config resolution follows this order (lowest priority → highest):</p>
 <ol>
-<li><strong>CLI flag</strong> <code>--config</code> / <code>-c</code></li>
-<li><strong>Sequential default search</strong>: <code>./config/rouser.toml</code> → <code>~/.config/rouser/config.toml</code> → <code>/etc/rouser/config.toml</code> (first existing file wins)</li>
-<li><strong>Built-in defaults</strong> (when none of the above exist)</li>
+<li><strong>Embedded defaults</strong> — always loaded first from compiled-in <code>config/rouser.toml</code></li>
+<li><code>/etc/rouser/config.toml</code> — system-wide user overrides (auto-installed by rouser if running as root)</li>
+<li><code>$XDG_CONFIG_HOME/rouser/config.toml</code> or <code>~/.config/rouser/config.toml</code> — per-user overrides (auto-installed by rouser if non-root)</li>
 </ol>
+<p>When any of the file-based config paths exist, their values are deep-merged over embedded defaults: nested tables merge field-by-field, scalar/array values from higher-priority configs override lower ones.</p>
+<p>The <code>--config &lt;path&gt;</code> flag bypasses merging entirely — only the specified single file is loaded and used as-is.</p>
+<h3 id="auto-install-behavior">Auto-install Behavior</h3>
+<p>On first startup (when no user config exists), rouser automatically installs the embedded default config:
+- <strong>Root users</strong>: writes to <code>/etc/rouser/config.toml</code>
+- <strong>Non-root users</strong>: writes to <code>~/.config/rouser/config.toml</code></p>
+<p>An INFO-level log message is emitted when a config is auto-installed. The file is only created if it does not already exist — existing configs are never overwritten.</p>
 <h2 id="see-also">See Also</h2>
 <ul>
 <li><a href="configuration.html">Configuration Reference</a> — Complete configuration options and format</li>
-<li><a href="quickstart.html">Quick Start Guide</a> — Getting started with rouser</li>
+<li><a href="installation.html">Installation</a> — Getting started with rouser</li>
 <li><a href="systemd-user-service.html">Systemd User Service</a> — Running as a service</li>
 </ul>
 

@@ -274,41 +274,14 @@
   
   
     <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
+      <a href="installation.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quick Start
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quick Start
+    Installation
   
 
     
@@ -823,6 +796,100 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cicd-pipeline-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI/CD Pipeline Security
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CI/CD Pipeline Security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#github-actions-permissions-supply-chain-defense" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub Actions Permissions (Supply Chain Defense)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-linting-with-zizmor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow Linting with zizmor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dependency-pinning-in-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Pinning in Workflows
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automated-action-update-strategy-renovate-dependabot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated Action Update Strategy (Renovate + Dependabot)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#artifact-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifact Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-cicd-security-patterns-to-avoid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known CI/CD Security Patterns to Avoid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rust-dependency-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust Dependency Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#references" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1195,6 +1262,100 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cicd-pipeline-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI/CD Pipeline Security
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CI/CD Pipeline Security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#github-actions-permissions-supply-chain-defense" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub Actions Permissions (Supply Chain Defense)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-linting-with-zizmor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow Linting with zizmor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dependency-pinning-in-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Pinning in Workflows
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automated-action-update-strategy-renovate-dependabot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated Action Update Strategy (Renovate + Dependabot)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#artifact-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifact Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-cicd-security-patterns-to-avoid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known CI/CD Security Patterns to Avoid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rust-dependency-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust Dependency Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#references" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1342,9 +1503,171 @@ cargo test
 <li>Test in dry-run mode: <code>rouser --dry-run -l debug</code></li>
 <li>Restart: <code>systemctl --user start rouser.service</code></li>
 </ol>
+<h2 id="cicd-pipeline-security">CI/CD Pipeline Security</h2>
+<h3 id="github-actions-permissions-supply-chain-defense">GitHub Actions Permissions (Supply Chain Defense)</h3>
+<p>GitHub Actions workflows run in privileged environments that can exfiltrate secrets or inject malicious code into build artifacts. All workflow jobs follow the <strong>principle of least privilege</strong>: each job declares only the permissions it needs, scoped to the minimum required scope.</p>
+<pre><code class="language-yaml">jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read        # Only read access — cannot push code or create releases
+    steps: ...
+
+  release-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # Write only for the job that uploads to GitHub Releases
+      packages: write       # Required for publishing container/package registries
+    steps: ...
+</code></pre>
+<p><strong>Never declare <code>permissions</code> at the workflow level with broad scopes.</strong> This grants every job (including those that never need it) elevated access. If a downstream dependency in any job is compromised, all permissions are exposed. Always use job-level <code>permissions:</code> blocks.</p>
+<h3 id="workflow-linting-with-zizmor">Workflow Linting with zizmor</h3>
+<p>Every PR to main runs <a href="https://woodruffw.github.io/zizmor/">zizmor</a> — a GitHub Actions security linter that checks for:
+- <strong>dangerous-triggers</strong>: Workflows triggered by untrusted events (PR forks, issue labels) without safeguards
+- <strong>cache-poisoning</strong>: Malicious artifacts injected via cache keys derived from user input
+- <strong>unpinned-uses</strong>: Actions referenced by mutable tags (e.g., <code>@v4</code>) instead of immutable SHAs
+- <strong>template-injection</strong>: User-controlled data interpolated into workflow steps
+- <strong>excessive-permissions</strong>: Jobs with more permissions than required</p>
+<p>Add to your CI:</p>
+<pre><code class="language-yaml">zizmor-security-scan:
+  runs-on: ubuntu-latest
+  permissions: { contents: read }
+  steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      with:
+        persist-credentials: false
+    - name: Install zizmor
+      uses: taiki-e/install-action@7769b73c2ec98c38dfcf2e18c83cfd4880c038c1  # v2
+      with: { tool: zizmor }
+    - run: zizmor .
+</code></pre>
+<h3 id="dependency-pinning-in-workflows">Dependency Pinning in Workflows</h3>
+<p>All <code>uses:</code> references are pinned to immutable commit SHAs. The following table documents every action reference used across workflow files:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Pinned SHA</th>
+<th>Version</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>actions/checkout</td>
+<td><code>@34e114876b0b11c390a56381ad16ebd13914f8d5</code></td>
+<td>v4.3.1</td>
+<td>All steps include <code>persist-credentials: false</code> to prevent credential exposure via git config</td>
+</tr>
+<tr>
+<td>dtolnay/rust-toolchain</td>
+<td><code>@29eef336d9b2848a0b548edc03f92a220660cdb8</code></td>
+<td>stable (branch HEAD)</td>
+<td>Immutable branch reference; CI installs cross-compilation targets at this SHA. Branch can move — verify against <code>stable</code> tag before updating.</td>
+</tr>
+<tr>
+<td>Swatinem/rust-cache</td>
+<td><code>@cf9339e04bb8069e37c71ff4a0e6a970f35d6f7d</code></td>
+<td>v2.7.0</td>
+<td>Cache keys use static strings or matrix values only — no user input in key derivation</td>
+</tr>
+<tr>
+<td>taiki-e/install-action (v2)</td>
+<td><code>@7769b73c2ec98c38dfcf2e18c83cfd4880c038c1</code></td>
+<td>v2</td>
+<td>Used for zizmor, cargo-audit, and cross toolchain installation</td>
+</tr>
+<tr>
+<td>taiki-e/install-action (git-cliff)</td>
+<td><code>@da05eb556833b50ca7fb270969753095bcb9d5ad</code></td>
+<td>latest</td>
+<td>Tool-name reference for git-cliff; uses <code>version: "latest"</code> so always fetches newest release</td>
+</tr>
+<tr>
+<td>actions/upload-artifact</td>
+<td><code>@ea165f8d65b6e75b540449e92b4886f43607fa02</code></td>
+<td>v4.6.2</td>
+<td>Release artifact uploads with scoped write permissions per job</td>
+</tr>
+<tr>
+<td>actions/download-artifact</td>
+<td><code>@d3f86a106a0bac45b974a628896c90dbdf5c8093</code></td>
+<td>v4.3.0</td>
+<td>Downloads CI artifacts for packaging jobs; patterns are deterministic</td>
+</tr>
+</tbody>
+</table>
+<p>When adding new action references, always look up the current commit SHA via GitHub API before committing workflow changes:</p>
+<pre><code class="language-bash"># Look up tag → full 40-char SHA mapping (use jq -r '.object.sha' for full hash)
+curl -sf &quot;https://api.github.com/repos/OWNER/REPO/git/ref/tags/TAG&quot; \
+  | jq -r '.object.sha'
+</code></pre>
+<p>Document any new pinning in this table and add a comment on the <code>uses:</code> line matching the format above.</p>
+<h3 id="automated-action-update-strategy-renovate-dependabot">Automated Action Update Strategy (Renovate + Dependabot)</h3>
+<p>GitHub Actions are a supply-chain attack surface — the <a href="https://unit42.paloaltonetworks.com/github-repo-takeover-malicious-github-actions/">Palo Alto Networks Unit 42 worm</a> demonstrated how compromised actions can inject code into thousands of downstream repos. Pinning to immutable SHAs mitigates tag hijacking, but requires manual updates when action authors release new versions. Two tools automate this safely:</p>
+<p><strong>Renovate (recommended)</strong> — Supports automatic digest pinning with version comment preservation via the <code>helpers:pinGitHubActionDigestsToSemver</code> preset. When enabled in <code>.github/renovate.json</code>:</p>
+<pre><code class="language-json">{
+  &quot;$schema&quot;: &quot;https://docs.renovatebot.com/renovate-schema.json&quot;,
+  &quot;extends&quot;: [
+    &quot;helpers:pinGitHubActionDigestsToSemver&quot;
+  ]
+}
+</code></pre>
+<p>Renovate will automatically open PRs whenever the pinned version tag (e.g., <code># v4.3.1</code> in a comment) moves to point at a newer commit SHA. It preserves the version comment format, updates the full SHA digest accordingly, and includes release notes in the PR body for review. This is the most complete solution — it handles both initial pinning of bare tags and ongoing digest maintenance.</p>
+<p><strong>Dependabot (built-in)</strong> — GitHub's native dependency updater supports <code>github-actions</code> as a package ecosystem. Configure in <code>.github/dependabot.yml</code>:</p>
+<pre><code class="language-yaml">version: 2
+updates:
+  - package-ecosystem: &quot;github-actions&quot;
+    directory: &quot;/&quot;
+    schedule:
+      interval: &quot;weekly&quot;
+</code></pre>
+<p>Dependabot monitors <code>uses:</code> references against action release tags and opens PRs for version bumps. <strong>Note</strong>: Dependabot updates the tag reference (e.g., <code>@v4</code> → <code>@v4.x.y</code>) but does NOT automatically pin to commit SHAs. To combine Dependabot's convenience with SHA pinning, use it alongside a manual review process or pair it with Renovate's digest mode for existing pinned references.</p>
+<p><strong>Recommendation</strong>: Use both — Dependabot for version bump PRs (e.g., <code>actions/checkout@v4</code> → <code>actions/checkout@v4.3.2</code>) and Renovate for SHA pinning maintenance on workflows that already use full commit SHAs. Renovate's digest updates run independently of version bumps, so they complement rather than conflict with Dependabot.</p>
+<h3 id="artifact-verification">Artifact Verification</h3>
+<p>All release artifacts are distributed as tarballs with embedded systemd service files and config. The PKGBUILD for Arch Linux computes SHA256 checksums from the actual GitHub release assets during CI generation — never using <code>'SKIP'</code>. This ensures package integrity verification at install time, preventing supply chain attacks where release binaries could be replaced.</p>
+<h3 id="known-cicd-security-patterns-to-avoid">Known CI/CD Security Patterns to Avoid</h3>
+<table>
+<thead>
+<tr>
+<th>Anti-pattern</th>
+<th>Risk</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>permissions: contents: write</code> at workflow level</td>
+<td>Every job gets full repo access</td>
+<td>Use per-job scoped permissions</td>
+</tr>
+<tr>
+<td><code>actions/checkout@v4</code> without pinning</td>
+<td>Vulnerable to tag hijacking</td>
+<td>Pin to full 40-char commit SHA (see table above) — Renovate can automate this via <code>helpers:pinGitHubActionDigestsToSemver</code> preset</td>
+</tr>
+<tr>
+<td><code>${{ github.event.release.tag_name }}</code> interpolated into shell steps</td>
+<td>Template injection via crafted release names</td>
+<td>Use <code>$GITHUB_REF</code> env var with prefix stripping instead</td>
+</tr>
+<tr>
+<td>Using <code>curl ... \| bash</code> in CI scripts</td>
+<td>MITM during download + arbitrary code execution</td>
+<td>Download to file, verify checksums, then execute</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rust-dependency-security">Rust Dependency Security</h3>
+<p>The project uses <code>cargo-audit</code> (via the <code>cargoaudit</code> crate's advisory database) in CI to scan for known CVEs:</p>
+<pre><code class="language-bash">cargo install cargo-audit  # Once per environment
+cargo audit                 # Run before every commit / PR
+</code></pre>
+<p>Critical and high severity findings <strong>fail the build</strong>. See <a href="#dependency-management">Dependency Management</a> above for runtime dependency policies.</p>
 <h2 id="references">References</h2>
 <ul>
-<li><a href="https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#Security">systemd security features</a></li>
+<li><a href="https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-workflows">GitHub Actions security hardening guide</a></li>
+<li><a href="https://woodruffw.github.io/zizmor/">zizmor — GitHub Actions workflow linter</a></li>
 <li><a href="https://rustsec.org/">RustSec advisories</a></li>
 <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Linux_Security_Cheat_Sheet.html">OWASP Linux Security Cheat Sheet</a></li>
 </ul>

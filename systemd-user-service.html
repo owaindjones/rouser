@@ -274,41 +274,14 @@
   
   
     <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
+      <a href="installation.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quick Start
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quick Start
+    Installation
   
 
     
@@ -1452,11 +1425,10 @@ log_level = &quot;info&quot;
 
 [metrics.cpu]
 per_core_threshold = 80.0   # CPU max usage % (0–100) above which to inhibit sleep
-total_threshold = 50.0      # Total averaged CPU usage % (default: 50.0)
-ema_alpha = 0.7             # EMA smoothing: higher = more responsive, lower = smoother
+total_threshold = 25.0      # Total averaged CPU usage % (default: 25.0)
 
 [metrics.gpu]
-threshold = 33.3            # GPU usage % per device (default: 33.3)
+threshold = 15.0            # GPU usage % per device (default: 15.0)
 ema_alpha = 0.7             # EMA smoothing factor for GPU readings
 
 [metrics.network]
@@ -1781,7 +1753,7 @@ sudo rm -rf /etc/rouser /var/log/rouser
 </code></pre>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="quickstart.html">Quick Start Guide</a> - Getting started with rouser</li>
+<li><a href="installation.html">Installation</a> - Getting started with rouser</li>
 <li><a href="configuration.html">Configuration Reference</a> - Complete configuration options</li>
 <li><a href="command-line.html">Command Line Arguments</a> - CLI usage details</li>
 </ul>

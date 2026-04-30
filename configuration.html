@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="quickstart.html">
+        <link rel="prev" href="installation.html">
       
       
         <link rel="next" href="command-line.html">
@@ -274,41 +274,14 @@
   
   
     <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
+      <a href="installation.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quick Start
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quick Start
+    Installation
   
 
     
@@ -1187,11 +1160,11 @@ log_level = &quot;info&quot;
 
 [metrics.cpu]
 per_core_threshold = 80.0
-total_threshold = 50.0
+total_threshold = 25.0
 ema_alpha = 0.7
 
 [metrics.gpu]
-threshold = 33.3      # GPU usage threshold (percentage)
+threshold = 15.0      # GPU usage threshold (percentage)
 ema_alpha = 0.7       # EMA smoothing factor
 
 [metrics.network]
@@ -1261,7 +1234,7 @@ mode = &quot;block&quot;             # Mode: block, delay, block-weak
 <tr>
 <td><code>total_threshold</code></td>
 <td>f64</td>
-<td><code>50.0</code></td>
+<td><code>25.0</code></td>
 <td>Total (averaged across cores) CPU usage percentage above which to inhibit sleep</td>
 </tr>
 <tr>
@@ -1287,7 +1260,7 @@ mode = &quot;block&quot;             # Mode: block, delay, block-weak
 <tr>
 <td><code>threshold</code></td>
 <td>f64</td>
-<td><code>33.3</code></td>
+<td><code>15.0</code></td>
 <td>GPU usage percentage above which to inhibit sleep</td>
 </tr>
 <tr>
@@ -1469,7 +1442,7 @@ RUST_LOG=debug rouser -c /etc/rouser/config.toml --dry-run
 <p>There are no <code>ROUSER_*</code> environment variable overrides for configuration values — all settings must come from the TOML file or be overridden at runtime via CLI flags.</p>
 <h2 id="best-practices">Best Practices</h2>
 <ol>
-<li><strong>Start with conservative thresholds</strong>: Begin with higher per-core CPU (80%) and GPU (33.3%) thresholds, then lower them based on observed baselines from dry-run logs</li>
+<li><strong>Start with conservative thresholds</strong>: Begin with higher per-core CPU (80%) and GPU (15%) thresholds, then lower them based on observed baselines from dry-run logs</li>
 <li><strong>Use EMA smoothing</strong>: Default alpha values provide a good balance between responsiveness and noise filtering for your workload</li>
 <li><strong>Test before production</strong>: Always use <code>--dry-run</code> mode to verify thresholds before deploying in daemon mode</li>
 <li><strong>Review logs regularly</strong>: Use debug logging (<code>RUST_LOG=debug</code>) to understand your system's baseline activity before finalizing thresholds</li>

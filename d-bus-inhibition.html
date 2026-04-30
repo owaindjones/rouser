@@ -274,41 +274,14 @@
   
   
     <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
+      <a href="installation.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quick Start
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quick Start
+    Installation
   
 
     
@@ -1296,7 +1269,7 @@ if !self.previous_inhibited_state &amp;&amp; current_inhibited {
 }
 self.previous_inhibited_state = current_inhibited;
 </code></pre>
-<p>This prevents log spam (previously, "Sleep inhibited" was logged every 5 seconds while active). See <a href="../AGENTS.md">AGENTS.md</a> → Logging Conventions for the state-change-only logging rule.</p>
+<p>This prevents log spam (previously, "Sleep inhibited" was logged every 5 seconds while active). See <a href="./../AGENTS.md">AGENTS.md</a> → Logging Conventions for the state-change-only logging rule.</p>
 <h2 id="debugging-and-verification">Debugging and Verification</h2>
 <h3 id="check-active-inhibitors">Check Active Inhibitors</h3>
 <pre><code class="language-bash"># List all current inhibitors system-wide
@@ -1349,7 +1322,7 @@ journalctl -u systemd-logind --since &quot;5 min ago&quot;
 - Specs no longer available in current freedesktop.org documentation
 - Does not work reliably on modern desktop environments
 - KDE Powerdevil ignores inhibitors from unprivileged users regardless of the API used</p>
-<p>Always use <code>org.freedesktop.login1.Manager.Inhibit</code> instead. See <a href="../AGENTS.md">AGENTS.md</a> → Lessons Learned for more context on why this approach was chosen over alternatives.</p>
+<p>Always use <code>org.freedesktop.login1.Manager.Inhibit</code> instead. See <a href="./../AGENTS.md">AGENTS.md</a> → Lessons Learned for more context on why this approach was chosen over alternatives.</p>
 <h2 id="references">References</h2>
 <ul>
 <li><a href="https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html#Inhibit%20">systemd login1 D-Bus API docs</a></li>
