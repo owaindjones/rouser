@@ -70,7 +70,9 @@ pub fn gpu_display_string(entries: &[GpuDisplayEntry]) -> String {
 }
 
 pub fn network_display_string(total_mbps: f64, per_interface: &HashMap<String, f64>) -> String {
-    let parts: Vec<String> = per_interface.iter()
+    let mut items: Vec<_> = per_interface.iter().collect();
+    items.sort_by(|a, b| a.0.cmp(b.0));
+    let parts: Vec<String> = items.iter()
         .map(|(name, mbps)| format!("{}: {:.2}", name, mbps))
         .collect();
     if parts.is_empty() {
@@ -85,7 +87,9 @@ pub fn disk_display_string(
     total_mb_per_s: f64,
     per_device: &HashMap<String, f64>,
 ) -> String {
-    let parts: Vec<String> = per_device.iter()
+    let mut items: Vec<_> = per_device.iter().collect();
+    items.sort_by(|a, b| a.0.cmp(b.0));
+    let parts: Vec<String> = items.iter()
         .map(|(name, mbps)| format!("{}: {:.2}", name, mbps))
         .collect();
     if parts.is_empty() {
