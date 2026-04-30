@@ -8,6 +8,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Force Node.js 24 for GitHub Actions (Node.js 20 deprecated, removed Sep 2026)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   # Security: scan GitHub Actions workflows for common misconfigurations.

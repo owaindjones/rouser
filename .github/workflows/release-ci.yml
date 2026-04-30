@@ -8,6 +8,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Force Node.js 24 for GitHub Actions (Node.js 20 deprecated, removed Sep 2026)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   ci-lint-test:
@@ -147,9 +149,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@da05eb556833b50ca7fb270969753095bcb9d5ad  # tool-name ref (git-cliff)
+        uses: taiki-e/install-action@7769b73c2ec98c38dfcf2e18c83cfd4880c038c1  # v2 — Renovate manages SHA digest updates
         with:
-          version: "latest"
+          tool: git-cliff
 
       - name: Generate release notes and create GitHub Release
         id: cliff

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "helpers:pinGitHubActionDigestsToSemver"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "schedule": ["* * * * 0"],
+      "groupName": "GitHub Actions",
+      "group": {
+        "branchTopic": "renovate/github-actions-{{groupSlug}}"
+      }
+    },
+    {
+      "matchManagers": ["cargo"],
+      "enabled": false
+    }
+  ],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 10,
+  "timezone": "UTC"
+}
