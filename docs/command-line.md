@@ -14,28 +14,26 @@ rouser [OPTIONS]
 
 | Option | Description | Default Search Order |
 |--------|-------------|---------------------|
-| `-c, --config <CONFIG>` | Path to configuration file (overrides all defaults) | — |
+| `-c, --config <CONFIG>` | Path to a single configuration file (overrides merge behavior) | — |
 
-When no `--config` flag is provided, rouser searches sequentially for the first existing config file:
+By default, rouser loads and merges multiple config sources in priority order (lowest → highest):
 
-1. `./config/rouser.toml` — repo-packaged default
-2. `$HOME/.config/rouser/config.toml` — XDG user config
-3. `/etc/rouser/config.toml` — system-wide config
+1. **Embedded defaults** — compiled-in TOML from `config/rouser.toml`
+2. `/etc/rouser/config.toml` — system-wide user overrides
+3. `$XDG_CONFIG_HOME/rouser/config.toml` or `~/.config/rouser/config.toml` — per-user overrides
 
-If none of these paths exist, rouser uses built-in defaults and logs a warning:
+When a specified config file path exists, its values override the embedded defaults (deep merge: nested tables are merged field-by-field). When it does not exist and rouser is running as root, the default config is automatically installed at `/etc/rouser/config.toml`. For non-root users, the default is auto-installed at `~/.config/rouser/config.toml`.
 
-```
-No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
-```
+When `--config` is explicitly provided, only that single file is loaded (no merging). This takes priority over all other config sources.
 
 **Examples**:
 
 ```bash
-# Use custom config path (takes priority over all defaults)
+# Use custom config path (single file, no merging)
 rouser --config /path/to/custom-config.toml
 rouser -c /etc/my-custom-rouser.toml
 
-# Let rouser search default paths sequentially
+# Auto-merge: embedded defaults + user/system overrides
 rouser
 ```
 
@@ -135,21 +133,21 @@ rouser --validate-config
 ### Custom Configuration Paths
 
 ```bash
-# Use repo-packaged default if present in current directory
-cp config/rouser.toml /tmp/test-dir/ && cd /tmp/test-dir && rouser
+# Use custom config (single file, no merging with defaults)
+rouser -c /etc/my-custom-rouser.toml
 
-# User-level XDG config (if it exists at ~/.config/rouser/config.toml)
+# Auto-merge: embedded defaults + system user overrides + per-user overrides
 rouser
 
-# System-wide override (must be created manually)
+# System-wide override (auto-installed if running as root on first start)
 sudo tee /etc/rouser/config.toml > /dev/null <<EOF
 update_interval = "10s"
 log_level = "warn"
 ...
 EOF
-rouser  # will find and use /etc/rouser/config.toml
+rouser  # will merge with embedded defaults
 
-# Explicit path (always takes priority)
+# Explicit path (always takes priority, single file load)
 rouser -c /opt/custom/rouser-config.toml
 ```
 
@@ -228,26 +226,29 @@ rouser --validate-config /path/to/bad.toml
 # Output: Configuration validation failed: Failed to parse TOML configuration: expected `=`, found end-of-file at line 1 column 10
 ```
 
-### Missing Configuration File (non-fatal)
-
-When no config file is found in any default path, rouser uses built-in defaults with a warning:
-
-```bash
-rouser --dry-run -l debug
-# Output includes: No configuration file found at checked paths — using built-in defaults. Checked: ./config/rouser.toml, ~/.config/rouser/config.toml, /etc/rouser/config.toml
-```
-
 ### Missing GPU Libraries (non-fatal)
 
 When NVML (`libnvidia-ml.so`) is not available but NVIDIA hardware exists in sysfs, rouser logs a warning and continues with other metrics. No error exit occurs — the daemon degrades gracefully.
 
-## Argument Precedence for Config Resolution
+## Config Resolution and Merging
 
-Config path resolution follows this order (highest to lowest):
+Config resolution follows this order (lowest priority → highest):
 
-1. **CLI flag** `--config` / `-c`
-2. **Sequential default search**: `./config/rouser.toml` → `~/.config/rouser/config.toml` → `/etc/rouser/config.toml` (first existing file wins)
-3. **Built-in defaults** (when none of the above exist)
+1. **Embedded defaults** — always loaded first from compiled-in `config/rouser.toml`
+2. `/etc/rouser/config.toml` — system-wide user overrides (auto-installed by rouser if running as root)
+3. `$XDG_CONFIG_HOME/rouser/config.toml` or `~/.config/rouser/config.toml` — per-user overrides (auto-installed by rouser if non-root)
+
+When any of the file-based config paths exist, their values are deep-merged over embedded defaults: nested tables merge field-by-field, scalar/array values from higher-priority configs override lower ones.
+
+The `--config <path>` flag bypasses merging entirely — only the specified single file is loaded and used as-is.
+
+### Auto-install Behavior
+
+On first startup (when no user config exists), rouser automatically installs the embedded default config:
+- **Root users**: writes to `/etc/rouser/config.toml`
+- **Non-root users**: writes to `~/.config/rouser/config.toml`
+
+An INFO-level log message is emitted when a config is auto-installed. The file is only created if it does not already exist — existing configs are never overwritten.
 
 ## See Also
 

@@ -15,7 +15,7 @@ RPM_VERSION=$(echo "$VERSION" | sed 's/^v//')
 case "$ACTION" in
   generate)
     cat > "$OUTPUT_FILE" <<EOF
-# Maintainer: Rouser Maintainers <rouser@example.com>
+# Maintainer: Owain Jones <contact@odj.me>
 pkgname=rouser
 _pkgver='${RPM_VERSION}'
 pkgver=\${_pkgver}

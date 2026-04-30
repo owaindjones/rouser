@@ -74,6 +74,10 @@ See [Configuration Reference](docs/configuration.md) for all options with defaul
 | [GPU Usage Measurement](docs/gpu-usage-measurement.md) | What NVML, amdgpu, and i915 actually measure |
 | [D-Bus Inhibition](docs/d-bus-inhibition.md) | How sleep inhibition works under the hood |
 
+## Development
+
+This project is 100% vibecoded: humans provide high-level designs and technical recommendations, but write zero lines of code. Every detail - planning, architecture, implementation - comes from a large language model running in the terminal. See [VIBECODED.md](VIBECODED.md) for more.
+
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.

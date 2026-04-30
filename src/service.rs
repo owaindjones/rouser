@@ -4,7 +4,10 @@ use tracing::{debug, info, warn};
 use crate::config::Config;
 
 use crate::inhibit::InhibitionState;
-use crate::metrics::{disk_display_string, gpu_display_string, network_display_string, sorted_gpu_display, TickMetrics, CpuCollector, DiskCollector, GpuCollector, NetworkCollector};
+use crate::metrics::{
+    disk_display_string, gpu_display_string, network_display_string, sorted_gpu_display,
+    CpuCollector, DiskCollector, GpuCollector, NetworkCollector, TickMetrics,
+};
 
 #[derive(Debug, Clone)]
 pub struct SmoothingState {
@@ -169,7 +172,7 @@ impl DataManager {
         })
     }
 
-  pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
+    pub async fn tick(&mut self, config: &Config) -> Result<(), DataServiceError> {
         let metrics = self.collect_metrics().await?;
         self.last_collection = Some(std::time::SystemTime::now());
 
@@ -181,7 +184,7 @@ impl DataManager {
             config.metrics.cpu.ema_alpha,
         );
 
-          let num_devices = metrics.gpu_usage.len();
+        let num_devices = metrics.gpu_usage.len();
         while self.gpu_smoothing.len() < num_devices {
             self.gpu_smoothing
                 .push(SmoothingState::new(config.metrics.gpu.ema_alpha));
@@ -199,17 +202,19 @@ impl DataManager {
         let sorted_entries = sorted_gpu_display(&metrics.gpu_usage, &gpu_smoothed_values);
         let gpu_debug = gpu_display_string(&sorted_entries);
 
-        let smoothed_network = self
-            .network_smooth
-            .update(metrics.network_throughput.total_mbps, config.metrics.network.ema_alpha);
+        let smoothed_network = self.network_smooth.update(
+            metrics.network_throughput.total_mbps,
+            config.metrics.network.ema_alpha,
+        );
         let network_log = network_display_string(
             metrics.network_throughput.total_mbps,
             &metrics.network_throughput.per_interface,
         );
 
-        let smoothed_disk = self
-            .disk_smooth
-            .update(metrics.disk_throughput.total_mb_per_s, config.metrics.disk.ema_alpha);
+        let smoothed_disk = self.disk_smooth.update(
+            metrics.disk_throughput.total_mb_per_s,
+            config.metrics.disk.ema_alpha,
+        );
         let disk_log = disk_display_string(
             metrics.disk_throughput.interval_secs,
             metrics.disk_throughput.total_mb_per_s,
@@ -325,7 +330,7 @@ impl DataManager {
         Ok(())
     }
 
-   async fn collect_metrics(&mut self) -> Result<TickMetrics, DataServiceError> {
+    async fn collect_metrics(&mut self) -> Result<TickMetrics, DataServiceError> {
         let cpu_usage = self.cpu.collect().await.map_err(|e| DataServiceError {
             inner: format!("CPU collection failed: {}", e),
         })?;

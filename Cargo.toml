@@ -34,8 +34,8 @@ nvml-wrapper = "0.12"
 # Time utilities
 chrono = { version = "0.4", features = ["serde"] }
 
-# Path/which utilities
-which = "5.0"
+# System utilities
+libc = "0.2"
 
 # Serialization for config
 serde = { version = "1.0", features = ["derive"] }

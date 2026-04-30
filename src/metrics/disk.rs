@@ -28,9 +28,8 @@ pub struct DiskCollector {
 }
 
 impl DiskCollector {
-   /// Default exclusions: loop devices, fd, sr, cdrom.
+    /// Default exclusions: loop devices, fd, sr, cdrom.
     pub fn new(exclude_prefixes: Vec<String>) -> Self {
-
         Self {
             exclude_prefixes,
             last_stats: HashMap::new(),
@@ -190,4 +189,4 @@ impl std::fmt::Display for DiskError {
     }
 }
 
-impl std::error:: Error for DiskError {}
+impl std::error::Error for DiskError {}

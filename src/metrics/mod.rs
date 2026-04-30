@@ -38,15 +38,15 @@ pub struct GpuDisplayEntry {
 
 impl fmt::Display for GpuDisplayEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}({}): {:.1}% (smoothed: {:.1}%)",
-            self.device_id, self.driver_name, self.raw_usage, self.smoothed_usage)
+        write!(
+            f,
+            "{}({}): {:.1}% (smoothed: {:.1}%)",
+            self.device_id, self.driver_name, self.raw_usage, self.smoothed_usage
+        )
     }
 }
 
-pub fn sorted_gpu_display(
-    gpu_data: &[GpuData],
-    smoothed_values: &[f64],
-) -> Vec<GpuDisplayEntry> {
+pub fn sorted_gpu_display(gpu_data: &[GpuData], smoothed_values: &[f64]) -> Vec<GpuDisplayEntry> {
     let mut entries: Vec<GpuDisplayEntry> = gpu_data
         .iter()
         .enumerate()
@@ -72,7 +72,8 @@ pub fn gpu_display_string(entries: &[GpuDisplayEntry]) -> String {
 pub fn network_display_string(total_mbps: f64, per_interface: &HashMap<String, f64>) -> String {
     let mut items: Vec<_> = per_interface.iter().collect();
     items.sort_by(|a, b| a.0.cmp(b.0));
-    let parts: Vec<String> = items.iter()
+    let parts: Vec<String> = items
+        .iter()
         .map(|(name, mbps)| format!("{}: {:.2}", name, mbps))
         .collect();
     if parts.is_empty() {
@@ -89,12 +90,19 @@ pub fn disk_display_string(
 ) -> String {
     let mut items: Vec<_> = per_device.iter().collect();
     items.sort_by(|a, b| a.0.cmp(b.0));
-    let parts: Vec<String> = items.iter()
+    let parts: Vec<String> = items
+        .iter()
         .map(|(name, mbps)| format!("{}: {:.2}", name, mbps))
         .collect();
     if parts.is_empty() {
-        return format!("interval: {:.0}s, {:.2} MB/s (total)", interval_secs, total_mb_per_s);
+        return format!(
+            "interval: {:.0}s, {:.2} MB/s (total)",
+            interval_secs, total_mb_per_s
+        );
     }
     let dev_str = parts.join(", ");
-    format!("interval: {:.0}s, {:.2} MB/s (total), {}", interval_secs, total_mb_per_s, dev_str)
+    format!(
+        "interval: {:.0}s, {:.2} MB/s (total), {}",
+        interval_secs, total_mb_per_s, dev_str
+    )
 }

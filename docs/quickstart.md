@@ -65,21 +65,38 @@ systemctl --user daemon-reload  # if installing service file
 
 ### Config File Discovery
 
-When no `-c` flag is given, rouser searches **sequentially** for the first existing config:
+By default, rouser loads and merges multiple config sources (lowest → highest priority):
 
 | Priority | Path | Description |
 |----------|------|-------------|
-| 1 | `./config/rouser.toml` | Repo-packaged default in current directory |
-| 2 | `~/.config/rouser/config.toml` | XDG user config (installed by installer script) |
-| 3 | `/etc/rouser/config.toml` | System-wide config (requires root to create) |
+| 1 (lowest) | Embedded defaults | Compiled-in `config/rouser.toml` from the binary |
+| 2 | `/etc/rouser/config.toml` | System-wide user overrides |
+| 3 (highest) | `$XDG_CONFIG_HOME/rouser/config.toml` or `~/.config/rouser/config.toml` | Per-user overrides |
+
+Values in higher-priority configs override embedded defaults via deep merge: nested tables are merged field-by-field, scalars and arrays from user configs take precedence.
+
+### Auto-install Default Configs
+
+On first startup (when no user config file exists), rouser automatically creates a default config:
+- **Root users** → `/etc/rouser/config.toml`
+- **Non-root users** → `~/.config/rouser/config.toml`
+
+An INFO log message is emitted on auto-install. Existing configs are never overwritten.
 
 ### Create Configuration File
 
-Copy the repo default into your XDG path:
+To manually create a user config, copy the embedded defaults:
 
 ```bash
 mkdir -p ~/.config/rouser
-cp ./config/rouser.toml ~/.config/rouser/config.toml
+rouser --print-config > ~/.config/rouser/config.toml
+```
+
+Or use `--print-config` to generate it from the merged configuration:
+
+```bash
+# Print final merged config (after auto-install of any missing files)
+rouser --print-config
 ```
 
 **Example configuration**:

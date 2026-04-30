@@ -46,12 +46,12 @@ Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: ${ARCH}
-Maintainer: Rouser Maintainers <rouser@example.com>
+Maintainer: Owain Jones <contact@odj.me>
 Depends: systemd, libdbus-1-0
 Description: System metrics daemon with sleep inhibition
  A Linux daemon that monitors CPU, GPU, network, and disk
  activity to prevent unwanted system suspend/hibernation.
- Supports NVIDIA (nvidia-smi), AMD (sysfs), and Intel GPUs.
+ Uses NVML for NVIDIA GPUs; sysfs for AMD (amdgpu) and Intel (i915/xe).
 CTRLEOF
 
     # Checksums and postinst are optional but good practice

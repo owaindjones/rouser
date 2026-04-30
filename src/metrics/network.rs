@@ -63,7 +63,7 @@ impl NetworkCollector {
                         let tx_delta = stats.tx_bytes.saturating_sub(prev.tx_bytes);
                         total_delta += rx_delta + tx_delta;
 
-                         if interval.as_secs_f64() > 0.0 {
+                        if interval.as_secs_f64() > 0.0 {
                             let iface_mbps = ((rx_delta + tx_delta) as f64 * 8.0)
                                 / (interval.as_secs_f64() * 1_000_000.0);
                             per_interface_mbps.insert(name.clone(), iface_mbps);

@@ -42,7 +42,9 @@ Version:        ${RPM_VERSION}
 Release:        1%{?dist}
 Summary:        System metrics daemon with sleep inhibition
 License:        MIT
+Packager:       Owain Jones <contact@odj.me>
 URL:            https://github.com/owaindjones/rouser
+Requires:       systemd, dbus
 Source0:        %{name}-source.tar.gz
 
 
@@ -75,7 +77,7 @@ fi
 systemctl daemon-reload || true
 
 %changelog
-* $(date '+%a %b %d %Y') Release <release@example.com> - ${RPM_VERSION}
+* $(date '+%a %b %d %Y') Release Owain Jones <contact@odj.me> - ${RPM_VERSION}
 - Build for release
 SPECEOF
 

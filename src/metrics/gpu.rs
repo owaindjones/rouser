@@ -60,7 +60,6 @@ impl GpuCollector {
             nvml,
             nvml_state: NvmlState::new(),
         }
-
     }
 
     #[allow(dead_code)]
@@ -125,7 +124,7 @@ impl GpuCollector {
             }
         }
 
-  if all_gpus.is_empty() && !cards.is_empty() {
+        if all_gpus.is_empty() && !cards.is_empty() {
             warn!("No valid GPU data collected; check that NVIDIA drivers are loaded");
         }
 
@@ -162,7 +161,7 @@ impl GpuCollector {
             });
         }
 
- cards
+        cards
     }
 
     /// Collect utilization for an NVIDIA/Nouveau card via NVML with frequency-weighted usage.

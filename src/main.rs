@@ -12,35 +12,12 @@ use tracing::{error, info, warn};
 use config::ConfigLoader;
 use service::DataService;
 
-const DEFAULT_CONFIG_PATHS: &[&str] = &[
-    "./config/rouser.toml",
-    "~/.config/rouser/config.toml",
-    "/etc/rouser/config.toml",
-];
-
-fn resolve_config_path(args: &Args) -> (PathBuf, Vec<String>) {
-    let fallback = PathBuf::from(DEFAULT_CONFIG_PATHS.last().unwrap());
-    if let Some(ref path) = args.config {
-        return (path.clone(), vec![path.display().to_string()]);
-    }
-    let mut searched: Vec<String> = Vec::new();
-    for pattern in DEFAULT_CONFIG_PATHS {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "~".to_string());
-        let expanded = (*pattern).replace("~", &home);
-        searched.push(expanded.clone());
-        if std::path::Path::new(&expanded).exists() {
-            return (PathBuf::from(expanded), searched);
-        }
-    }
-    (fallback, searched)
-}
-
 /// rouser - A Linux daemon that monitors system metrics and inhibits sleep when activity thresholds are exceeded
 #[derive(Parser)]
 #[command(name = "rouser")]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Path to configuration file [searches ./config/rouser.toml -> ~/.config/rouser/config.toml -> /etc/rouser/config.toml]
+    /// Path to a single configuration file (overrides default search/merge behavior)
     #[arg(long, short)]
     config: Option<PathBuf>,
 
@@ -52,7 +29,7 @@ struct Args {
     #[arg(long)]
     dry_run: bool,
 
-    /// Print the embedded default configuration and exit
+    /// Print the final merged configuration as TOML and exit
     #[arg(long)]
     print_config: bool,
 
@@ -61,44 +38,24 @@ struct Args {
     log_level: Option<String>,
 }
 
-#[tokio::main]
-async fn main() -> ExitCode {
-    let args = Args::parse();
-
-    if args.print_config {
-        config::ConfigLoader::print_default_config(&mut std::io::stdout()).ok();
-        return ExitCode::SUCCESS;
+fn resolve_initial_log_level(args: &Args) -> String {
+    if let Some(ref cli_val) = args.log_level {
+        return cli_val.to_string();
     }
+    std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string())
+}
 
-    // Load configuration to get log_level
-    let (config_path, searched_paths) = resolve_config_path(&args);
+fn load_single_config(path: &std::path::Path) -> Result<config::Config> {
+    let loader = ConfigLoader::new(path);
+    loader
+        .load()
+        .map_err(|e| anyhow::anyhow!("Failed to load config from {}: {}", path.display(), e))
+}
 
-    let config_loader = ConfigLoader::new(&config_path);
-    let config_result = config_loader.clone().load();
-    if config_result.is_err() {
-        warn!(
-            "No configuration file found at checked paths — using embedded defaults. \
-             Checked: {}",
-            searched_paths.join(", ")
-        );
-    }
-    let should_validate = args.validate_config;
-
-    // Resolve log level with precedence: CLI -l/--log-level > RUST_LOG env var > config.log_level > "info"
-    let log_level = if let Some(ref cli_val) = args.log_level {
-        cli_val.to_string()
-    } else if let Ok(val) = std::env::var("RUST_LOG") {
-        val
-    } else {
-        match &config_result {
-            Ok(cfg) => cfg.log_level.clone(),
-            Err(_) => "info".to_string(),
-        }
-    };
-
+fn init_tracing(log_level: &str) {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_new(&log_level).unwrap_or_else(|e| {
+            tracing_subscriber::EnvFilter::try_new(log_level).unwrap_or_else(|e| {
                 eprintln!("Invalid log level '{}': {}. Using 'info'.", log_level, e);
                 tracing_subscriber::EnvFilter::new("info")
             }),
@@ -108,28 +65,75 @@ async fn main() -> ExitCode {
         .with_thread_ids(false)
         .with_thread_names(false)
         .init();
+}
 
-    info!("rouser starting...");
+#[tokio::main]
+async fn main() -> ExitCode {
+    let args = Args::parse();
 
-    // Validate configuration if requested — use full load() to catch serde errors
-    if should_validate {
-        match config_loader.load() {
-            Ok(_) => {
-                info!("Configuration validation passed");
-                return ExitCode::SUCCESS;
+    // Initialize tracing early so that auto-install logs during config load are captured.
+    init_tracing(&resolve_initial_log_level(&args));
+
+    // --print-config: merge all configs and serialize back to TOML.
+    if args.print_config {
+        match ConfigLoader::load_merged() {
+            Ok((config, _)) => {
+                if let Err(e) = ConfigLoader::print_config_toml(&config, &mut std::io::stdout()) {
+                    eprintln!("Error: {}", e);
+                    return ExitCode::FAILURE;
+                }
             }
             Err(e) => {
-                error!("Configuration validation failed: {}", e);
+                error!("Failed to load and merge configuration: {}", e);
                 return ExitCode::FAILURE;
             }
         }
+        return ExitCode::SUCCESS;
     }
 
-    // Load configuration for normal/dry-run operation (reload now that logging is initialized)
-    let config = config_loader.load().unwrap_or_else(|e| {
-        eprintln!("Failed to load configuration: {}", e);
-        std::process::exit(1);
-    });
+    // Load config with log_level for tracing init.
+    let (config, _searched): (config::Config, Vec<String>) = if let Some(ref path) = args.config {
+        match load_single_config(path) {
+            Ok(cfg) => (cfg, vec![]),
+            Err(e) => {
+                eprintln!(
+                    "Failed to load configuration from {}: {}",
+                    path.display(),
+                    e
+                );
+                return ExitCode::FAILURE;
+            }
+        }
+    } else {
+        ConfigLoader::load_merged().unwrap_or_else(|e| {
+            eprintln!("Failed to load configuration: {}", e);
+            std::process::exit(1);
+        })
+    };
+
+    let should_validate = args.validate_config;
+
+    info!("rouser starting...");
+
+    // Validate configuration if requested.
+    if should_validate {
+        if let Some(ref path) = args.config {
+            match load_single_config(path) {
+                Ok(_) => {
+                    info!("Configuration validation passed");
+                    return ExitCode::SUCCESS;
+                }
+                Err(e) => {
+                    error!("Configuration validation failed: {}", e);
+                    return ExitCode::FAILURE;
+                }
+            }
+        } else {
+            // Already loaded and parsed successfully — nothing to validate further.
+            info!("Configuration validation passed");
+            return ExitCode::SUCCESS;
+        }
+    }
 
     if args.dry_run {
         match run_dry_run(&config).await {
@@ -143,7 +147,6 @@ async fn main() -> ExitCode {
             }
         }
     } else {
-        // Normal daemon mode
         match run_daemon(&config).await {
             Ok(_) => {
                 info!("rouser stopped normally");
@@ -196,10 +199,6 @@ async fn run_dry_run(config: &config::Config) -> Result<()> {
 }
 
 async fn run_daemon(config: &config::Config) -> Result<()> {
-    if std::env::var("NOTIFY_SOCKET").is_err() && which::which("systemd-run").is_ok() {
-        warn!("NOTIFY_SOCKET not set, consider running under systemd");
-    }
-
     // Create service
     let mut service = DataService::new(config, false).await?;
 

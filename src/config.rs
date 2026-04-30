@@ -227,14 +227,138 @@ impl ConfigLoader {
         Ok(config)
     }
 
-    pub fn print_default_config(out: &mut dyn Write) -> io::Result<()> {
-        writeln!(out, "{}", DEFAULT_CONFIG_TOML)?;
-        Ok(())
-    }
-
     #[allow(dead_code)]
     fn load_fallback(&self) -> Result<Config> {
         ConfigLoader::load_defaults()
+    }
+
+    pub(super) fn deep_merge(base: &mut toml::Value, override_val: &toml::Value) {
+        if let (Some(b), Some(o)) = (base.as_table_mut(), override_val.as_table()) {
+            for (k, v) in o.iter() {
+                if let Some(existing) = b.get_mut(k) {
+                    Self::deep_merge(existing, v);
+                } else {
+                    b.insert(k.clone(), v.clone());
+                }
+            }
+        } else {
+            *base = override_val.clone();
+        }
+    }
+
+    fn config_to_toml_value(config: &Config) -> Result<toml::Value> {
+        let serialized = toml::to_string(config).context("Failed to serialize config to TOML")?;
+        toml::from_str(&serialized).context("Failed to parse serialized config as Value")
+    }
+
+    pub fn print_config_toml(config: &Config, out: &mut dyn Write) -> io::Result<()> {
+        let serialized = toml::to_string_pretty(config)
+            .map_err(|e| io::Error::other(format!("Failed to serialize config: {}", e)))?;
+
+        writeln!(out, "{}", serialized)?;
+        Ok(())
+    }
+
+    fn install_default_if_missing(path: &std::path::Path) -> Result<()> {
+        use std::fs;
+
+        if path.exists() {
+            return Ok(());
+        }
+
+        let parent = path
+            .parent()
+            .context("Config path has no parent directory")?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create config directory: {}", parent.display()))?;
+
+        fs::write(path, DEFAULT_CONFIG_TOML)
+            .with_context(|| format!("Failed to write default config to {}", path.display()))?;
+
+        info!("Installed default configuration to {}", path.display());
+        Ok(())
+    }
+
+    pub fn load_merged() -> Result<(Config, Vec<String>)> {
+        use std::path::PathBuf;
+
+        let mut searched = Vec::new();
+
+        // Start with embedded defaults as the base.
+        let mut merged_value: toml::Value =
+            ConfigLoader::config_to_toml_value(&ConfigLoader::load_defaults()?)?;
+        searched.push("embedded defaults".to_string());
+
+        // Check if running as root (euid == 0).
+        let is_root = unsafe { libc::geteuid() == 0 };
+
+        // System-wide config path: /etc/rouser/config.toml
+        let etc_path = std::path::PathBuf::from("/etc/rouser/config.toml");
+        searched.push(etc_path.display().to_string());
+
+        if etc_path.exists() {
+            let content = fs::read_to_string(&etc_path)
+                .with_context(|| format!("Failed to read {}", etc_path.display()))?;
+            let user_config: toml::Value =
+                toml::from_str(&content).context("Failed to parse /etc/rouser/config.toml")?;
+            Self::deep_merge(&mut merged_value, &user_config);
+        } else if is_root {
+            // Root user + missing system config → auto-install.
+            if let Err(e) = ConfigLoader::install_default_if_missing(&etc_path) {
+                warn!(
+                    "Could not install default config to {}: {}",
+                    etc_path.display(),
+                    e
+                );
+            }
+        }
+
+        // User config path: $XDG_CONFIG_HOME/rouser/config.toml or ~/.config/rouser/config.toml
+        let xdg_config_home = std::env::var("XDG_CONFIG_HOME")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var("HOME")
+                    .ok()
+                    .map(|h| PathBuf::from(h).join(".config"))
+            });
+
+        // Resolve the actual user config path for file operations.
+        let user_config_path: PathBuf = match xdg_config_home {
+            Some(base) => base.join("rouser").join("config.toml"),
+            None => std::env::var("HOME")
+                .ok()
+                .map(|h| PathBuf::from(h).join(".config/rouser/config.toml"))
+                .unwrap_or_else(|| PathBuf::from("~/.config/rouser/config.toml")),
+        };
+
+        searched.push(user_config_path.display().to_string());
+
+        if user_config_path.exists() {
+            let content = fs::read_to_string(&user_config_path)
+                .with_context(|| format!("Failed to read {}", user_config_path.display()))?;
+            let user_config: toml::Value =
+                toml::from_str(&content).context("Failed to parse user config file")?;
+            Self::deep_merge(&mut merged_value, &user_config);
+        } else if !is_root {
+            // Non-root user + missing user config → auto-install.
+            if let Err(e) = ConfigLoader::install_default_if_missing(&user_config_path) {
+                warn!(
+                    "Could not install default config to {}: {}",
+                    user_config_path.display(),
+                    e
+                );
+            }
+        }
+
+        // Deserialize the merged TOML value into our Config struct.
+        let config_str = toml::to_string(&merged_value)
+            .context("Failed to serialize merged config for final deserialization")?;
+        let config: Config =
+            toml::from_str(&config_str).context("Failed to deserialize merged configuration")?;
+
+        Ok((config, searched))
     }
 }
 
