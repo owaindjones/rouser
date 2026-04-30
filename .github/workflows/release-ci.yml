@@ -15,15 +15,17 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d632683dd7b4  # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@d603d4afca40  # master (stable)
         with:
           targets: x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu
 
       - name: Cache dependencies and build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@cf9339e04bb8  # v2.7.0
         with:
           key: release-lint-test
 
@@ -42,7 +44,7 @@ jobs:
         run: cargo test --all-targets
 
       - name: Security audit (cargo audit)
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7769b73c2ec9  # v2
         with:
           tool: cargo-audit
       - name: Run security audit
@@ -70,16 +72,15 @@ jobs:
             rpm_arch: aarch64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d632683dd7b4  # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: Set version
         id: set-version
         run: |
-          if [ "${GITHUB_EVENT_NAME}" = "release" ]; then
-            echo "VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')" >> "$GITHUB_ENV"
-          else
-            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
-          fi
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Install stable toolchain and clippy
         run: |
@@ -92,13 +93,13 @@ jobs:
             libsystemd-dev libdbus-1-dev pkg-config
 
       - name: Cache dependencies and build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@cf9339e04bb8  # v2.7.0
         with:
           key: release-build-${{ matrix.target }}
 
       - name: Install cross-compilation toolchain (cross-rs)
         if: matrix.arch == 'aarch64'
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7769b73c2ec9  # v2
         with:
           tool: cross
 
@@ -121,7 +122,7 @@ jobs:
           .github/scripts/packaging.sh package "$BINARY" "$ARCHIVE"
 
       - name: Upload GHA artifact (backup)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6  # v4.6.2
         with:
           name: rouser-release-${{ matrix.arch }}-linux
           path: "rouser-v*-linux-${{ matrix.arch }}.tar.gz"
@@ -138,7 +139,7 @@ jobs:
 
       - name: Upload changelog as artifact for auto-release job
         if: always() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6  # v4.6.2
         with:
           name: release-notes-${{ github.ref_name }}
           path: RELEASE_NOTES.md
@@ -150,12 +151,13 @@ jobs:
       contents: write
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d632683dd7b4  # v4.3.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@git-cliff
+        uses: taiki-e/install-action@da05eb556833  # tool-name ref
         with:
           version: "latest"
 
@@ -175,7 +177,7 @@ jobs:
 
       - name: Upload changelog as artifact for downstream jobs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6  # v4.6.2
         with:
           name: release-notes-${{ github.ref_name }}
           path: RELEASE_NOTES.md
@@ -195,10 +197,12 @@ jobs:
             deb_arch: arm64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d632683dd7b4  # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: Download release tarball
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0b  # v4.3.0
         with:
           pattern: rouser-release-${{ matrix.arch }}-linux*
           path: dist-tarballs/
@@ -237,7 +241,7 @@ jobs:
           gh release upload "${VERSION}" "${deb_file}" --clobber
 
       - name: Upload GHA artifact (DEB backup)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6  # v4.6.2
         with:
           name: rouser-deb-${{ matrix.deb_arch }}
           path: rouser-*.deb
@@ -259,14 +263,16 @@ jobs:
     runs-on: ubuntu-latest
     container: fedora:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d632683dd7b4  # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: Install RPM build dependencies (container)
         run: |
           dnf install -y rpm-build gcc make tar gzip qemu-user-static
 
       - name: Download release tarball
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0b  # v4.3.0
         with:
           pattern: rouser-release-${{ matrix.arch }}-linux*
           path: dist-tarballs/
@@ -293,7 +299,7 @@ jobs:
           .github/scripts/rpm.sh build pkg-build "$RPM_VERSION" "$ARCH"
 
       - name: Upload GHA artifact (RPM)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6  # v4.6.2
         with:
           name: rouser-rpm-${{ matrix.rpm_arch }}
           path: "*.rpm"
@@ -314,11 +320,13 @@ jobs:
             rpm_arch: aarch64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d632683dd7b4  # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: Download RPM artifacts
         id: download-rpm
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0b  # v4.3.0
         with:
           name: rouser-rpm-${{ matrix.rpm_arch }}
           path: rpm-files/
@@ -365,23 +373,25 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d632683dd7b4  # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: Download x86_64 release tarball for PKGBUILD checksum generation
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0b  # v4.3.0
         with:
           name: rouser-release-x86_64-linux
           path: dist-tarballs/x86_64/
 
       - name: Download aarch64 release tarball for PKGBUILD checksum generation
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0b  # v4.3.0
         with:
           name: rouser-release-aarch64-linux
           path: dist-tarballs/aarch64/
 
       - name: Generate PKGBUILD from local artifacts
         env:
-          VERSION: ${{ github.event.release.tag_name || github.ref_name }}
+          VERSION: ${{ github.ref_name }}
         run: |
           chmod +x .github/scripts/pkgbuild.sh
           RPM_VERSION=$(echo "${VERSION}" | sed 's/^v//')
@@ -409,7 +419,7 @@ jobs:
             "rouser-pkgbuild-v${PKG_VERSION}.tar.gz" --clobber
 
       - name: Upload GHA artifact (PKGBUILD backup)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6  # v4.6.2
         with:
           name: rouser-arch-pkgbuild
           path: PKGBUILD

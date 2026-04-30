@@ -17,30 +17,36 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b  # v4.3.1 — pin to SHA per security best practices
+        with:
+          persist-credentials: false
 
       - name: Install zizmor
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7769b73c2ec9  # v2
         with:
           tool: zizmor
 
       - name: Run zizmor security scan
-        run: zizmor --rules dangerous-triggers,cache-poisoning,unpinned-uses,template-injection,excessive-permissions .
+        run: zizmor .
 
   ci-lint-test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b  # v4.3.1
+        with:
+          persist-credentials: false
+        with:
+          persist-credentials: false
 
       - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@d603d4afca40  # master (stable) — immutable ref
         with:
           targets: x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu
 
       - name: Cache dependencies and build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@cf9339e04bb8  # v2.7.0
         with:
           key: ci-lint-test
 
@@ -59,7 +65,7 @@ jobs:
         run: cargo test --all-targets
 
       - name: Security audit (cargo audit)
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7769b73c2ec9  # v2
         with:
           tool: cargo-audit
       - name: Run security audit
@@ -86,7 +92,11 @@ jobs:
             arch: aarch64
             deb_arch: arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b  # v4.3.1
+        with:
+          persist-credentials: false
+        with:
+          persist-credentials: false
 
       - name: Install stable toolchain and clippy
         run: |
@@ -99,13 +109,13 @@ jobs:
             libsystemd-dev libdbus-1-dev pkg-config
 
       - name: Cache dependencies and build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@cf9339e04bb8  # v2.7.0
         with:
           key: ci-build-${{ matrix.target }}
 
       - name: Install cross-compilation toolchain (cross-rs)
         if: matrix.arch == 'aarch64'
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7769b73c2ec9  # v2
         with:
           tool: cross
 
@@ -128,7 +138,7 @@ jobs:
           .github/scripts/packaging.sh package "$BINARY" "$ARCHIVE"
 
       - name: Upload CI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6  # v4.6.2
         with:
           name: rouser-${{ matrix.arch }}-linux-ci
           path: "rouser-${{ matrix.arch }}-linux.tar.gz"

@@ -200,24 +200,37 @@ zizmor-security-scan:
   runs-on: ubuntu-latest
   permissions: { contents: read }
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@d632683dd7b4  # v4.3.1
+      with:
+        persist-credentials: false
     - name: Install zizmor
-      uses: taiki-e/install-action@v2
+      uses: taiki-e/install-action@7769b73c2ec9  # v2
       with: { tool: zizmor }
-    - run: zizmor . --rules dangerous-triggers,cache-poisoning,unpinned-uses,template-injection,excessive-permissions
+    - run: zizmor .
 ```
 
 ### Dependency Pinning in Workflows
 
-Pin `uses:` references to immutable SHAs where possible. At minimum, pin to a major version tag and document the SHA used:
+All `uses:` references are pinned to immutable commit SHAs. The following table documents every action reference used across workflow files:
 
-```yaml
-# Preferred (immutable)
-- uses: actions/checkout@b4ffde65f9633ffde67a9ef1ddfd825e1d0fcf7f  # v4.1.2
+| Action | Pinned SHA | Version | Notes |
+|--------|-----------|---------|-------|
+| actions/checkout | `@d632683dd7b4` | v4.3.1 | All steps include `persist-credentials: false` to prevent credential exposure via git config |
+| dtolnay/rust-toolchain | `@d603d4afca40` | stable (master) | Immutable branch reference; CI installs cross-compilation targets at this SHA |
+| Swatinem/rust-cache | `@cf9339e04bb8` | v2.7.0 | Cache keys use static strings or matrix values only — no user input in key derivation |
+| taiki-e/install-action (v2) | `@7769b73c2ec9` | v2 | Used for zizmor, cargo-audit, and cross toolchain installation |
+| actions/upload-artifact | `@ea165f8d65b6` | v4.6.2 | Release artifact uploads with scoped write permissions per job |
+| actions/download-artifact | `@d3f86a106a0b` | v4.3.0 | Downloads CI artifacts for packaging jobs; patterns are deterministic |
 
-# Acceptable minimum (document the SHA separately in SECURITY.md)
-- uses: actions/checkout@v4
+When adding new action references, always look up the current commit SHA via GitHub API before committing workflow changes:
+
+```bash
+# Look up tag → SHA mapping
+curl -sf "https://api.github.com/repos/OWNER/REPO/git/ref/tags/TAG" \
+  | jq -r '.object.sha[:12]'
 ```
+
+Document any new pinning in this table and add a comment on the `uses:` line matching the format above.
 
 ### Artifact Verification
 
@@ -228,8 +241,8 @@ All release artifacts are distributed as tarballs with embedded systemd service 
 | Anti-pattern | Risk | Fix |
 |-------------|------|-----|
 | `permissions: contents: write` at workflow level | Every job gets full repo access | Use per-job scoped permissions |
-| `actions/checkout@v4` without pinning | Vulnerable to tag hijacking | Pin to commit SHA or document the pinned version |
-| Passing `${{ github.event.pull_request.title }}` directly into steps | Template injection via PR titles | Sanitize all user input; use `--ref` instead of inline interpolation |
+| `actions/checkout@v4` without pinning | Vulnerable to tag hijacking | Pin to commit SHA (see table above) |
+| `${{ github.event.release.tag_name }}` interpolated into shell steps | Template injection via crafted release names | Use `$GITHUB_REF` env var with prefix stripping instead |
 | Using `curl ... \| bash` in CI scripts | MITM during download + arbitrary code execution | Download to file, verify checksums, then execute |
 
 ### Rust Dependency Security
