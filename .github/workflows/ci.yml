@@ -37,9 +37,6 @@ jobs:
       - uses: actions/checkout@34e114876b0b  # v4.3.1
         with:
           persist-credentials: false
-          persist-credentials: false
-        with:
-          persist-credentials: false
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@d603d4afca40  # master (stable) — immutable ref
@@ -94,9 +91,6 @@ jobs:
             deb_arch: arm64
     steps:
       - uses: actions/checkout@34e114876b0b  # v4.3.1
-        with:
-          persist-credentials: false
-          persist-credentials: false
         with:
           persist-credentials: false
 
