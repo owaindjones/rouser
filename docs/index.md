@@ -22,5 +22,5 @@ A Linux daemon that monitors system metrics and inhibits sleep when activity thr
 
 ## Links
 
-- [Contributing Guide](../CONTRIBUTING.md)
-- [Agent Guidelines (AI/LLM developers)](../AGENTS.md)
+- [Contributing Guide](./../CONTRIBUTING.md)
+- [Agent Guidelines (AI/LLM developers)](./../AGENTS.md)

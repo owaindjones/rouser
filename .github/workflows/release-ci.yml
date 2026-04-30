@@ -24,11 +24,6 @@ jobs:
         with:
           targets: x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu
 
-      - name: Cache dependencies and build
-        uses: Swatinem/rust-cache@cf9339e04bb8069e37c71ff4a0e6a970f35d6f7d  # v2.7.0
-        with:
-          key: release-lint-test
-
       - name: Install system dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y \
@@ -91,11 +86,6 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y \
             libsystemd-dev libdbus-1-dev pkg-config
-
-      - name: Cache dependencies and build
-        uses: Swatinem/rust-cache@cf9339e04bb8069e37c71ff4a0e6a970f35d6f7d  # v2.7.0
-        with:
-          key: release-build-${{ matrix.target }}
 
       - name: Install cross-compilation toolchain (cross-rs)
         if: matrix.arch == 'aarch64'

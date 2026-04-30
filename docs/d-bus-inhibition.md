@@ -144,7 +144,7 @@ if !self.previous_inhibited_state && current_inhibited {
 self.previous_inhibited_state = current_inhibited;
 ```
 
-This prevents log spam (previously, "Sleep inhibited" was logged every 5 seconds while active). See [AGENTS.md](../AGENTS.md) → Logging Conventions for the state-change-only logging rule.
+This prevents log spam (previously, "Sleep inhibited" was logged every 5 seconds while active). See [AGENTS.md](./../AGENTS.md) → Logging Conventions for the state-change-only logging rule.
 
 ## Debugging and Verification
 
@@ -189,7 +189,7 @@ The old `/org/freedesktop/PowerManagement.Inhibit` API is **obsolete** and shoul
 - Does not work reliably on modern desktop environments
 - KDE Powerdevil ignores inhibitors from unprivileged users regardless of the API used
 
-Always use `org.freedesktop.login1.Manager.Inhibit` instead. See [AGENTS.md](../AGENTS.md) → Lessons Learned for more context on why this approach was chosen over alternatives.
+Always use `org.freedesktop.login1.Manager.Inhibit` instead. See [AGENTS.md](./../AGENTS.md) → Lessons Learned for more context on why this approach was chosen over alternatives.
 
 ## References
 
