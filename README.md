@@ -20,7 +20,7 @@ rouser keeps headless servers and desktops awake during active use. It monitors 
 - **Configurable thresholds**: Independent per-core and total-CPU thresholds, per-GPU reporting
 - **EMA smoothing**: Per-metric exponential moving average for stable readings
 - **Systemd integration**: Uses `org.freedesktop.login1.Manager.Inhibit` D-Bus API
-- **TOML configuration**: Embedded default config; sequential file search (`./config/rouser.toml → ~/.config/rouser/config.toml → /etc/rouser/config.toml`)
+- **TOML configuration**: Embedded default config; auto-installs to user or system paths on first run, merges `/etc/rouser/config.toml` and `~/.config/rouser/config.toml` if present
 - **Dry-run mode**: Test without inhibiting sleep
 
 ## Install
@@ -77,6 +77,9 @@ See [Configuration Reference](docs/configuration.md) for all options with defaul
 ## Development
 
 This project is 100% vibecoded: humans provide high-level designs and technical recommendations, but write zero lines of code. Every detail - planning, architecture, implementation - comes from a large language model running in the terminal. See [VIBECODED.md](VIBECODED.md) for more.
+
+For coding standards, testing conventions, and documentation sync rules: [CONTRIBUTING.md](./CONTRIBUTING.md)
+For AI/LLM agent-specific guidelines (commit format, error handling, async patterns): [AGENTS.md](./AGENTS.md)
 
 ## License
 
