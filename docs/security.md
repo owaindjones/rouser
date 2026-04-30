@@ -161,8 +161,91 @@ rouser does not log sensitive data (passwords, API keys). Configuration values l
 4. Test in dry-run mode: `rouser --dry-run -l debug`
 5. Restart: `systemctl --user start rouser.service`
 
+## CI/CD Pipeline Security
+
+### GitHub Actions Permissions (Supply Chain Defense)
+
+GitHub Actions workflows run in privileged environments that can exfiltrate secrets or inject malicious code into build artifacts. All workflow jobs follow the **principle of least privilege**: each job declares only the permissions it needs, scoped to the minimum required scope.
+
+```yaml
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read        # Only read access — cannot push code or create releases
+    steps: ...
+
+  release-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # Write only for the job that uploads to GitHub Releases
+      packages: write       # Required for publishing container/package registries
+    steps: ...
+```
+
+**Never declare `permissions` at the workflow level with broad scopes.** This grants every job (including those that never need it) elevated access. If a downstream dependency in any job is compromised, all permissions are exposed. Always use job-level `permissions:` blocks.
+
+### Workflow Linting with zizmor
+
+Every PR to main runs [zizmor](https://woodruffw.github.io/zizmor/) — a GitHub Actions security linter that checks for:
+- **dangerous-triggers**: Workflows triggered by untrusted events (PR forks, issue labels) without safeguards
+- **cache-poisoning**: Malicious artifacts injected via cache keys derived from user input
+- **unpinned-uses**: Actions referenced by mutable tags (e.g., `@v4`) instead of immutable SHAs
+- **template-injection**: User-controlled data interpolated into workflow steps
+- **excessive-permissions**: Jobs with more permissions than required
+
+Add to your CI:
+```yaml
+zizmor-security-scan:
+  runs-on: ubuntu-latest
+  permissions: { contents: read }
+  steps:
+    - uses: actions/checkout@v4
+    - name: Install zizmor
+      uses: taiki-e/install-action@v2
+      with: { tool: zizmor }
+    - run: zizmor . --rules dangerous-triggers,cache-poisoning,unpinned-uses,template-injection,excessive-permissions
+```
+
+### Dependency Pinning in Workflows
+
+Pin `uses:` references to immutable SHAs where possible. At minimum, pin to a major version tag and document the SHA used:
+
+```yaml
+# Preferred (immutable)
+- uses: actions/checkout@b4ffde65f9633ffde67a9ef1ddfd825e1d0fcf7f  # v4.1.2
+
+# Acceptable minimum (document the SHA separately in SECURITY.md)
+- uses: actions/checkout@v4
+```
+
+### Artifact Verification
+
+All release artifacts are distributed as tarballs with embedded systemd service files and config. The PKGBUILD for Arch Linux computes SHA256 checksums from the actual GitHub release assets during CI generation — never using `'SKIP'`. This ensures package integrity verification at install time, preventing supply chain attacks where release binaries could be replaced.
+
+### Known CI/CD Security Patterns to Avoid
+
+| Anti-pattern | Risk | Fix |
+|-------------|------|-----|
+| `permissions: contents: write` at workflow level | Every job gets full repo access | Use per-job scoped permissions |
+| `actions/checkout@v4` without pinning | Vulnerable to tag hijacking | Pin to commit SHA or document the pinned version |
+| Passing `${{ github.event.pull_request.title }}` directly into steps | Template injection via PR titles | Sanitize all user input; use `--ref` instead of inline interpolation |
+| Using `curl ... \| bash` in CI scripts | MITM during download + arbitrary code execution | Download to file, verify checksums, then execute |
+
+### Rust Dependency Security
+
+The project uses `cargo-audit` (via the `cargoaudit` crate's advisory database) in CI to scan for known CVEs:
+
+```bash
+cargo install cargo-audit  # Once per environment
+cargo audit                 # Run before every commit / PR
+```
+
+Critical and high severity findings **fail the build**. See [Dependency Management](#dependency-management) above for runtime dependency policies.
+
 ## References
 
-- [systemd security features](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#Security)
+- [GitHub Actions security hardening guide](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-workflows)
+- [zizmor — GitHub Actions workflow linter](https://woodruffw.github.io/zizmor/)
 - [RustSec advisories](https://rustsec.org/)
 - [OWASP Linux Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Linux_Security_Cheat_Sheet.html)

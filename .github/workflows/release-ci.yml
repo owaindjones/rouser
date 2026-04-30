@@ -9,12 +9,11 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-permissions:
-  contents: write
-
 jobs:
   ci-lint-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -51,6 +50,9 @@ jobs:
 
   release-build:
     needs: [ci-lint-test]
+    permissions:
+      contents: write
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -144,11 +146,13 @@ jobs:
   auto-release:
     needs: [ci-lint-test]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
 
       - name: Install git-cliff
         uses: taiki-e/install-action@git-cliff
@@ -178,6 +182,8 @@ jobs:
 
   package-deb:
     needs: [auto-release, release-build]
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -239,6 +245,8 @@ jobs:
 
   package-rpm-build:
     needs: [auto-release, release-build]
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -293,6 +301,8 @@ jobs:
 
   package-rpm-upload:
     needs: [package-rpm-build, auto-release]
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -351,6 +361,8 @@ jobs:
 
   package-arch-pkgbuild:
     needs: [auto-release, release-build]
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

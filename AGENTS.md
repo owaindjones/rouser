@@ -18,6 +18,11 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 
 - **No background tasks**: All work must be performed by subagents or in the foreground. Background tasks are not allowed because they often time out or exhaust the context window before completing.
 - **Sequential workers only (foreground)**: Delegating to subagents is allowed, but ONLY one at a time with `run_in_background=false` (synchronous mode). Never run multiple agents concurrently — always wait for each worker to finish before spawning the next. This ensures agent output is available in-session and prevents context loss from timed-out background tasks.
+- **Never introduce `unsafe` code without explicit instruction**: Do not add `unsafe {}` blocks, FFI bindings, or pointer operations unless the user explicitly requests it with a clear justification. Rust's safety guarantees are a primary design goal of this project.
+- **Preserve CI/CD least-privilege permissions**: When editing GitHub Actions workflows, never widen existing permission scopes. Always use job-level `permissions:` blocks — never workflow-level broad grants like `permissions: contents: write`. Each job should have only the minimum permissions it requires (`contents: read` for linting/testing jobs).
+- **Never weaken dependency pinning in CI**: When modifying workflow actions references, prefer immutable commit SHAs over mutable tags. If a tag is used (e.g., `@v4`), document the SHA version in code comments or security docs so reviewers can verify it matches an expected release.
+- **Validate all external input**: Any file path, environment variable, CLI argument, or config value that originates outside the program must be validated before use. Never assume user-provided values are safe — apply bounds checks for numeric ranges and whitelist validation for string enums.
+- **Follow docs/security.md patterns**: Read `docs/security.md` before making changes to CI workflows, packaging scripts, install scripts, or security-related code. Reference it when explaining why a particular pattern is used (e.g., TOCTOU avoidance in temp file handling).
 
 ## Versioning Policy
 

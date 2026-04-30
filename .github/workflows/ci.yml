@@ -9,12 +9,28 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-permissions:
-  contents: write
-
 jobs:
+  # Security: scan GitHub Actions workflows for common misconfigurations.
+  # See docs/security.md and https://woodruffw.github.io/zizmor/
+  zizmor-security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zizmor
+        uses: taiki-e/install-action@v2
+        with:
+          tool: zizmor
+
+      - name: Run zizmor security scan
+        run: zizmor --rules dangerous-triggers,cache-poisoning,unpinned-uses,template-injection,excessive-permissions .
+
   ci-lint-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +68,10 @@ jobs:
   build-artifacts-ci:
     if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
     needs: [ci-lint-test]
+    permissions:
+      contents: read
+      issues: none
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +85,6 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             arch: aarch64
             deb_arch: arm64
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
