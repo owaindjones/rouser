@@ -478,6 +478,6 @@ sudo rm -rf /etc/rouser /var/log/rouser
 
 ## See Also
 
-- [Quick Start Guide](quickstart.md) - Getting started with rouser
+- [Installation](installation.md) - Getting started with rouser
 - [Configuration Reference](configuration.md) - Complete configuration options
 - [Command Line Arguments](command-line.md) - CLI usage details

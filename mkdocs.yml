@@ -6,8 +6,7 @@ use_directory_urls: false
 nav:
   - Overview: index.md
   - Introduction: introduction.md
-  - Quick Start: quickstart.md
-  - Quick Start: quickstart.md
+  - Installation: installation.md
   - Configuration: configuration.md
   - Command Line: command-line.md
   - Systemd User Service: systemd-user-service.md

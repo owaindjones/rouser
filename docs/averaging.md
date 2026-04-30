@@ -401,4 +401,4 @@ mode = "block"
 
 - [Metrics Overview](metrics-overview.md) - How metrics are collected
 - [Configuration Reference](configuration.md) - Full configuration options
-- [Quick Start Guide](quickstart.md) - Getting started with rouser
+- [Installation](installation.md) - Getting started with rouser

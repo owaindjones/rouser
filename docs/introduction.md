@@ -226,7 +226,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Getting Started
 
-1. [Quick Start Guide](quickstart.md) — Get rouser running on your system within 5 minutes
+1. [Installation](installation.md) — Get rouser running on your system within 5 minutes
 2. [Configuration Reference](configuration.md) — Complete configuration options with defaults and examples
 3. [Command Line Arguments](command-line.md) — CLI usage, flags, and environment variables
 4. [Running as a Service](systemd-user-service.md) — Systemd user service setup, hardening, and troubleshooting
