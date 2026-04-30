@@ -113,6 +113,16 @@ Use the affected module as scope: `service`, `config`, `gpu`, `cpu`, `network`, 
 - Optional fields use `#[serde(default)]`; required overrides use `#[serde(default = "default_fn")]`.
 - Duration parsing uses `humantime_serde` for human-readable format (e.g., `"5s"`, `"30m"`).
 
+## XDG Base Directory Compliance
+
+All file paths on disk must conform to the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/):
+
+- **User binaries**: `${XDG_BIN_HOME:-$HOME/.local/bin}` — use shell expansion pattern `"${XDG_BIN_HOME:-$HOME/.local/bin}/binary_name"` in install scripts and systemd service files.
+- **User configs**: `${XDG_CONFIG_HOME:-$HOME/.config}` — config directories are created under this path with fallback to `$HOME/.config` when the variable is unset.
+- **System-level overrides** (root): `/etc/rouser/config.toml` for system-wide defaults, written on first run if rouser runs as root and no user config exists.
+
+Never hardcode `~/.local/bin/` or `~/.config/`. Always use the shell expansion pattern with a fallback: `"${XDG_BIN_HOME:-$HOME/.local/bin}"` (not `${XDG_DATA_HOME}../bin}` — that is missing the `/` between `$XDG_DATA_HOME` and `..`, producing invalid paths like `share../bin`).
+
 ## Metrics Collection Conventions
 
 ### Per-device reporting over aggregation

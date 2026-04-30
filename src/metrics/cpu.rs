@@ -232,10 +232,6 @@ fn cache_base_frequencies() -> Vec<CpuFreq> {
         }
     }
 
-    debug!(
-        "Cached base frequencies for {} core(s) at startup",
-        freqs.len()
-    );
     freqs
 }
 
@@ -313,7 +309,6 @@ fn read_core_ticks() -> Result<Vec<(String, CpuCoreTicks)>, CpuError> {
         ));
     }
 
-    debug!("Read {} core(s) from /proc/stat", core_ticks.len());
     Ok(core_ticks)
 }
 
@@ -465,12 +460,11 @@ fn calculate_usage(
     let total_average = total_sum / prev.len() as f64;
 
     debug!(
-        "CPU: per_core_max={:.1}%, total_avg={:.1}% ({}/{} cores, freq_weighted={})",
+        "CPU: per_core_max={:.1}%, total_avg={:.1}% ({}/{} cores)",
         per_core_max,
         total_average,
         core_usages.len(),
-        prev.len(),
-        if any_freq_available { "yes" } else { "no" }
+        prev.len()
     );
 
     CpuUsage {

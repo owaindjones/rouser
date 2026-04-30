@@ -71,9 +71,26 @@ Because the three drivers measure different things, a "20% on NVIDIA" reading do
 
 If per-vendor thresholds become necessary (e.g., `gpu_threshold_nvidia = 20` vs `gpu_threshold_amd = 40`), that can be addressed in a future enhancement to the configuration format.
 
-## No Frequency Weighting on GPU Usage
+## Frequency-Weighted GPU Usage (NVIDIA)
 
-Unlike CPU usage, which applies per-core frequency weighting (`raw_usage * current_freq / max_frequency` at `src/metrics/cpu.rs:404-436`), GPU utilization is reported as raw values from the driver with only EMA smoothing applied in the service loop. This is intentional — all three drivers normalize their busy percentage to a 0–100% scale regardless of current clock speed, so frequency weighting would be redundant.
+For NVIDIA GPUs, rouser applies **frequency-weighted usage** using NVML's `clock_info(Clock::Graphics)` and `max_clock_info(Clock::Graphics)` APIs alongside the existing utilization rates. This is necessary because NVML reports SM busy percentage at the *current* clock speed — a GPU running 200MHz at 100% SM utilization is effectively only ~6% loaded compared to its 3200MHz peak, similar to how CPU frequency-weighting works (`src/metrics/cpu.rs:404-436`).
+
+The calculation uses the same approach as per-CPU-core weighting:
+```
+effective_max = max(current_freq_mhz, rated_max_freq_mhz, observed_peak_mhz)
+weighted_compute_usage = raw_gpu_pct * (current_freq_mhz / effective_max)
+composite = weighted_compute_usage.max(encoder_usage).max(decoder_usage)
+```
+
+The `observed_peak` term tracks the highest graphics clock ever seen on each GPU, handling turbo boost scenarios where clocks exceed rated maximums. This ensures a GPU that briefly boosts to 2400MHz and then drops to 500MHz is not penalized with inflated usage readings during the downclocked period.
+
+Encoder and decoder engine utilization are combined via max() into the same composite, but they do **not** receive frequency weighting — these engines run at fixed clocks independent of GPU boost states.
+
+## No Frequency Weighting on AMD/Intel GPU Usage
+
+For AMD (`amdgpu`) and Intel (`i915` / `xe`) GPUs, raw utilization values from sysfs are used without frequency weighting. These drivers already report normalized busy percentages representing aggregate hardware block activity regardless of current clock speed — the percentage is intrinsic to how the kernel driver computes load, not a time-based measurement at an arbitrary frequency.
+
+Attempting to apply frequency weighting on these platforms would require reading max rated frequencies from vendor-specific sysfs paths that are either unavailable or unreliable across different GPU generations and kernel versions. The raw `gpu_busy_percent` values remain sufficient for rouser's purpose of detecting whether the GPU is actively in use.
 
 ## See Also
 

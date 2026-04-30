@@ -9,6 +9,15 @@ pub struct NetworkStats {
     pub tx_bytes: u64,
 }
 
+/// Per-interface throughput breakdown returned by collect().
+#[derive(Debug, Default)]
+pub struct NetworkThroughput {
+    /// Total throughput across all monitored interfaces (Mbps).
+    pub total_mbps: f64,
+    /// Throughput per interface name (Mbps).
+    pub per_interface: HashMap<String, f64>,
+}
+
 pub struct NetworkCollector {
     last_stats: HashMap<String, NetworkStats>,
     last_time: Option<SystemTime>,
@@ -17,7 +26,6 @@ pub struct NetworkCollector {
 
 impl NetworkCollector {
     pub fn new(exclude_interfaces: Vec<String>) -> Self {
-        // Ensure loopback is excluded by default unless explicitly in exclusion list
         let mut excludes = exclude_interfaces;
         if !excludes.contains(&"lo".to_string()) {
             excludes.push("lo".to_string());
@@ -34,7 +42,9 @@ impl NetworkCollector {
         "network"
     }
 
-    pub async fn collect(&mut self) -> Result<f64, NetworkError> {
+    /// Collect network I/O throughput.
+    /// Returns total Mbps plus per-interface breakdown for logging.
+    pub async fn collect(&mut self) -> Result<NetworkThroughput, NetworkError> {
         let current_stats = self.read_interface_stats()?;
         let now = SystemTime::now();
 
@@ -44,32 +54,42 @@ impl NetworkCollector {
                     .duration_since(*prev_time)
                     .unwrap_or(Duration::from_secs(1));
 
-                let mut total_delta = 0u64;
+                let mut total_delta: u64 = 0;
+                let mut per_interface_mbps: HashMap<String, f64> = HashMap::new();
 
                 for (name, stats) in &current_stats {
                     if let Some(prev) = self.last_stats.get(name) {
                         let rx_delta = stats.rx_bytes.saturating_sub(prev.rx_bytes);
                         let tx_delta = stats.tx_bytes.saturating_sub(prev.tx_bytes);
                         total_delta += rx_delta + tx_delta;
+
+                        if interval.as_secs_f64() > 0.0 {
+                            let iface_mbps = ((rx_delta + tx_delta) as f64 * 8.0)
+                                / (interval.as_secs_f64() * 1_000_000.0);
+                            per_interface_mbps.insert(name.clone(), iface_mbps);
+                        }
                     }
                 }
 
-                // Convert bytes to megabits per second
-                // (bytes * 8 bits) / (seconds * 1,000,000)
-                let throughput_mbps =
-                    (total_delta as f64 * 8.0) / (interval.as_secs_f64() * 1_000_000.0);
+                let total_mbps = if interval.as_secs_f64() > 0.0 {
+                    (total_delta as f64 * 8.0) / (interval.as_secs_f64() * 1_000_000.0)
+                } else {
+                    0.0
+                };
 
                 self.last_stats = current_stats;
                 self.last_time = Some(now);
 
-                debug!("Network usage: {:.2} Mbps", throughput_mbps);
-                Ok(throughput_mbps)
+                Ok(NetworkThroughput {
+                    total_mbps,
+                    per_interface: per_interface_mbps,
+                })
             }
             None => {
                 self.last_stats = current_stats;
                 self.last_time = Some(now);
                 debug!("Network: first sample, returning 0.0 Mbps");
-                Ok(0.0)
+                Ok(NetworkThroughput::default())
             }
         }
     }
@@ -81,7 +101,6 @@ impl NetworkCollector {
         let mut stats_map = HashMap::new();
 
         for line in content.lines() {
-            // Skip header lines
             if !line.contains(':') {
                 continue;
             }
@@ -93,9 +112,8 @@ impl NetworkCollector {
 
             let name = parts[0].trim().to_string();
 
-            // Skip excluded interfaces
+            // Skip excluded interfaces silently.
             if self.exclude_interfaces.contains(&name) {
-                debug!("Skipping excluded interface: {}", name);
                 continue;
             }
 

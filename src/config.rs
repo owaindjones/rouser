@@ -18,16 +18,16 @@ pub struct Config {
     pub inhibitor: InhibitionConfig,
 }
 
-fn default_gpu_usage() -> f64 {
-    90.0
+fn default_gpu_threshold() -> f64 {
+    15.0
 }
 
 fn default_network_io() -> f64 {
-    100.0
+    10.0
 }
 
 fn default_disk_activity() -> f64 {
-    50.0
+    10.0
 }
 
 #[allow(dead_code)]
@@ -35,7 +35,7 @@ fn default_disk_activity() -> f64 {
 pub struct Thresholds {
     #[serde(default = "default_cpu_usage_threshold")]
     pub cpu_usage: f64,
-    #[serde(default = "default_gpu_usage")]
+    #[serde(default = "default_gpu_threshold")]
     pub gpu_usage: f64,
     #[serde(default = "default_network_io")]
     pub network_io: f64,
@@ -69,12 +69,12 @@ fn default_per_core_threshold() -> f64 {
 }
 
 fn default_total_threshold() -> f64 {
-    50.0
+    25.0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GpuConfig {
-    #[serde(default = "default_gpu_usage")]
+    #[serde(default = "default_gpu_threshold")]
     pub threshold: f64,
     #[serde(default = "default_ema_alpha_gpu")]
     pub ema_alpha: f64,
@@ -131,19 +131,19 @@ fn default_cooldown_duration() -> Duration {
 }
 
 fn default_ema_alpha_cpu() -> f64 {
-    0.3
+    0.7
 }
 
 fn default_ema_alpha_gpu() -> f64 {
-    0.3
+    0.7
 }
 
 fn default_ema_alpha_network() -> f64 {
-    0.2
+    0.5
 }
 
 fn default_ema_alpha_disk() -> f64 {
-    0.2
+    0.5
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -182,8 +182,6 @@ impl ConfigLoader {
         }
     }
 
-    // Validation is now done by load() which fully deserializes into Config,
-    // catching all serde errors (wrong field names, invalid values).
     #[allow(dead_code)]
     pub fn validate(&self) -> Result<()> {
         if !self.config_path.exists() {
@@ -197,7 +195,6 @@ impl ConfigLoader {
             format!("Failed to read config file: {}", self.config_path.display())
         })?;
 
-        // Fully deserialize into Config struct to catch all serde errors
         let _config: Config =
             toml::from_str(&content).with_context(|| "Failed to parse TOML configuration")?;
 
@@ -230,14 +227,138 @@ impl ConfigLoader {
         Ok(config)
     }
 
-    pub fn print_default_config(out: &mut dyn Write) -> io::Result<()> {
-        writeln!(out, "{}", DEFAULT_CONFIG_TOML)?;
-        Ok(())
-    }
-
     #[allow(dead_code)]
     fn load_fallback(&self) -> Result<Config> {
         ConfigLoader::load_defaults()
+    }
+
+    pub(super) fn deep_merge(base: &mut toml::Value, override_val: &toml::Value) {
+        if let (Some(b), Some(o)) = (base.as_table_mut(), override_val.as_table()) {
+            for (k, v) in o.iter() {
+                if let Some(existing) = b.get_mut(k) {
+                    Self::deep_merge(existing, v);
+                } else {
+                    b.insert(k.clone(), v.clone());
+                }
+            }
+        } else {
+            *base = override_val.clone();
+        }
+    }
+
+    fn config_to_toml_value(config: &Config) -> Result<toml::Value> {
+        let serialized = toml::to_string(config).context("Failed to serialize config to TOML")?;
+        toml::from_str(&serialized).context("Failed to parse serialized config as Value")
+    }
+
+    pub fn print_config_toml(config: &Config, out: &mut dyn Write) -> io::Result<()> {
+        let serialized = toml::to_string_pretty(config)
+            .map_err(|e| io::Error::other(format!("Failed to serialize config: {}", e)))?;
+
+        writeln!(out, "{}", serialized)?;
+        Ok(())
+    }
+
+    fn install_default_if_missing(path: &std::path::Path) -> Result<()> {
+        use std::fs;
+
+        if path.exists() {
+            return Ok(());
+        }
+
+        let parent = path
+            .parent()
+            .context("Config path has no parent directory")?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create config directory: {}", parent.display()))?;
+
+        fs::write(path, DEFAULT_CONFIG_TOML)
+            .with_context(|| format!("Failed to write default config to {}", path.display()))?;
+
+        info!("Installed default configuration to {}", path.display());
+        Ok(())
+    }
+
+    pub fn load_merged() -> Result<(Config, Vec<String>)> {
+        use std::path::PathBuf;
+
+        let mut searched = Vec::new();
+
+        // Start with embedded defaults as the base.
+        let mut merged_value: toml::Value =
+            ConfigLoader::config_to_toml_value(&ConfigLoader::load_defaults()?)?;
+        searched.push("embedded defaults".to_string());
+
+        // Check if running as root (euid == 0).
+        let is_root = unsafe { libc::geteuid() == 0 };
+
+        // System-wide config path: /etc/rouser/config.toml
+        let etc_path = std::path::PathBuf::from("/etc/rouser/config.toml");
+        searched.push(etc_path.display().to_string());
+
+        if etc_path.exists() {
+            let content = fs::read_to_string(&etc_path)
+                .with_context(|| format!("Failed to read {}", etc_path.display()))?;
+            let user_config: toml::Value =
+                toml::from_str(&content).context("Failed to parse /etc/rouser/config.toml")?;
+            Self::deep_merge(&mut merged_value, &user_config);
+        } else if is_root {
+            // Root user + missing system config → auto-install.
+            if let Err(e) = ConfigLoader::install_default_if_missing(&etc_path) {
+                warn!(
+                    "Could not install default config to {}: {}",
+                    etc_path.display(),
+                    e
+                );
+            }
+        }
+
+        // User config path: $XDG_CONFIG_HOME/rouser/config.toml or ~/.config/rouser/config.toml
+        let xdg_config_home = std::env::var("XDG_CONFIG_HOME")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var("HOME")
+                    .ok()
+                    .map(|h| PathBuf::from(h).join(".config"))
+            });
+
+        // Resolve the actual user config path for file operations.
+        let user_config_path: PathBuf = match xdg_config_home {
+            Some(base) => base.join("rouser").join("config.toml"),
+            None => std::env::var("HOME")
+                .ok()
+                .map(|h| PathBuf::from(h).join(".config/rouser/config.toml"))
+                .unwrap_or_else(|| PathBuf::from("~/.config/rouser/config.toml")),
+        };
+
+        searched.push(user_config_path.display().to_string());
+
+        if user_config_path.exists() {
+            let content = fs::read_to_string(&user_config_path)
+                .with_context(|| format!("Failed to read {}", user_config_path.display()))?;
+            let user_config: toml::Value =
+                toml::from_str(&content).context("Failed to parse user config file")?;
+            Self::deep_merge(&mut merged_value, &user_config);
+        } else if !is_root {
+            // Non-root user + missing user config → auto-install.
+            if let Err(e) = ConfigLoader::install_default_if_missing(&user_config_path) {
+                warn!(
+                    "Could not install default config to {}: {}",
+                    user_config_path.display(),
+                    e
+                );
+            }
+        }
+
+        // Deserialize the merged TOML value into our Config struct.
+        let config_str = toml::to_string(&merged_value)
+            .context("Failed to serialize merged config for final deserialization")?;
+        let config: Config =
+            toml::from_str(&config_str).context("Failed to deserialize merged configuration")?;
+
+        Ok((config, searched))
     }
 }
 
@@ -252,7 +373,6 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let config_path = dir.path().join("config.toml");
 
-        // Create an empty config file
         fs::write(&config_path, "").unwrap();
 
         let config_path = config_path.to_path_buf();
@@ -268,7 +388,7 @@ mod tests {
                 ema_alpha: default_ema_alpha_cpu(),
             },
             gpu: GpuConfig {
-                threshold: default_gpu_usage(),
+                threshold: default_gpu_threshold(),
                 ema_alpha: default_ema_alpha_gpu(),
             },
             network: NetworkConfig {
@@ -285,14 +405,14 @@ mod tests {
         };
 
         assert_eq!(metrics.cpu.per_core_threshold, 80.0);
-        assert_eq!(metrics.cpu.total_threshold, 50.0);
-        assert_eq!(metrics.gpu.threshold, 90.0);
-        assert_eq!(metrics.network.threshold, 100.0);
-        assert_eq!(metrics.disk.threshold, 50.0);
-        assert_eq!(metrics.cpu.ema_alpha, 0.3);
-        assert_eq!(metrics.gpu.ema_alpha, 0.3);
-        assert_eq!(metrics.network.ema_alpha, 0.2);
-        assert_eq!(metrics.disk.ema_alpha, 0.2);
+        assert_eq!(metrics.cpu.total_threshold, 25.0);
+        assert_eq!(metrics.gpu.threshold, 15.0);
+        assert_eq!(metrics.network.threshold, 10.0);
+        assert_eq!(metrics.disk.threshold, 10.0);
+        assert_eq!(metrics.cpu.ema_alpha, 0.7);
+        assert_eq!(metrics.gpu.ema_alpha, 0.7);
+        assert_eq!(metrics.network.ema_alpha, 0.5);
+        assert_eq!(metrics.disk.ema_alpha, 0.5);
     }
 
     #[test]

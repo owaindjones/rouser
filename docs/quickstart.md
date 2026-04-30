@@ -65,21 +65,38 @@ systemctl --user daemon-reload  # if installing service file
 
 ### Config File Discovery
 
-When no `-c` flag is given, rouser searches **sequentially** for the first existing config:
+By default, rouser loads and merges multiple config sources (lowest → highest priority):
 
 | Priority | Path | Description |
 |----------|------|-------------|
-| 1 | `./config/rouser.toml` | Repo-packaged default in current directory |
-| 2 | `~/.config/rouser/config.toml` | XDG user config (installed by installer script) |
-| 3 | `/etc/rouser/config.toml` | System-wide config (requires root to create) |
+| 1 (lowest) | Embedded defaults | Compiled-in `config/rouser.toml` from the binary |
+| 2 | `/etc/rouser/config.toml` | System-wide user overrides |
+| 3 (highest) | `$XDG_CONFIG_HOME/rouser/config.toml` or `~/.config/rouser/config.toml` | Per-user overrides |
+
+Values in higher-priority configs override embedded defaults via deep merge: nested tables are merged field-by-field, scalars and arrays from user configs take precedence.
+
+### Auto-install Default Configs
+
+On first startup (when no user config file exists), rouser automatically creates a default config:
+- **Root users** → `/etc/rouser/config.toml`
+- **Non-root users** → `~/.config/rouser/config.toml`
+
+An INFO log message is emitted on auto-install. Existing configs are never overwritten.
 
 ### Create Configuration File
 
-Copy the repo default into your XDG path:
+To manually create a user config, copy the embedded defaults:
 
 ```bash
 mkdir -p ~/.config/rouser
-cp ./config/rouser.toml ~/.config/rouser/config.toml
+rouser --print-config > ~/.config/rouser/config.toml
+```
+
+Or use `--print-config` to generate it from the merged configuration:
+
+```bash
+# Print final merged config (after auto-install of any missing files)
+rouser --print-config
 ```
 
 **Example configuration**:
@@ -90,11 +107,10 @@ log_level = "info"
 
 [metrics.cpu]
 per_core_threshold = 80.0       # Per-core CPU max usage % above which to inhibit sleep
-total_threshold = 50.0          # Total averaged CPU usage % (default: 50.0)
-ema_alpha = 0.7                 # EMA smoothing: higher = more responsive
+total_threshold = 25.0          # Total averaged CPU usage % (default: 25.0)
 
 [metrics.gpu]
-threshold = 33.3                # GPU usage % per device (default: 33.3)
+threshold = 15.0                # GPU usage % per device (default: 15.0)
 ema_alpha = 0.7                 # EMA smoothing factor for GPU readings
 
 [metrics.network]
@@ -145,8 +161,8 @@ RUST_LOG=debug rouser -c ~/.config/rouser/config.toml --dry-run -l debug
 
 Sample output in dry-run mode:
 ```
-CPU max threshold: 80%, CPU avg threshold: 50%, EMA alpha: 0.70
-GPU threshold: 33.3%, EMA alpha: 0.70
+CPU max threshold: 80%, CPU avg threshold: 25%, EMA alpha: 0.70
+GPU threshold: 15.0%, EMA alpha: 0.70
 Network threshold: 10 Mbps, EMA alpha: 0.50
 Disk threshold: 10 MB/s, EMA alpha: 0.50
 Duration threshold: 5s

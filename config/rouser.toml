@@ -9,11 +9,11 @@ log_level = "info"
 
 [metrics.cpu]
 per_core_threshold = 80.0
-total_threshold = 50.0
+total_threshold = 25.0
 ema_alpha = 0.7
 
 [metrics.gpu]
-threshold = 33.3      # GPU usage threshold (percentage)
+threshold = 15.0      # GPU usage threshold (percentage)
 ema_alpha = 0.7       # EMA smoothing factor
 
 [metrics.network]

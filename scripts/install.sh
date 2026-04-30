@@ -45,7 +45,7 @@ info "Detected architecture: ${ARCH}"
 
 stop_service
 
-BIN_TARGET="$HOME/.local/bin/rouser"
+BIN_TARGET="${XDG_BIN_HOME:-$HOME/.local/bin}/rouser"
 mkdir -p "$(dirname "$BIN_TARGET")"
 
 if [ "$FROM_REPO" = true ]; then
@@ -66,20 +66,7 @@ if [ "$FROM_REPO" = true ]; then
     cp "$BIN_SOURCE" "$BIN_TARGET"
     chmod +x "$BIN_TARGET"
 
-    CONFIG_DEST="$HOME/.config/rouser/config.toml"
-    info "Installing default config to ${CONFIG_DEST}..."
-    mkdir -p "$(dirname "$CONFIG_DEST")"
-    REPO_CONFIG="$PWD/config/rouser.toml"
-
-    if [ -f "$REPO_CONFIG" ]; then
-        cp "$REPO_CONFIG" "$CONFIG_DEST"
-    else
-        info "Generating default config via rouser --print-config..."
-        mkdir -p "$(dirname "$CONFIG_DEST")"
-        $BIN_TARGET --print-config > "$CONFIG_DEST" || warn "Failed to generate default config."
-    fi
-
-    SERVICE_DEST="$HOME/.config/systemd/user/rouser.service"
+    SERVICE_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/rouser.service"
     info "Installing systemd service to ${SERVICE_DEST}..."
     mkdir -p "$(dirname "$SERVICE_DEST")"
     REPO_SERVICE="$PWD/systemd/rouser.service"
@@ -96,17 +83,14 @@ else
 
     info "Fetching latest rouser release..."
 
-    if command -v gh &>/dev/null; then
-        DOWNLOAD_URL="$(gh api repos/"$GITHUB_REPO"/actions/artifacts/latest/rouser-"${ARCH}"-linux --jq '.archive_download_url' 2>/dev/null)" || true
+    LATEST_RELEASE=$(curl -sL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"v//;s/".*//' || true)
+
+    if [ -z "${LATEST_RELEASE:-}" ]; then
+        error "Could not find latest release. Ensure the repository is set (ROUSER_GH_REPO env var)."
+        exit 1
     fi
 
-    if [ -z "$DOWNLOAD_URL" ] && command -v curl &>/dev/null; then
-        LATEST_RELEASE=$(curl -sL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"v//;s/".*//' || true)
-    fi
-
-    if [ -n "${LATEST_RELEASE:-}" ]; then
-        DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/v${LATEST_RELEASE}/rouser-v${LATEST_RELEASE}-linux-${ARCH}.tar.gz"
-    fi
+    DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/v${LATEST_RELEASE}/rouser-v${LATEST_RELEASE}-linux-${ARCH}.tar.gz"
 
     if [ -n "${DOWNLOAD_URL:-}" ]; then
         info "Downloading from: ${DOWNLOAD_URL}"
@@ -123,25 +107,13 @@ else
     cp "$TEMP_DIR/extracted/rouser" "$BIN_TARGET"
     chmod +x "$BIN_TARGET"
 
-    CONFIG_DEST="$HOME/.config/rouser/config.toml"
-    info "Installing default config to ${CONFIG_DEST}..."
-    mkdir -p "$(dirname "$CONFIG_DEST")"
-    if [ -f "$TEMP_DIR/extracted/config.toml" ]; then
-        cp "$TEMP_DIR/extracted/config.toml" "$CONFIG_DEST"
-    elif [ -f "$TEMP_DIR/rouser/config.toml" ]; then
-        cp "$TEMP_DIR/rouser/config.toml" "$CONFIG_DEST"
-    else
-        warn "No config file found in archive, generating via rouser --print-config..."
-        $BIN_TARGET --print-config > "$CONFIG_DEST" || warn "Failed to generate default config."
-    fi
-
-    SERVICE_DEST="$HOME/.config/systemd/user/rouser.service"
-    info "Installing systemd service to ${SERVICE_DEST}..."
+    SERVICE_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/rouser.service"
     mkdir -p "$(dirname "$SERVICE_DEST")"
-    if [ -f "$TEMP_DIR/extracted/rouser.service" ]; then
-        cp "$TEMP_DIR/extracted/rouser.service" "$SERVICE_DEST"
-    elif [ -f "$TEMP_DIR/systemd/rouser.service" ]; then
-        cp "$TEMP_DIR/systemd/rouser.service" "$SERVICE_DEST"
+    if [ -f "$TEMP_DIR/extracted/systemd/rouser.service" ]; then
+        info "Installing systemd service to ${SERVICE_DEST}..."
+        cp "$TEMP_DIR/extracted/systemd/rouser.service" "$SERVICE_DEST"
+    else
+        warn "No systemd service file found in release archive (expected: extracted/systemd/rouser.service), skipping."
     fi
 fi
 
@@ -154,8 +126,8 @@ echo ""
 info "rouser installed successfully!"
 echo ""
 echo "Next steps:"
-echo "  1. Review your config: ${CONFIG_DEST}"
-echo "  2. Test with dry-run: rouser --config ${CONFIG_DEST} --dry-run"
+echo "  1. Config created at startup: ${XDG_CONFIG_HOME:-$HOME/.config}/rouser/config.toml"
+echo "  2. Test with dry-run: rouser --dry-run"
 echo "  3. Check status: systemctl --user status rouser"
 echo ""
 

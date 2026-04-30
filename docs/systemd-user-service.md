@@ -37,11 +37,10 @@ log_level = "info"
 
 [metrics.cpu]
 per_core_threshold = 80.0   # CPU max usage % (0–100) above which to inhibit sleep
-total_threshold = 50.0      # Total averaged CPU usage % (default: 50.0)
-ema_alpha = 0.7             # EMA smoothing: higher = more responsive, lower = smoother
+total_threshold = 25.0      # Total averaged CPU usage % (default: 25.0)
 
 [metrics.gpu]
-threshold = 33.3            # GPU usage % per device (default: 33.3)
+threshold = 15.0            # GPU usage % per device (default: 15.0)
 ema_alpha = 0.7             # EMA smoothing factor for GPU readings
 
 [metrics.network]

@@ -10,6 +10,17 @@ pub struct DiskStats {
     pub sectors_written: u64,
 }
 
+/// Per-device throughput breakdown returned by collect().
+#[derive(Debug, Default)]
+pub struct DiskThroughput {
+    /// Interval in seconds between samples.
+    pub interval_secs: f64,
+    /// Total throughput across all monitored devices (MB/s).
+    pub total_mb_per_s: f64,
+    /// Per-device throughput (MB/s), keyed by device name.
+    pub per_device: HashMap<String, f64>,
+}
+
 pub struct DiskCollector {
     exclude_prefixes: Vec<String>,
     last_stats: HashMap<String, DiskStats>,
@@ -17,8 +28,7 @@ pub struct DiskCollector {
 }
 
 impl DiskCollector {
-    // Default exclusions: loop devices, fd, sr, cdrom
-    // Note: dm- (LVM) devices are INCLUDED
+    /// Default exclusions: loop devices, fd, sr, cdrom.
     pub fn new(exclude_prefixes: Vec<String>) -> Self {
         Self {
             exclude_prefixes,
@@ -32,7 +42,9 @@ impl DiskCollector {
         "disk"
     }
 
-    pub async fn collect(&mut self) -> Result<f64, DiskError> {
+    /// Collect disk I/O throughput.
+    /// Returns total MB/s plus per-device breakdown for logging.
+    pub async fn collect(&mut self) -> Result<DiskThroughput, DiskError> {
         let current_time = std::time::SystemTime::now();
         let current_stats = self.read_disk_stats()?;
 
@@ -40,7 +52,7 @@ impl DiskCollector {
             self.last_stats = current_stats;
             self.last_collection_time = Some(current_time);
             debug!("Disk: first sample, returning 0.0 MB/s");
-            return Ok(0.0);
+            return Ok(DiskThroughput::default());
         }
 
         let interval_seconds = current_time
@@ -48,32 +60,45 @@ impl DiskCollector {
             .unwrap_or(std::time::Duration::from_secs(5))
             .as_secs_f64();
 
-        let mut total_sectors = 0u64;
+        let mut total_sectors: u64 = 0;
+        let mut per_device_mb: HashMap<String, f64> = HashMap::new();
 
         for (key, stats) in &current_stats {
             if let Some(prev) = self.last_stats.get(key) {
                 let read_delta = stats.sectors_read.saturating_sub(prev.sectors_read);
                 let write_delta = stats.sectors_written.saturating_sub(prev.sectors_written);
-                total_sectors = total_sectors.saturating_add(read_delta);
-                total_sectors = total_sectors.saturating_add(write_delta);
+                total_sectors = total_sectors.saturating_add(read_delta + write_delta);
+
+                if interval_seconds > 0.0 {
+                    // Per-device MB/s (512-byte sectors)
+                    let device_bytes = (read_delta + write_delta) as f64 * 512.0;
+                    let device_mb_s = device_bytes / (interval_seconds * 1_000_000.0);
+                    per_device_mb.insert(key.clone(), device_mb_s);
+                }
             }
         }
 
         // Convert sectors to bytes (assuming 512-byte sectors)
         const SECTOR_SIZE: u64 = 512;
         let total_bytes = total_sectors as f64 * SECTOR_SIZE as f64;
-
-        // Convert to MB/s
-        let throughput_mb_s = total_bytes / (interval_seconds * 1_000_000.0);
+        let total_mb_per_s = if interval_seconds > 0.0 {
+            total_bytes / (interval_seconds * 1_000_000.0)
+        } else {
+            0.0
+        };
 
         self.last_stats = current_stats;
         self.last_collection_time = Some(current_time);
 
         debug!(
             "Disk usage: {:.2} MB/s (interval: {:.2}s)",
-            throughput_mb_s, interval_seconds
+            total_mb_per_s, interval_seconds
         );
-        Ok(throughput_mb_s)
+        Ok(DiskThroughput {
+            interval_secs: interval_seconds,
+            total_mb_per_s,
+            per_device: per_device_mb,
+        })
     }
 
     fn read_disk_stats(&self) -> Result<HashMap<String, DiskStats>, DiskError> {
@@ -91,7 +116,7 @@ impl DiskCollector {
 
             let name = parts[2];
 
-            // Check exclusions
+            // Check exclusions.
             if !self.should_monitor(name) {
                 debug!("Excluding disk: {}", name);
                 continue;
