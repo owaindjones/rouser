@@ -23,7 +23,7 @@ rouser keeps headless servers and desktops awake during active use. It monitors 
 - **TOML configuration**: Embedded default config; sequential file search (`./config/rouser.toml → ~/.config/rouser/config.toml → /etc/rouser/config.toml`)
 - **Dry-run mode**: Test without inhibiting sleep
 
-## Quick Start
+## Install
 
 ### Build from source
 
@@ -50,7 +50,7 @@ sha256sum install.sh  # inspect before executing
 bash install.sh
 ```
 
-See [Quick Start Guide](docs/quickstart.md) for full installation, configuration, and systemd service setup.
+See [Installation](docs/installation.md) for full installation, configuration, and systemd service setup.
 
 ## Configuration
 
@@ -67,7 +67,7 @@ See [Configuration Reference](docs/configuration.md) for all options with defaul
 
 | Document | Description |
 |----------|-------------|
-| [Quick Start](docs/quickstart.md) | Step-by-step getting started |
+| [Installation](docs/installation.md) | Step-by-step getting started |
 | [Configuration Reference](docs/configuration.md) | All config options with embedded-default values |
 | [Command Line](docs/command-line.md) | CLI arguments and usage examples |
 | [Metrics Overview](docs/metrics-overview.md) | How CPU, GPU, network, disk metrics are collected |

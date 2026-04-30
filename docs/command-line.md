@@ -253,5 +253,5 @@ An INFO-level log message is emitted when a config is auto-installed. The file i
 ## See Also
 
 - [Configuration Reference](configuration.md) — Complete configuration options and format
-- [Quick Start Guide](quickstart.md) — Getting started with rouser
+- [Installation](installation.md) — Getting started with rouser
 - [Systemd User Service](systemd-user-service.md) — Running as a service

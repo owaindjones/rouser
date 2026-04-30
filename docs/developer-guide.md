@@ -160,7 +160,7 @@ rouser/
 ├── README.md               # Project overview
 ├── docs/                   # Documentation (this file)
 │   ├── introduction.md
-│   ├── quickstart.md
+│   ├── installation.md
 │   ├── configuration.md
 │   ├── command-line.md
 │   ├── systemd-user-service.md
@@ -871,6 +871,6 @@ cargo doc --open
 
 ## See Also
 
-- [Quick Start Guide](quickstart.md) - Getting started with rouser
+- [Installation](installation.md) - Getting started with rouser
 - [Configuration Reference](configuration.md) - Configuration options
 - [Metrics Overview](metrics-overview.md) - How metrics are collected

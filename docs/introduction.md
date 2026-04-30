@@ -81,7 +81,7 @@ rouser is built and packaged via GitHub Actions for multiple architectures on ev
 | aarch64 Linux | Cross-compiled & tested | Tarball + DEB (arm64) + RPM (aarch64) |
 | Arch / Bazzite | Built on release | PKGBUILD archive |
 
-> **Pre-release**: rouser is at `v0.0.0` (unreleased). No official releases yet. See [AGENTS.md](../AGENTS.md) for versioning policy.
+> **Pre-release**: rouser is at `v0.0.0` (unreleased). No official releases yet. See [AGENTS.md](./../AGENTS.md) for versioning policy.
 
 ## System Requirements
 
@@ -226,7 +226,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Getting Started
 
-1. [Quick Start Guide](quickstart.md) — Get rouser running on your system within 5 minutes
+1. [Installation](installation.md) — Get rouser running on your system within 5 minutes
 2. [Configuration Reference](configuration.md) — Complete configuration options with defaults and examples
 3. [Command Line Arguments](command-line.md) — CLI usage, flags, and environment variables
 4. [Running as a Service](systemd-user-service.md) — Systemd user service setup, hardening, and troubleshooting
@@ -236,4 +236,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ## See Also
 
 - [CI Workflow](ci-workflow.md) — GitHub Actions pipeline: lint gates, cross-compilation, DEB/RPM/PKGBUILD packaging, release artifacts
-- [AGENTS.md](../AGENTS.md) — Developer conventions: versioning policy, commit format, error handling, async patterns
+- [AGENTS.md](./../AGENTS.md) — Developer conventions: versioning policy, commit format, error handling, async patterns

@@ -1,4 +1,4 @@
-# Quick Start Guide
+# Installation
 
 This guide will help you get `rouser` running on your Linux system within 5 minutes.
 
