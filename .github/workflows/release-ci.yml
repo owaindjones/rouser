@@ -114,7 +114,7 @@ jobs:
           .github/scripts/packaging.sh package "$BINARY" "$ARCHIVE"
 
       - name: Upload GHA artifact (backup)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: rouser-release-${{ matrix.arch }}-linux
           path: "rouser-v*-linux-${{ matrix.arch }}.tar.gz"
@@ -131,7 +131,7 @@ jobs:
 
       - name: Upload changelog as artifact for auto-release job
         if: always() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: release-notes-${{ github.ref_name }}
           path: RELEASE_NOTES.md
@@ -169,7 +169,7 @@ jobs:
 
       - name: Upload changelog as artifact for downstream jobs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: release-notes-${{ github.ref_name }}
           path: RELEASE_NOTES.md
@@ -233,7 +233,7 @@ jobs:
           gh release upload "${VERSION}" "${deb_file}" --clobber
 
       - name: Upload GHA artifact (DEB backup)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: rouser-deb-${{ matrix.deb_arch }}
           path: rouser-*.deb
@@ -291,7 +291,7 @@ jobs:
           .github/scripts/rpm.sh build pkg-build "$RPM_VERSION" "$ARCH"
 
       - name: Upload GHA artifact (RPM)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: rouser-rpm-${{ matrix.rpm_arch }}
           path: "*.rpm"
@@ -411,7 +411,7 @@ jobs:
             "rouser-pkgbuild-v${PKG_VERSION}.tar.gz" --clobber
 
       - name: Upload GHA artifact (PKGBUILD backup)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: rouser-arch-pkgbuild
           path: PKGBUILD
@@ -450,7 +450,7 @@ jobs:
          run: mkdocs build
 
        - name: Upload built site as artifact
-         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
          with:
            name: rouser-docs-site
            path: site/
