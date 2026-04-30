@@ -14,7 +14,7 @@ categories = ["os::unix-apis", "os::pda-apis"]
 tokio = { version = "1", features = ["full"] }
 
 # D-Bus bindings
-zbus = "4"
+zbus = "5"
 dbus = "0.9.7"
 
 # TOML configuration parsing (pure Rust, secure)
