@@ -46,7 +46,7 @@ jobs:
           targets: x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu
 
       - name: Cache dependencies and build
-        uses: Swatinem/rust-cache@a95ba195448af2da9b00fb742d14ffaaf3c21f43  # v2.7.0
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4  # v2.9.1
         with:
           key: ci-lint-test
 
@@ -107,7 +107,7 @@ jobs:
             libsystemd-dev libdbus-1-dev pkg-config
 
       - name: Cache dependencies and build
-        uses: Swatinem/rust-cache@a95ba195448af2da9b00fb742d14ffaaf3c21f43  # v2.7.0
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4  # v2.9.1
         with:
           key: ci-build-${{ matrix.target }}
 
