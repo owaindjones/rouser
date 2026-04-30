@@ -39,7 +39,6 @@ This document credits the AI agent responsible for code written during developme
 
 - **Container**: `llama-llama-1` (`ghcr.io/ggml-org/llama.cpp:server-rocm`)
 - **Server Alias**: Qwen3
-- **Host-Mapped Port**: 11433 (0.0.0.0, ::)
 - **Backend**: ROCm GPU acceleration (AMD Navi 31)
 - **Model Path**: `/models/Qwen3.6/Qwen3.6-35B-A3B-UD-IQ4_XS.gguf`
 - **MMProj Path**: `/models/Qwen3.6/mmproj-F16.gguf` (multimodal projector, F16)
