@@ -37,6 +37,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b  # v4.3.1
         with:
           persist-credentials: false
+          persist-credentials: false
         with:
           persist-credentials: false
 
@@ -94,6 +95,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b  # v4.3.1
         with:
+          persist-credentials: false
           persist-credentials: false
         with:
           persist-credentials: false
