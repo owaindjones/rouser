@@ -11,9 +11,9 @@ use tracing::debug;
 /// Prediction result from the cooldown model.
 #[derive(Debug, Clone)]
 pub struct CooldownPrediction {
-    /// Additional seconds to extend beyond the configured cooldown duration.
-    /// Always >= 0. If zero, use the default cooldown_duration setting.
-    pub additional_seconds: u64,
+    /// Additional time to extend beyond the configured cooldown duration.
+    /// Always >= 0. If zero-duration, use the default cooldown_duration setting.
+    pub additional_time: std::time::Duration,
     /// Confidence in this prediction (0.0–1.0). Higher means more data supports it.
     pub confidence: f32,
 }
@@ -21,8 +21,8 @@ pub struct CooldownPrediction {
 /// Time-aware statistical model that predicts cooldown extension based on historical patterns.
 pub struct PredictionModel {
     history: HistoryLog,
-    /// Maximum additional seconds allowed for predictive cooldown extension.
-    max_extension_secs: u64,
+    /// Maximum additional time allowed for predictive cooldown extension.
+    max_extension_time: std::time::Duration,
     // Per-hour high-activity counts for CPU and network (key: hour_of_day 0–23).
     cpu_high_count: HashMap<u32, u64>,
     network_high_count: HashMap<u32, u64>,
@@ -31,7 +31,7 @@ pub struct PredictionModel {
 
 impl PredictionModel {
     /// Create a new prediction model. Loads existing history if available.
-    pub fn new(is_root: bool, max_extension_secs: u64) -> Self {
+    pub fn new(is_root: bool, max_extension_time: std::time::Duration) -> Self {
         let history = HistoryLog::new(is_root);
         let entries = history.read_all();
         debug!(
@@ -56,7 +56,7 @@ impl PredictionModel {
 
         Self {
             history,
-            max_extension_secs,
+            max_extension_time,
             cpu_high_count,
             network_high_count,
             data_points: entries.len() as u64,
@@ -95,7 +95,7 @@ impl PredictionModel {
     pub fn predict_cooldown(&self) -> CooldownPrediction {
         if self.data_points < 10 {
             return CooldownPrediction {
-                additional_seconds: 0,
+                additional_time: std::time::Duration::ZERO,
                 confidence: 0.0,
             };
         }
@@ -111,23 +111,24 @@ impl PredictionModel {
 
         if combined_score < 0.3 {
             return CooldownPrediction {
-                additional_seconds: 0,
+                additional_time: std::time::Duration::ZERO,
                 confidence: self.confidence_for_data_points(),
             };
         }
 
-        // Map score to additional cooldown seconds (linear interpolation from 0–max_extension).
-        let additional_secs =
-            ((combined_score - 0.3) / 0.7 * self.max_extension_secs as f64).round() as u64;
+        // Map score to additional cooldown time (linear interpolation from 0–max_extension).
+        let additional_time = std::time::Duration::from_secs_f64(
+            (combined_score - 0.3) / 0.7 * self.max_extension_time.as_secs_f64(),
+        );
         let confidence = self.confidence_for_data_points();
 
         debug!(
-            "Predicted cooldown: +{}s (score={:.2}, hour={}, data_points={}, confidence={:.2})",
-            additional_secs, combined_score, hour_of_day, self.data_points, confidence
+            "Predicted cooldown: +{:?} (score={:.2}, hour={}, data_points={}, confidence={:.2})",
+            additional_time, combined_score, hour_of_day, self.data_points, confidence
         );
 
         CooldownPrediction {
-            additional_seconds: additional_secs,
+            additional_time,
             confidence,
         }
     }
@@ -201,21 +202,21 @@ mod tests {
 
     #[test]
     fn test_prediction_model_initialization() {
-        let model = PredictionModel::new(true, 60);
+        let model = PredictionModel::new(true, std::time::Duration::from_secs(60));
         assert_eq!(model.data_points, 0); // No data yet.
         assert!(!model.has_sufficient_data(10));
     }
 
     #[test]
     fn test_predict_cooldown_no_data_returns_zero() {
-        let model = PredictionModel::new(true, 60);
+        let model = PredictionModel::new(true, std::time::Duration::from_secs(60));
         let prediction = model.predict_cooldown();
-        assert_eq!(prediction.additional_seconds, 0);
+        assert!(!prediction.additional_time.gt(&std::time::Duration::ZERO));
     }
 
     #[test]
     fn test_record_and_count_entries() {
-        let mut model = PredictionModel::new(true, 60);
+        let mut model = PredictionModel::new(true, std::time::Duration::from_secs(60));
 
         for i in 0..5 {
             model.record(
@@ -233,10 +234,10 @@ mod tests {
 
     #[test]
     fn test_predict_cooldown_with_insufficient_data() {
-        let model = PredictionModel::new(true, 60);
+        let model = PredictionModel::new(true, std::time::Duration::from_secs(60));
         let prediction = model.predict_cooldown();
-        // Should return zero additional seconds and low confidence with no data.
-        assert_eq!(prediction.additional_seconds, 0);
+        // Should return zero additional time and low confidence with no data.
+        assert_eq!(prediction.additional_time, std::time::Duration::ZERO);
         assert!(prediction.confidence < 0.5);
     }
 

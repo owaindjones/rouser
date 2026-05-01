@@ -116,9 +116,9 @@ pub struct DataManager {
     previous_inhibited_state: bool,
     just_released: bool,
     waiting_for_cooldown: bool,
-    /// Cached predicted additional seconds from last tick's model query.
+    /// Cached predicted additional time from last tick's model query.
     /// Applied to cooldown_duration when metrics drop below threshold.
-    predicted_extension_secs: u64,
+    predicted_additional_time: std::time::Duration,
     // Prediction model for adaptive cooldown extension (None if disabled).
     prediction_model: Option<PredictionModel>,
 }
@@ -158,7 +158,7 @@ impl DataManager {
 
             Some(PredictionModel::new(
                 is_root,
-                config.prediction.max_extension_secs,
+                config.prediction.max_extension_time,
             ))
         } else {
             None
@@ -184,7 +184,7 @@ impl DataManager {
             previous_inhibited_state: false,
             just_released: false,
             waiting_for_cooldown: false,
-            predicted_extension_secs: 0,
+            predicted_additional_time: std::time::Duration::ZERO,
             prediction_model,
             cpu_smooth_max: SmoothingState::new(config.metrics.cpu.ema_alpha),
             cpu_smooth_avg: SmoothingState::new(config.metrics.cpu.ema_alpha),
@@ -348,16 +348,16 @@ impl DataManager {
                 // Not inhibited — don't track cooldown for future release.
                 self.waiting_for_cooldown = false;
                 self.metrics_below_threshold_since = None;
-            } else if self.predicted_extension_secs > 0 {
-                let extended_threshold = config.timing.cooldown_duration
-                    + std::time::Duration::from_secs(self.predicted_extension_secs);
+            } else if !self.predicted_additional_time.is_zero() {
+                let extended_threshold =
+                    config.timing.cooldown_duration + self.predicted_additional_time;
 
                 debug!(
-                    "Waiting for cooldown: {}/{} seconds below threshold \
-                     (with {}s predictive extension)",
+                    "Waiting for cooldown: {}s/{}s below threshold \
+                     (with {:?} predictive extension)",
                     elapsed.as_secs(),
                     extended_threshold.as_secs(),
-                    self.predicted_extension_secs,
+                    self.predicted_additional_time,
                 );
 
                 // Check if the extended cooldown has elapsed.
@@ -365,7 +365,8 @@ impl DataManager {
                     info!(
                         "Releasing sleep inhibition: all metrics below threshold for {:?} \
                          (with {}s predictive extension)",
-                        elapsed, self.predicted_extension_secs
+                        elapsed,
+                        self.predicted_additional_time.as_secs()
                     );
                     self.state.release().await;
                     self.waiting_for_cooldown = false;
@@ -386,24 +387,24 @@ impl DataManager {
             let prediction = match &self.prediction_model {
                 Some(model) => model.predict_cooldown(),
                 None => CooldownPrediction {
-                    additional_seconds: 0,
+                    additional_time: std::time::Duration::ZERO,
                     confidence: 0.0,
                 },
             };
 
-            if prediction.additional_seconds > 0 {
+            if !prediction.additional_time.is_zero() {
                 info!(
                     "Predictive cooldown extension: +{}s (confidence={:.0}%), \
                      historical patterns suggest active usage at this hour",
-                    prediction.additional_seconds,
+                    prediction.additional_time.as_secs(),
                     prediction.confidence * 100.0,
                 );
             }
 
-            self.predicted_extension_secs = prediction.additional_seconds;
+            self.predicted_additional_time = prediction.additional_time;
         } else if !should_inhibit {
             // Not previously inhibited — reset extension for fresh cooldown cycle.
-            self.predicted_extension_secs = 0;
+            self.predicted_additional_time = std::time::Duration::ZERO;
         }
 
         if !was_inhibited && self.state.is_inhibited() {
@@ -515,7 +516,7 @@ mod tests {
             prediction: crate::config::PredictionConfig {
                 update_interval: std::time::Duration::from_secs(30),
                 history_length: std::time::Duration::from_secs(30 * 24 * 60 * 60),
-                max_extension_secs: 60,
+                max_extension_time: std::time::Duration::from_secs(60),
             },
         }
     }

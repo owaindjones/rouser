@@ -179,8 +179,8 @@ fn default_history_length() -> Duration {
     Duration::from_secs(30 * 24 * 60 * 60) // 30 days in seconds
 }
 
-fn default_max_extension() -> u64 {
-    60 // maximum predictive extension is capped at 60 seconds
+fn default_max_extension_time() -> Duration {
+    Duration::from_secs(3600) // maximum predictive extension is capped at 1 hour
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -192,9 +192,9 @@ pub struct PredictionConfig {
     pub update_interval: Duration,
     #[serde(default = "default_history_length", with = "humantime_serde")]
     pub history_length: Duration,
-    /// Maximum additional seconds for predictive cooldown extension.
-    #[serde(default = "default_max_extension")]
-    pub max_extension_secs: u64,
+    /// Maximum additional time for predictive cooldown extension.
+    #[serde(default = "default_max_extension_time", with = "humantime_serde")]
+    pub max_extension_time: Duration,
 }
 
 impl Default for PredictionConfig {
@@ -202,7 +202,7 @@ impl Default for PredictionConfig {
         Self {
             update_interval: default_prediction_update_interval(),
             history_length: default_history_length(),
-            max_extension_secs: default_max_extension(),
+            max_extension_time: default_max_extension_time(),
         }
     }
 }

@@ -41,4 +41,4 @@ mode = "block"             # Mode: block, delay, block-weak
 [prediction]
 update_interval = "30s"          # How often to record a data point for prediction (clamped to root update_interval)
 history_length = "30d"           # Keep this much historical data; older entries are pruned periodically
-max_extension_secs = 60          # Maximum additional seconds for predictive cooldown extension
+max_extension_time = "1h"         # Maximum additional time for predictive cooldown extension
