@@ -61,6 +61,11 @@ exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
 duration_threshold = "5s"    # Min time above threshold before inhibiting sleep
 cooldown_duration = "10s"     # Time below threshold before releasing inhibition
 
+[prediction]
+update_interval = "30s"      # How often to record a data point for prediction
+history_length = "30d"       # Keep this much historical data; older entries pruned periodically
+max_extension_time = "1h"    # Maximum additional time for predictive cooldown extension
+
 [inhibitor]
 what = "shutdown:idle"     # Lock type: idle, sleep, suspend, shutdown (colon-separated)
 mode = "block"             # Mode: block, delay, block-weak
@@ -125,6 +130,20 @@ Disk activity is calculated as total bytes transferred across monitored devices 
 | `cooldown_duration` | duration | `"10s"` | Time after releasing inhibition during which the daemon won't re-inhibit even if thresholds are exceeded again. Helps with bursty workloads. |
 
 **Note**: There is no `idle_duration` field — the cooldown mechanism replaces it. A metric exceeding threshold for at least `duration_threshold` triggers inhibition; all metrics below their respective thresholds for at least `cooldown_duration` releases inhibition. See [d-bus-inhibition.md](d-bus-inhibition.md) for details on how inhibition works.
+
+## Prediction Configuration
+
+### `[prediction]` Section — Adaptive Cooldown Extension
+
+The prediction module learns from historical system metric patterns over days and weeks, then dynamically extends the post-idle cooldown duration when patterns indicate likely continued active use at the current time of day. This reduces false-positive sleep inhibition during typical work hours while still allowing sleep during known idle periods (e.g., late nights). See [prediction-model.md](prediction-model.md) for a detailed explanation of how the model works.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `update_interval` | duration | `"30s"` | How often to record a data point for prediction analysis. Should be shorter than or equal to the root `update_interval`. Set to `"0s"` to disable prediction entirely. |
+| `history_length` | duration | `"30d"` | Amount of historical data to retain. Older entries and files are pruned automatically. Uses humantime format: `"7d"`, `"30d"`, `"90d"` |
+| `max_extension_time` | duration | `"1h"` | Maximum additional time added to the cooldown duration by prediction. The model will never extend beyond this cap, even if historical patterns suggest it. Uses humantime format: `"5m"`, `"30m"`, `"1h"` |
+
+**Data storage**: Historical data is stored as binary files (`history.log.YYYYMMDD`) using bincode v2 serialization under `$XDG_DATA_HOME/rouser/` (or `/var/lib/rouser/` when running as root). Files are date-partitioned for efficient pruning.
 
 ## Inhibition Configuration
 
@@ -192,4 +211,5 @@ There are no `ROUSER_*` environment variable overrides for configuration values 
 
 - [Command Line Reference](command-line.md) — All CLI arguments and usage examples
 - [Metrics Overview](metrics-overview.md) — How CPU, GPU, network, and disk metrics are collected
+- [Prediction Model](prediction-model.md) — How adaptive cooldown extension works from historical patterns
 - [D-Bus Inhibition](d-bus-inhibition.md) — How sleep inhibition works under the hood

@@ -88,6 +88,14 @@ impl PredictionModel {
             disk_mb_s,
             inhibited,
         ));
+        debug!(
+            "Recorded data point #{} (CPU max={:.1}%, net={:.2}MB/s, disk={:.2}MB/s, hour={})",
+            self.data_points + 1,
+            cpu_per_core_max,
+            network_mbps,
+            disk_mb_s,
+            Self::hour_of_day(ns),
+        );
         self.data_points += 1;
     }
 
@@ -181,6 +189,11 @@ impl PredictionModel {
     #[allow(dead_code)]
     pub fn get_history(&self) -> &HistoryLog {
         &self.history
+    }
+
+    pub fn prune(&mut self, max_age: std::time::Duration) {
+        debug!("Running history pruning (max age: {:?})", max_age);
+        self.history.prune(max_age);
     }
 
     /// Check if we have enough data to make meaningful predictions.

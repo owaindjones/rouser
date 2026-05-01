@@ -270,6 +270,10 @@ impl DataManager {
             );
         }
 
+        if let Some(ref mut model) = self.prediction_model {
+            model.prune(config.prediction.history_length);
+        }
+
         self.update_state(should_inhibit).await?;
 
         let was_inhibited = self.previous_inhibited_state;
