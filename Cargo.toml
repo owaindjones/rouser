@@ -41,6 +41,9 @@ libc = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 humantime-serde = "1.0"
 
+# Binary serialization for history log (lightweight, serde-compatible via bincode v2)
+bincode = { version = "2", features = ["serde"] }
+
 # CLI parsing
 clap = { version = "4", features = ["derive"] }
 humantime = "2.1"

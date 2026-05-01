@@ -1,6 +1,7 @@
 mod config;
 mod inhibit;
 mod metrics;
+mod prediction;
 mod service;
 
 use anyhow::Result;

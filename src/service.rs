@@ -2,6 +2,7 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 
 use crate::config::Config;
+use crate::prediction::{CooldownPrediction, PredictionModel};
 
 use crate::inhibit::InhibitionState;
 use crate::metrics::{
@@ -115,6 +116,11 @@ pub struct DataManager {
     previous_inhibited_state: bool,
     just_released: bool,
     waiting_for_cooldown: bool,
+    /// Cached predicted additional seconds from last tick's model query.
+    /// Applied to cooldown_duration when metrics drop below threshold.
+    predicted_extension_secs: u64,
+    // Prediction model for adaptive cooldown extension (None if disabled).
+    prediction_model: Option<PredictionModel>,
 }
 
 pub struct DataService {
@@ -142,6 +148,22 @@ impl DataManager {
             config.metrics.disk.threshold,
         );
 
+        // Initialize prediction model if enabled (prediction.update_interval is set).
+        let prediction_model = if config.prediction.update_interval.as_secs() > 0 {
+            // Determine if running as root to choose history directory.
+            #[cfg(unix)]
+            let is_root: bool = unsafe { libc::geteuid() == 0 };
+            #[cfg(not(unix))]
+            let is_root: bool = false;
+
+            Some(PredictionModel::new(
+                is_root,
+                config.prediction.max_extension_secs,
+            ))
+        } else {
+            None
+        };
+
         // Initialize per-GPU smoothing states based on detected GPUs
         let gpu_collector = GpuCollector::new();
         let has_gpu = gpu_collector.has_gpus();
@@ -162,6 +184,8 @@ impl DataManager {
             previous_inhibited_state: false,
             just_released: false,
             waiting_for_cooldown: false,
+            predicted_extension_secs: 0,
+            prediction_model,
             cpu_smooth_max: SmoothingState::new(config.metrics.cpu.ema_alpha),
             cpu_smooth_avg: SmoothingState::new(config.metrics.cpu.ema_alpha),
             gpu_smoothing: (0..num_gpus)
@@ -233,6 +257,18 @@ impl DataManager {
             smoothed_network,
             smoothed_disk,
         );
+
+        // Record metrics into prediction history if enabled.
+        if let Some(ref mut model) = self.prediction_model {
+            model.record(
+                smoothed_cpu_max,
+                smoothed_cpu_avg,
+                gpu_smoothed_values.clone(),
+                smoothed_network,
+                smoothed_disk,
+                should_inhibit,
+            );
+        }
 
         self.update_state(should_inhibit).await?;
 
@@ -312,6 +348,30 @@ impl DataManager {
                 // Not inhibited — don't track cooldown for future release.
                 self.waiting_for_cooldown = false;
                 self.metrics_below_threshold_since = None;
+            } else if self.predicted_extension_secs > 0 {
+                let extended_threshold = config.timing.cooldown_duration
+                    + std::time::Duration::from_secs(self.predicted_extension_secs);
+
+                debug!(
+                    "Waiting for cooldown: {}/{} seconds below threshold \
+                     (with {}s predictive extension)",
+                    elapsed.as_secs(),
+                    extended_threshold.as_secs(),
+                    self.predicted_extension_secs,
+                );
+
+                // Check if the extended cooldown has elapsed.
+                if !self.just_released && elapsed >= extended_threshold {
+                    info!(
+                        "Releasing sleep inhibition: all metrics below threshold for {:?} \
+                         (with {}s predictive extension)",
+                        elapsed, self.predicted_extension_secs
+                    );
+                    self.state.release().await;
+                    self.waiting_for_cooldown = false;
+                    self.metrics_below_threshold_since = None;
+                    self.just_released = true;
+                }
             } else {
                 debug!(
                     "Waiting for cooldown: {}/{} seconds below threshold",
@@ -319,6 +379,31 @@ impl DataManager {
                     config.timing.cooldown_duration.as_secs()
                 );
             }
+        }
+
+        // Predict cooldown extension when transitioning from inhibited to below-threshold.
+        if was_inhibited && !should_inhibit {
+            let prediction = match &self.prediction_model {
+                Some(model) => model.predict_cooldown(),
+                None => CooldownPrediction {
+                    additional_seconds: 0,
+                    confidence: 0.0,
+                },
+            };
+
+            if prediction.additional_seconds > 0 {
+                info!(
+                    "Predictive cooldown extension: +{}s (confidence={:.0}%), \
+                     historical patterns suggest active usage at this hour",
+                    prediction.additional_seconds,
+                    prediction.confidence * 100.0,
+                );
+            }
+
+            self.predicted_extension_secs = prediction.additional_seconds;
+        } else if !should_inhibit {
+            // Not previously inhibited — reset extension for fresh cooldown cycle.
+            self.predicted_extension_secs = 0;
         }
 
         if !was_inhibited && self.state.is_inhibited() {
@@ -426,6 +511,11 @@ mod tests {
             inhibitor: crate::config::InhibitionConfig {
                 what: "sleep".to_string(),
                 mode: "block".to_string(),
+            },
+            prediction: crate::config::PredictionConfig {
+                update_interval: std::time::Duration::from_secs(30),
+                history_length: std::time::Duration::from_secs(30 * 24 * 60 * 60),
+                max_extension_secs: 60,
             },
         }
     }

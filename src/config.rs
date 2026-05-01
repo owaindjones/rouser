@@ -16,6 +16,7 @@ pub struct Config {
     pub metrics: Metrics,
     pub timing: TimingConfig,
     pub inhibitor: InhibitionConfig,
+    pub prediction: PredictionConfig,
 }
 
 fn default_gpu_threshold() -> f64 {
@@ -168,6 +169,42 @@ pub struct InhibitionConfig {
     pub what: String,
     #[serde(default = "default_mode")]
     pub mode: String,
+}
+
+fn default_prediction_update_interval() -> Duration {
+    Duration::from_secs(30)
+}
+
+fn default_history_length() -> Duration {
+    Duration::from_secs(30 * 24 * 60 * 60) // 30 days in seconds
+}
+
+fn default_max_extension() -> u64 {
+    60 // maximum predictive extension is capped at 60 seconds
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PredictionConfig {
+    #[serde(
+        default = "default_prediction_update_interval",
+        with = "humantime_serde"
+    )]
+    pub update_interval: Duration,
+    #[serde(default = "default_history_length", with = "humantime_serde")]
+    pub history_length: Duration,
+    /// Maximum additional seconds for predictive cooldown extension.
+    #[serde(default = "default_max_extension")]
+    pub max_extension_secs: u64,
+}
+
+impl Default for PredictionConfig {
+    fn default() -> Self {
+        Self {
+            update_interval: default_prediction_update_interval(),
+            history_length: default_history_length(),
+            max_extension_secs: default_max_extension(),
+        }
+    }
 }
 
 #[derive(Clone)]
