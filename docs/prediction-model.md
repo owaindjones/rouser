@@ -141,7 +141,7 @@ RUST_LOG=debug rouser --dry-run
 Key log messages:
 
 - **Startup**: `Prediction model initialized with N historical data points` — shows how many past entries were loaded
-- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, hour=H, samples=M)` — logged when accumulated metrics are written as one averaged entry after M ticks
+- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, hour=H, accumulated_ticks=N)` — logged when accumulated metrics are written as one averaged entry after N ticks
 - **Pruning activity**: `Running history pruning (max age: ...)` followed by per-file debug lines when files are removed
 - **Prediction query**: `Predicted cooldown: +Xdur (score=S.SS, hour=H, data_points=N, confidence=C.CC)` — shown when transitioning from inhibited to below-threshold state
 
