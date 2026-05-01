@@ -156,10 +156,23 @@ impl DataManager {
             #[cfg(not(unix))]
             let is_root: bool = false;
 
-            Some(PredictionModel::new(
-                is_root,
-                config.prediction.max_extension_time,
-            ))
+            let mut model = PredictionModel::new(is_root, config.prediction.max_extension_time);
+            let effective_prediction_interval =
+                std::cmp::max(config.prediction.update_interval, config.update_interval);
+            if config.prediction.update_interval < config.update_interval
+                && config.update_interval.as_secs() > 0
+            {
+                warn!(
+                    "prediction.update_interval ({:?}) is less than root update_interval ({}s) — \
+                 using {:?} instead to avoid erratic accumulation flush timing",
+                    config.prediction.update_interval,
+                    config.update_interval.as_secs(),
+                    effective_prediction_interval,
+                );
+            }
+            // Configure how often to flush averaged snapshots (every N ticks).
+            model.set_prediction_update_interval(effective_prediction_interval);
+            Some(model)
         } else {
             None
         };
@@ -258,9 +271,9 @@ impl DataManager {
             smoothed_disk,
         );
 
-        // Record metrics into prediction history if enabled.
+        // Record metrics into prediction history if enabled. Accumulates per-tick and flushes averaged snapshots on interval.
         if let Some(ref mut model) = self.prediction_model {
-            model.record(
+            let _flushed = model.record(
                 smoothed_cpu_max,
                 smoothed_cpu_avg,
                 gpu_smoothed_values.clone(),
@@ -268,6 +281,7 @@ impl DataManager {
                 smoothed_disk,
                 should_inhibit,
             );
+            // debug! already logs inside model.record() when a snapshot is flushed.
         }
 
         if let Some(ref mut model) = self.prediction_model {

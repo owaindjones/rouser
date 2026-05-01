@@ -10,18 +10,22 @@ The model uses purely statistical hour-of-day analysis — no external ML librar
 
 ## Data Collection
 
-Every metric collection cycle (every `update_interval` seconds), rouser records a snapshot containing:
+rouser collects metrics every `update_interval` seconds (root config, default 1s). Instead of writing each raw sample to the history log directly, it accumulates these per-tick samples in memory and writes an **averaged snapshot** at a longer interval defined by `[prediction].update_interval` (default 30s).
+
+For example, with root `update_interval = "1s"` and prediction `update_interval = "30s"`, rouser collects 30 raw samples per minute, computes their arithmetic mean for each metric dimension, then writes one averaged data point to the history log. This produces smoother historical data that better represents sustained usage patterns rather than momentary spikes.
+
+Each averaged snapshot contains:
 
 | Field | Source | Description |
 |-------|--------|-------------|
-| Timestamp (nanoseconds) | System time | UTC epoch nanosecond precision |
-| CPU max per-core | `/proc/stat` | Highest per-core usage percentage across all cores |
-| GPU usages | NVML / sysfs | Per-GPU utilization percentages |
-| Network I/O | `/proc/net/dev` | Throughput in Mbps (all monitored interfaces) |
-| Disk activity | `/proc/diskstats` | Read + write throughput in MB/s |
-| Inhibition state | Internal | Whether rouser was currently inhibiting sleep |
+| Timestamp (nanoseconds) | System time | UTC epoch nanosecond precision of flush wall-clock time |
+| CPU max per-core | `/proc/stat` | Average highest per-core usage across accumulated samples |
+| GPU usages | NVML / sysfs | Per-GPU average utilization (averaged independently by slot index) |
+| Network I/O | `/proc/net/dev` | Average throughput in Mbps across all monitored interfaces |
+| Disk activity | `/proc/diskstats` | Average read + write throughput in MB/s |
+| Inhibition state | Internal | Majority vote: true if rouser was inhibited for >50% of accumulated ticks |
 
-Data points are buffered in memory for the current day and flushed to disk at process exit or on date boundary changes. Files use bincode v2 binary serialization with a length-prefixed format for efficient sequential reads.
+Data points are buffered in memory until the flush interval elapses, then written to disk as part of the date-partitioned history log. The in-memory buffer also supports same-day multi-file writes — entries for different calendar days trigger an automatic flush of prior-day data before starting a new buffer. Files use bincode v2 binary serialization with a length-prefixed format for efficient sequential reads.
 
 ## Storage Layout
 
@@ -137,7 +141,7 @@ RUST_LOG=debug rouser --dry-run
 Key log messages:
 
 - **Startup**: `Prediction model initialized with N historical data points` — shows how many past entries were loaded
-- **Per-tick recording**: `Recorded data point #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, hour=H)` — tracks each snapshot
+- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, hour=H, samples=M)` — logged when accumulated metrics are written as one averaged entry after M ticks
 - **Pruning activity**: `Running history pruning (max age: ...)` followed by per-file debug lines when files are removed
 - **Prediction query**: `Predicted cooldown: +Xdur (score=S.SS, hour=H, data_points=N, confidence=C.CC)` — shown when transitioning from inhibited to below-threshold state
 

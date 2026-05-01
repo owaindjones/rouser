@@ -62,7 +62,7 @@ duration_threshold = "5s"    # Min time above threshold before inhibiting sleep
 cooldown_duration = "10s"     # Time below threshold before releasing inhibition
 
 [prediction]
-update_interval = "30s"      # How often to record a data point for prediction
+update_interval = "30s"      # Seconds between averaged snapshots; must be >= root update_interval
 history_length = "30d"       # Keep this much historical data; older entries pruned periodically
 max_extension_time = "1h"    # Maximum additional time for predictive cooldown extension
 
@@ -139,7 +139,7 @@ The prediction module learns from historical system metric patterns over days an
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `update_interval` | duration | `"30s"` | How often to record a data point for prediction analysis. Should be shorter than or equal to the root `update_interval`. Set to `"0s"` to disable prediction entirely. |
+| `update_interval` | duration | `"30s"` | Seconds between averaged snapshots written to history log. Must be greater than or equal to the root `update_interval`. Metrics from each tick are accumulated and averaged, then a single snapshot is flushed every N ticks where N = update_interval / root_update_interval. Set to `"0s"` to disable prediction entirely. |
 | `history_length` | duration | `"30d"` | Amount of historical data to retain. Older entries and files are pruned automatically. Uses humantime format: `"7d"`, `"30d"`, `"90d"` |
 | `max_extension_time` | duration | `"1h"` | Maximum additional time added to the cooldown duration by prediction. The model will never extend beyond this cap, even if historical patterns suggest it. Uses humantime format: `"5m"`, `"30m"`, `"1h"` |
 

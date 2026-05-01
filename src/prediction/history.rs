@@ -502,8 +502,8 @@ mod tests {
             .as_nanos() as u64;
         let entry = sample_entry(ns);
 
-        // The date should match today's date.
-        assert_eq!(entry.entry_date(), Local::now().date_naive());
+        // The date should match today's UTC date (entry_date uses UTC internally).
+        assert_eq!(entry.entry_date(), Utc::now().date_naive());
     }
 
     #[test]

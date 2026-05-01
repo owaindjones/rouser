@@ -39,6 +39,6 @@ mode = "block"             # Mode: block, delay, block-weak
 # Predictive cooldown — learns from historical usage patterns to dynamically extend or reduce the cooldown duration.
 # Requires a longer history (days/weeks of data). Disabled by default; set update_interval to enable.
 [prediction]
-update_interval = "30s"          # How often to record a data point for prediction (clamped to root update_interval)
+update_interval = "30s"          # Seconds between averaged snapshots written to history log; must be >= root update_interval
 history_length = "30d"           # Keep this much historical data; older entries are pruned periodically
 max_extension_time = "1h"         # Maximum additional time for predictive cooldown extension

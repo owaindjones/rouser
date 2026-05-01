@@ -13,6 +13,7 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
   - For larger units of work (major refactoring, big new feature), split into small, manageable commits rather than one massive commit to preserve history granularity and make rollbacks easier.
 - **Follow existing patterns first**: Before proposing new patterns or structures, search for and follow established conventions in the codebase. When in doubt, match what's already there.
 - **Graceful degradation over panics**: Metric collectors return `Result` types and fall back to zero values on failure. The daemon continues operating even when individual metrics are unavailable.
+- **Descriptive comments are encouraged**: Comments that explain non-obvious intent, arithmetic expectations, or why a particular approach was chosen should be kept — especially in tests where the "what" is clear but the "why" and expected values may not be. Docstrings on public APIs and complex algorithms (e.g., accumulation logic, security-critical code) are welcome. Avoid comments that merely restate what the code already says ("increment counter by one"), but keep those that add context a reader wouldn't get from reading alone.
 
 ### Agent-Specific Rules (do NOT apply to human developers)
 
