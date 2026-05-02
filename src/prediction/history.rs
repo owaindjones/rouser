@@ -1103,7 +1103,7 @@ mod tests {
         // are spaced at FILL_INTERVAL_NS intervals.
         let last_elapsed = last_entry.elapsed_since_last_ns.unwrap_or(0);
         assert!(
-            last_elapsed >= 1_000_000_000 && last_elapsed <= FILL_INTERVAL_NS,
+            (1_000_000_000..=FILL_INTERVAL_NS).contains(&last_elapsed),
             "delta elapsed should be ~30s (fill interval), got {}ns",
             last_elapsed
         );
