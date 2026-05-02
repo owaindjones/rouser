@@ -6,7 +6,7 @@ Wants=network.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/rouser --config %h/.config/rouser/config.toml
+ExecStart=%h/.local/bin/rouser
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal
