@@ -119,9 +119,6 @@ pub struct DataManager {
     /// Cached predicted additional time from last tick's model query.
     /// Applied to cooldown_duration when metrics drop below threshold.
     predicted_additional_time: std::time::Duration,
-    /// Whether predictive cooldown extension has been applied in the current below-threshold transition.
-    /// Reset on metric spike so fresh prediction is computed when metrics drop again.
-    cooldown_extension_applied: bool,
     // Prediction model for adaptive cooldown extension (None if disabled).
     prediction_model: Option<PredictionModel>,
 }
@@ -205,7 +202,6 @@ impl DataManager {
             just_released: false,
             waiting_for_cooldown: false,
             predicted_additional_time: std::time::Duration::ZERO,
-            cooldown_extension_applied: false,
             prediction_model,
             cpu_smooth_max: SmoothingState::new(config.metrics.cpu.ema_alpha),
             cpu_smooth_avg: SmoothingState::new(config.metrics.cpu.ema_alpha),
@@ -361,11 +357,6 @@ impl DataManager {
                 .duration_since(below_since)
                 .unwrap_or(Duration::from_secs(0));
 
-            // Skip prediction re-evaluation when metrics are actively spiking above threshold.
-            if should_inhibit {
-                return Ok(());
-            }
-
             // Re-evaluate prediction every tick during cooldown waiting to adapt extension
             // based on current trends (increases or decreases the remaining wait time).
             let was_active = !self.predicted_additional_time.is_zero();
@@ -395,7 +386,6 @@ impl DataManager {
                 }
 
                 self.predicted_additional_time = prediction.additional_time;
-                self.cooldown_extension_applied = !self.predicted_additional_time.is_zero();
             }
 
             if !self.just_released && self.state.is_inhibited() {
@@ -464,11 +454,9 @@ impl DataManager {
             }
 
             self.predicted_additional_time = prediction.additional_time;
-            self.cooldown_extension_applied = !self.predicted_additional_time.is_zero();
         } else if should_inhibit && self.metrics_above_threshold_since.is_some() {
             // Metrics spiked again — reset extension and flag for fresh cooldown cycle.
             self.predicted_additional_time = std::time::Duration::ZERO;
-            self.cooldown_extension_applied = false;
         }
 
         if !was_inhibited && self.state.is_inhibited() {
