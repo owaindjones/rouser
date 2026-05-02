@@ -77,136 +77,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/home/%i/.local/bin/rouser --config /home/%i/.config/rouser/config.toml
-Restart=on-failure
-RestartSec=5s
+ExecStart=%h/.local/bin/rouser
 
-# Security hardening — allow reading binary and config, writing history.
-ReadOnlyPaths=%h/.local/bin %h/.config/rouser
-ReadWritePaths=%h/.local/state/rouser
-ProtectHome=read-only
-PrivateTmp=true
-NoNewPrivileges=false
-
-[Install]
-WantedBy=default.target
-```
-
-### Step 3: Create History Data Directory (optional)
-
-The installer creates this automatically. Only needed for manual installs or when `ProtectHome=read-only` is used without a corresponding `ReadWritePaths` override in the service file.
-
-```bash
-mkdir -p ~/.local/state/rouser
-```
-
-### Step 4: Configure and Start Service
-
-```bash
-# Reload user systemd daemon
-systemctl --user daemon-reload
-
-# Enable service to start on login
-systemctl --user enable rouser
-
-# Start the service
-systemctl --user start rouser
-
-# Check status
-systemctl --user status rouser
-```
-
-Expected output:
-
-```
-● rouser.service - Rouser - User Sleep Inhibition Daemon
-     Loaded: loaded (/home/username/.config/systemd/user/rouser.service; enabled)
-     Active: active (running) since Mon 2026-03-26 10:00:00 UTC; 5min ago
-   Main PID: 1234 (rouser)
-      Tasks: 4 (limit: 4915)
-     Memory: 2.5M
-```
-
-### Step 5: Verify Inhibition
-
-Check active inhibitors:
-
-```bash
-# List active inhibitors
-loginctl list-inhibitors
-
-# Should show rouser as an inhibitor
-```
-
-## Service Management
-
-### Start/Stop/Restart
-
-```bash
-# Start service
-systemctl --user start rouser
-
-# Stop service
-systemctl --user stop rouser
-
-# Restart service
-systemctl --user restart rouser
-
-# Reload configuration (without restart)
-systemctl --user reload rouser
-```
-
-### Check Status
-
-```bash
-# Check if running
-systemctl --user is-active rouser
-
-# View detailed status
-systemctl --user status rouser
-
-# View logs
-journalctl --user -u rouser -f
-
-# View last 50 lines
-journalctl --user -u rouser -n 50
-
-# View logs for specific time range
-journalctl --user -u rouser --since "2024-03-26 00:00:00" --until "2024-03-26 23:59:59"
-```
-
-### Enable/Disable
-
-```bash
-# Enable on login
-systemctl --user enable rouser
-
-# Disable (but keep file)
-systemctl --user disable rouser
-
-# Check if enabled
-systemctl --user is-enabled rouser
-```
-
-## Alternative: Systemd System Service
-
-For system-wide installation (requires root):
-
-### Create System Service File
-
-Create `/etc/systemd/system/rouser.service`:
-
-```ini
-[Unit]
-Description=Rouser - System Sleep Inhibition Daemon
-Documentation=https://github.com/owaindjones/rouser
-After=network.target
-
-[Service]
-Type=simple
-User=root
-Group=root
-ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
 Restart=on-failure
 RestartSec=5s
 
@@ -266,7 +138,8 @@ For system-wide installation with enhanced security:
 Type=simple
 User=rouser
 Group=rouser
-ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
+ExecStart=/usr/local/bin/rouser
+
 Restart=on-failure
 RestartSec=5s
 
@@ -321,7 +194,7 @@ Prevent resource exhaustion:
 ```ini
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
+ExecStart=/usr/local/bin/rouser
 
 # Resource limits
 MemoryLimit=256M
