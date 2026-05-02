@@ -10,6 +10,9 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use tracing::{error, info, warn};
 
+// Import the prelude for .with() method on subscribers.
+use tracing_subscriber::prelude::*;
+
 use config::ConfigLoader;
 use service::DataService;
 
@@ -39,11 +42,26 @@ struct Args {
     log_level: Option<String>,
 }
 
-fn resolve_initial_log_level(args: &Args) -> String {
+/// Resolve the effective tracing log level after config is loaded.
+/// Priority chain: CLI > RUST_LOG > config.log_level > 'info'.
+fn resolve_tracing_log_level(args: &Args, config: &config::Config) -> String {
     if let Some(ref cli_val) = args.log_level {
         return cli_val.to_string();
     }
-    std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string())
+
+    // Environment variable is the next source — transient overrides persistent defaults.
+    if let Ok(val) = std::env::var("RUST_LOG") {
+        if !val.is_empty() {
+            return val;
+        }
+    }
+
+    // Config file log_level is the fallback for a persistent default.
+    if !config.log_level.is_empty() {
+        return config.log_level.clone();
+    }
+
+    "info".to_string()
 }
 
 fn load_single_config(path: &std::path::Path) -> Result<config::Config> {
@@ -53,27 +71,50 @@ fn load_single_config(path: &std::path::Path) -> Result<config::Config> {
         .map_err(|e| anyhow::anyhow!("Failed to load config from {}: {}", path.display(), e))
 }
 
-fn init_tracing(log_level: &str) {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_new(log_level).unwrap_or_else(|e| {
-                eprintln!("Invalid log level '{}': {}. Using 'info'.", log_level, e);
-                tracing_subscriber::EnvFilter::new("info")
-            }),
-        )
-        .with_target(true)
-        .with_level(true)
-        .with_thread_ids(false)
-        .with_thread_names(false)
-        .init();
-}
-
 #[tokio::main]
 async fn main() -> ExitCode {
     let args = Args::parse();
 
-    // Initialize tracing early so that auto-install logs during config load are captured.
-    init_tracing(&resolve_initial_log_level(&args));
+    // Phase 1 — init tracing at DEBUG so auto-install logs during config load are captured.
+    // RUST_LOG takes priority, then CLI flag, then fallback to debug.
+    let startup_level = std::env::var("RUST_LOG")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| args.log_level.clone())
+        .unwrap_or_else(|| "debug".to_string());
+
+    // Build reloadable filter and install subscriber inline to avoid complex type annotations.
+    let env_filter = match tracing_subscriber::EnvFilter::try_new(&startup_level) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!(
+                "Invalid log level '{}': {}. Using 'info'.",
+                startup_level, e
+            );
+            tracing_subscriber::EnvFilter::new("info")
+        }
+    };
+
+    let (env_filter, reload_handle) = tracing_subscriber::reload::Layer::new(env_filter);
+
+    let tracing_installed = match tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_level(true)
+                .with_thread_ids(false)
+                .with_thread_names(false),
+        )
+        .with(env_filter)
+        .try_init()
+    {
+        Ok(_) => true,
+        Err(e) if e.to_string().contains("global default") => false,
+        Err(e) => {
+            eprintln!("Failed to install tracing subscriber: {}", e);
+            false
+        }
+    };
 
     // --print-config: serialize config as TOML and exit.
     if args.print_config {
@@ -103,7 +144,7 @@ async fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    // Load config with log_level for tracing init.
+    // Load configuration.
     let (config, _searched): (config::Config, Vec<String>) = if let Some(ref path) = args.config {
         match load_single_config(path) {
             Ok(cfg) => (cfg, vec![]),
@@ -122,6 +163,33 @@ async fn main() -> ExitCode {
             std::process::exit(1);
         })
     };
+
+    // Phase 2 — swap the log level filter to match config.log_level if our subscriber is active.
+    let final_level = resolve_tracing_log_level(&args, &config);
+    if tracing_installed {
+        match tracing_subscriber::EnvFilter::try_new(&final_level) {
+            Ok(new_filter) => {
+                reload_handle
+                    .modify(|filter| *filter = new_filter)
+                    .unwrap_or_else(|e| {
+                        warn!("Failed to modify tracing filter: {}", e);
+                    });
+                info!("Log level reconfigured to: {}", final_level);
+            }
+            Err(e) => {
+                eprintln!("Invalid log level '{}': {}. Using 'info'.", final_level, e);
+                reload_handle
+                    .modify(|filter| *filter = tracing_subscriber::EnvFilter::new("info"))
+                    .unwrap_or_else(|e| {
+                        warn!("Failed to modify tracing filter: {}", e);
+                    });
+            }
+        }
+    } else {
+        warn!(
+            "Tracing was pre-initialized externally (likely by RUST_LOG). config.log_level will not take effect."
+        );
+    }
 
     let should_validate = args.validate_config;
 
