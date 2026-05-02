@@ -293,8 +293,6 @@ impl DataManager {
         let was_inhibited = self.previous_inhibited_state;
 
         if should_inhibit {
-            debug!("Metrics exceed threshold, checking inhibition status");
-
             // Cancel cooldown — metrics spiked again while waiting.
             if self.waiting_for_cooldown {
                 self.waiting_for_cooldown = false;

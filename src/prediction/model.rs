@@ -19,12 +19,22 @@ use tracing::debug;
 /// - Year: seasonal trends (winter vs summer usage)
 /// - Week of year: monthly/annual cycles within a year
 /// - Seconds into week: precise position enabling hour-of-day + weekday/weekend distinction
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TimeKey {
     pub year: i32,
     pub week_of_year: u32,
-    /// Seconds into the ISO week (0–604799). Stored as integer for HashMap key compatibility.
-    pub seconds_into_week: i64, // 0 to 604799 (7 * 24 * 3600 - 1)
+    /// Seconds into the ISO week (0–604799.999). Stored as f64 for millisecond precision; deterministic integer arithmetic ensures exact equality for HashMap keys.
+    pub seconds_into_week: f64, // 0 to 604799.999 (7 * 24 * 3600 - 1)
+}
+
+impl Eq for TimeKey {}
+
+impl ::std::hash::Hash for TimeKey {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self.year.hash(state);
+        self.week_of_year.hash(state);
+        self.seconds_into_week.to_bits().hash(state);
+    }
 }
 
 impl TimeKey {
@@ -36,7 +46,7 @@ impl TimeKey {
 
     /// Convert to a linear day index for proximity search across year boundaries.
     fn linear_day(&self) -> i64 {
-        self.linear_week() * 7 + (self.seconds_into_week / 86_400_i64)
+        self.linear_week() * 7 + (self.seconds_into_week as i64 / 86_400)
     }
 }
 
@@ -60,10 +70,10 @@ impl TimeKey {
         Self {
             year,
             week_of_year: iso_week.week(),
-            seconds_into_week: ((dow - 1) * 86400
-                + hours_in_day * 3600
-                + minutes_in_hour * 60
-                + seconds_in_min) as i64,
+            seconds_into_week: (dow - 1) as f64 * 86_400.0
+                + hours_in_day as f64 * 3_600.0
+                + minutes_in_hour as f64 * 60.0
+                + seconds_in_min as f64,
         }
     }
 
@@ -362,7 +372,7 @@ impl PredictionModel {
         for (key, &count) in self.inhibited_timekeys.iter() {
             if key.year == now.year
                 && (-7_i64..=7_i64).contains(&(key.linear_day() - now.linear_day()))
-                && (-3600_i64..=3600_i64).contains(&(key.seconds_into_week - target_seconds))
+                && ((key.seconds_into_week - target_seconds).abs() <= 3_600_f64)
             {
                 best_count = count.max(best_count);
             }
@@ -416,7 +426,6 @@ impl PredictionModel {
     }
 
     pub fn prune(&mut self, max_age: std::time::Duration) {
-        debug!("Running history pruning (max age: {:?})", max_age);
         self.history.prune(max_age);
     }
 
@@ -558,13 +567,13 @@ mod tests {
         // Monday Jan 1 2024 00:00 UTC (ISO week starts on Monday)
         let monday_00 = TimeKey::from_timestamp_ns(1704067200 * 1_000_000_000);
         assert_eq!(monday_00.year, 2024);
-        assert_eq!(monday_00.seconds_into_week, 0); // Monday at midnight
+        assert!((monday_00.seconds_into_week - 0.0).abs() < f64::EPSILON); // Monday at midnight
 
         // Same day, noon (still Monday since Jan 1 2024 is a Monday in ISO calendar)
         let monday_noon = TimeKey::from_timestamp_ns((1704067200 + 3600 * 12) * 1_000_000_000);
         assert_eq!(monday_noon.year, 2024);
         // Monday = day index 0 (Mon=0), so seconds = 0*86400 + 12*3600 = 43200
-        assert_eq!(monday_noon.seconds_into_week, 43200);
+        assert!((monday_noon.seconds_into_week - 43_200.0).abs() < f64::EPSILON);
 
         // Sunday at 23:59 should be near end of week (day index 6)
         let sunday_night = TimeKey::from_timestamp_ns(
@@ -572,7 +581,7 @@ mod tests {
         );
         assert_eq!(sunday_night.year, 2024);
         // Sunday = day index 6, so seconds = 6*86400 + 23*3600 + 59*60 = 604740
-        assert_eq!(sunday_night.seconds_into_week, 604740);
+        assert!((sunday_night.seconds_into_week - 604_740.0).abs() < f64::EPSILON);
     }
 
     /// Test that same weekday+time in different weeks of the same year produces identical seconds-into-week.

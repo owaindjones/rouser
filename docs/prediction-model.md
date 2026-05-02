@@ -53,7 +53,7 @@ for entry in history_entries {
 }
 ```
 
-This replaces the old single-dimension hour-of-day approach with three orthogonal axes for capturing seasonal, monthly, weekly, and weekday/weekend patterns. The `seconds_into_week` field encodes precise position within a 7-day cycle (0–604799 seconds), enabling fine-grained discrimination between Saturday morning vs Monday afternoon even though both share the same wall-clock hour.
+This replaces the old single-dimension hour-of-day approach with three orthogonal axes for capturing seasonal, monthly, weekly, and weekday/weekend patterns. The `seconds_into_week` field encodes precise position within a 7-day cycle (0–604799.999 seconds, millisecond resolution), enabling fine-grained discrimination between Saturday morning vs Monday afternoon even though both share the same wall-clock hour.
 
 ### Step 2: Score Current Time Window on Cooldown Transition
 
