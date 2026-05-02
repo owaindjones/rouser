@@ -429,13 +429,18 @@ impl HistoryLog {
             }
 
             let entries = read_entries_from_file(&path);
-            // Use filename as sort key for BTreeMap (YYYYMMDD sorts lexicographically).
-            if let Some(date_str) = extract_date_str(&path) {
-                date_entries.entry(date_str).or_default().extend(entries);
-            } else {
-                // Skip files we can't parse the date from.
-                warn!("Skipping unparseable history file: {}", path.display());
-            }
+            // Use filename YYYYMMDD as sort key for BTreeMap (lexicographic == chronological).
+            // Fall back to file modification time when filename doesn't contain a valid date.
+            let sort_key: String = extract_date_str(&path).unwrap_or_else(|| {
+                path.metadata()
+                    .and_then(|m| m.modified())
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| format!("{:020}", d.as_secs()))
+                    .unwrap_or_else(|| "99999999".to_string())
+            });
+
+            date_entries.entry(sort_key).or_default().extend(entries);
         }
 
         const GAP_THRESHOLD_NS: u64 = 5 * 60 * 1_000_000_000; // 5 minutes in nanoseconds
