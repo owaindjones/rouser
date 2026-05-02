@@ -11,6 +11,8 @@ fn is_auth_error(error_msg: &str) -> bool {
         "requires interactive authentication",
         "Access denied",
         "org.freedesktop.login1.NotAuthorized",
+        "not authorized",
+        "not authenticated",
     ];
     let lower = error_msg.to_lowercase();
     AUTH_INDICATORS.iter().any(|indicator| lower.contains(indicator))

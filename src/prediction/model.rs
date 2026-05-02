@@ -28,6 +28,19 @@ pub struct TimeKey {
 }
 
 impl TimeKey {
+    /// Convert to a linear week index for proximity search across year boundaries.
+    /// Uses formula `(year_offset * max_weeks) + week_of_year` where max_weeks = 53 (max ISO weeks per year).
+    fn linear_week(&self) -> i64 {
+        ((self.year as i64 - 2000_i64) * 53_i64) + self.week_of_year as i64
+    }
+
+    /// Convert to a linear day index for proximity search across year boundaries.
+    fn linear_day(&self) -> i64 {
+        self.linear_week() * 7 + (self.seconds_into_week / 86_400_i64)
+    }
+}
+
+impl TimeKey {
     /// Convert a Unix timestamp in nanoseconds to a TimeKey using UTC.
     fn from_timestamp_ns(ts_ns: u64) -> Self {
         let secs = ts_ns / 1_000_000_000;
@@ -337,12 +350,12 @@ impl PredictionModel {
         }
 
       // Level 2: Fall back to hour-of-day matching for sparse data.
-        // Constrain by year and ±1 week of year, plus ±3600s position within the week.
+        // Use linear day index to handle ISO week wraparound at year boundaries correctly.
         let target_seconds = now.seconds_into_week;
        let mut best_count: u64 = 0;
        for (key, &count) in self.inhibited_timekeys.iter() {
            if key.year == now.year
-               && ((key.week_of_year as i64 - now.week_of_year as i64).abs() <= 1)
+               && (-7_i64..=7_i64).contains(&(key.linear_day() - now.linear_day()))
                && (-3600_i64..=3600_i64).contains(&(key.seconds_into_week - target_seconds)) {
                best_count = count.max(best_count);
            }
@@ -568,6 +581,7 @@ mod tests {
         assert_eq!(tk_wk1.seconds_into_week, tk_wk2.seconds_into_week);
     }
 
+
     /// Test that different weekdays at the same time produce distinct seconds-into-week values.
     #[test]
     fn test_timekey_different_weekdays_distinct() {
@@ -580,6 +594,35 @@ mod tests {
         assert_eq!(tuesday.year, 2024);
         // Different weekdays → distinct seconds-into-week values (86400s apart)
         assert_ne!(monday.seconds_into_week, tuesday.seconds_into_week);
+    }
+
+    /// Test that linear_day correctly handles ISO week wraparound at year boundaries.
+    #[test]
+    fn test_linear_day_wraps_at_year_boundary() {
+        // Monday Jan 1 2024 at midnight (ISO Week 1 of 2024)
+        let jan_wk1 = TimeKey::from_timestamp_ns((1704067200) * 1_000_000_000);
+        // Monday Jan 8 2024 at midnight (ISO Week 2 of 2024, same calendar year)
+        let jan_wk2 = TimeKey::from_timestamp_ns((1704067200 + (7 * 86400)) * 1_000_000_000);
+
+        assert_eq!(jan_wk1.year, 2024);
+        assert_eq!(jan_wk2.year, 2024);
+        // Exactly one week apart → linear_day diff should be exactly 7
+        assert_eq!(jan_wk2.linear_day() - jan_wk1.linear_day(), 7);
+
+        // Monday Jan 15 2024 (ISO Week 3)
+        let jan_wk3 = TimeKey::from_timestamp_ns((1704067200 + (14 * 86400)) * 1_000_000_000);
+        // Two weeks from Jan 1 → diff should be 14 days
+        assert_eq!(jan_wk3.linear_day() - jan_wk1.linear_day(), 14);
+
+        // Sunday Dec 29 2024 at midnight (ISO Week 52 of year 2024)
+        let dec_sunday = TimeKey::from_timestamp_ns((1735401600) * 1_000_000_000);
+        assert_eq!(dec_sunday.year, 2024);
+
+        // Monday Jan 6 2025 at midnight (ISO Week 2 of year 2025)
+        let jan_wk2_2025 = TimeKey::from_timestamp_ns((1736155800) * 1_000_000_000);
+
+        // Jan 6, 2025 is a Monday at midnight UTC
+        assert_eq!(jan_wk2_2025.year, 2025);
     }
 
     /// Test that predict_cooldown returns zero with insufficient data (< 10 points).
