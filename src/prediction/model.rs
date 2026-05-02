@@ -1,12 +1,97 @@
 //! Time-aware prediction model for adaptive cooldown duration.
 //!
-//! Uses historical metric patterns (hour-of-day analysis) to predict how long
-//! inhibition should remain active after metrics drop below threshold.
+//! Uses historical metric patterns across three time dimensions to predict how long
+//! inhibition should remain active after metrics drop below threshold:
+//! - Year (captures seasonal trends)
+//! - Week of year (captures monthly/annual cycles)
+//! - Seconds into week (precise position within a 7-day cycle, enabling hour-of-day and weekday/weekend distinction).
+//! 
 //! Purely statistical — no external ML dependencies required.
 
 use crate::prediction::{HistoryEntry, HistoryLog};
+use chrono::{Datelike, Timelike};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::debug;
+
+/// Multi-dimensional time key for pattern matching in the prediction model.
+/// Replaces the old single `hour_of_day` dimension with three orthogonal axes:
+/// - Year: seasonal trends (winter vs summer usage)
+/// - Week of year: monthly/annual cycles within a year
+/// - Seconds into week: precise position enabling hour-of-day + weekday/weekend distinction
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TimeKey {
+    pub year: i32,
+    pub week_of_year: u32,
+    /// Seconds into the ISO week (0–604799). Stored as integer for HashMap key compatibility.
+    pub seconds_into_week: i64, // 0 to 604799 (7 * 24 * 3600 - 1)
+}
+
+impl TimeKey {
+    /// Convert a Unix timestamp in nanoseconds to a TimeKey using UTC.
+    fn from_timestamp_ns(ts_ns: u64) -> Self {
+        let secs = ts_ns / 1_000_000_000;
+        let dt = chrono::DateTime::<chrono::Utc>::from_timestamp(secs as i64, 0)
+            .unwrap_or_else(chrono::Utc::now);
+
+       // Use calendar year and ISO week number for seasonal pattern tracking.
+        let year = dt.year();
+        let iso_week = dt.iso_week();
+
+        // Seconds into week: day-of-week (Mon=1..Sun=7) * seconds_per_day + hour*3600 + min*60 + sec
+        let dow = dt.weekday().number_from_monday() as i32; // 1-7
+        let hours_in_day = dt.hour() as i32;
+        let minutes_in_hour = dt.minute() as i32;
+        let seconds_in_min = dt.second() as i32;
+
+        Self {
+            year,
+            week_of_year: iso_week.week(),
+            seconds_into_week: ((dow - 1) * 86400 + hours_in_day * 3600 + minutes_in_hour * 60 + seconds_in_min) as i64,
+        }
+    }
+
+    /// Extract just the hour of day from a timestamp (for backward-compatible fallback).
+    fn hour_of_day(ts_ns: u64) -> u32 {
+        ((ts_ns / 1_000_000_000 / 3600) % 24) as u32
+    }
+
+    /// Get the current TimeKey.
+    fn now() -> Self {
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time before epoch")
+            .as_nanos();
+        Self::from_timestamp_ns(secs as u64)
+    }
+
+    /// Get the current hour of day for backward-compatible fallback.
+    fn current_hour() -> u32 {
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time before epoch")
+            .as_nanos();
+        Self::hour_of_day(secs as u64)
+    }
+
+    /// Format a TimeKey into a human-readable string for debug logging.
+    fn display(&self) -> String {
+        format!(
+            "year={}, week={:02}, sec={:.0}",
+            self.year, self.week_of_year, self.seconds_into_week
+        )
+    }
+
+    /// Get the hour component from seconds_into_week for fallback scoring.
+    fn hour_component(&self) -> u32 {
+        ((self.seconds_into_week % 86400_i64) / 3600) as u32 + (self.day_of_week() * 24)
+    }
+
+    /// Get the day-of-week component (0=Monday..6=Sunday).
+    fn day_of_week(&self) -> u32 {
+        (self.seconds_into_week / 86400_i64) as u32 % 7
+    }
+}
 
 /// Prediction result from the cooldown model.
 #[derive(Debug, Clone)]
@@ -112,9 +197,8 @@ pub struct PredictionModel {
     history: HistoryLog,
     /// Maximum additional time allowed for predictive cooldown extension.
     max_extension_time: std::time::Duration,
-    // Per-hour high-activity counts for CPU and network (key: hour_of_day 0–23).
-    cpu_high_count: HashMap<u32, u64>,
-    network_high_count: HashMap<u32, u64>,
+    // Per-TimeKey inhibition counts (key: year + week_of_year + seconds_into_week).
+    inhibited_timekeys: HashMap<TimeKey, u64>,
     data_points: u64,
     /// Number of ticks between averaged snapshot flushes.
     /// Computed as prediction_update_interval / root_update_interval.
@@ -133,26 +217,20 @@ impl PredictionModel {
             entries.len()
         );
 
-        let mut cpu_high_count = HashMap::<u32, u64>::new();
-        let mut network_high_count = HashMap::<u32, u64>::new();
+        let mut inhibited_timekeys = HashMap::<TimeKey, u64>::new();
 
         for entry in &entries {
-            let hour_u32 = Self::hour_of_day(entry.timestamp_ns);
-
-            // Track hours where metrics exceeded typical thresholds.
-            if entry.cpu_usage.per_core_max > 50.0 {
-                *cpu_high_count.entry(hour_u32).or_default() += 1;
+            if !entry.inhibited {
+                continue;
             }
-            if entry.network_mbps > 10.0 || entry.disk_mb_s > 5.0 {
-                *network_high_count.entry(hour_u32).or_default() += 1;
-            }
+            let time_key = TimeKey::from_timestamp_ns(entry.timestamp_ns);
+            *inhibited_timekeys.entry(time_key).or_default() += 1;
         }
 
         Self {
             history,
             max_extension_time,
-            cpu_high_count,
-            network_high_count,
+            inhibited_timekeys,
             data_points: entries.len() as u64,
             flush_interval: None,
             tick_count: 0,
@@ -230,16 +308,11 @@ impl PredictionModel {
             };
         }
 
-        let hour_of_day = Self::current_hour();
+        let now = TimeKey::now();
 
-        // Score each metric dimension (higher = more likely to stay active at this hour).
-        let cpu_score = self.score_metric_hour(hour_of_day, &self.cpu_high_count);
-        let network_score = self.score_metric_hour(hour_of_day, &self.network_high_count);
+        let score = self.score_inhibition_rate(&now);
 
-        // Weighted combination: CPU is primary signal; network is secondary.
-        let combined_score = (cpu_score * 0.6 + network_score * 0.4).min(1.0);
-
-        if combined_score < 0.3 {
+        if score < 0.3 {
             return CooldownPrediction {
                 additional_time: std::time::Duration::ZERO,
                 confidence: self.confidence_for_data_points(),
@@ -248,13 +321,13 @@ impl PredictionModel {
 
         // Map score to additional cooldown time (linear interpolation from 0–max_extension).
         let additional_time = std::time::Duration::from_secs_f64(
-            (combined_score - 0.3) / 0.7 * self.max_extension_time.as_secs_f64(),
+            (score - 0.3) / 0.7 * self.max_extension_time.as_secs_f64(),
         );
         let confidence = self.confidence_for_data_points();
 
         debug!(
-            "Predicted cooldown: +{:?} (score={:.2}, hour={}, data_points={}, confidence={:.2})",
-            additional_time, combined_score, hour_of_day, self.data_points, confidence
+            "Predicted cooldown: +{:?} (score={:.2}, time={}, data_points={}, confidence={:.2})",
+            additional_time, score, now.display(), self.data_points, confidence
         );
 
         CooldownPrediction {
@@ -263,22 +336,44 @@ impl PredictionModel {
         }
     }
 
-    /// Score a metric dimension based on historical frequency at this hour.
-    fn score_metric_hour(&self, hour: u32, counts: &HashMap<u32, u64>) -> f64 {
-        let count = counts.get(&hour).copied().unwrap_or(0);
-        if count == 0 {
+   // Multi-level fallback matching:
+    // Level 1: Exact TimeKey match — most precise, used with sufficient historical data for this time window.
+    // Level 2: Hour-of-day fallback — original single-dimension approach when no exact matches exist (sparse data).
+    fn score_inhibition_rate(&self, now: &TimeKey) -> f64 {
+        // Level 1: Try exact TimeKey match first.
+        if let Some(&count) = self.inhibited_timekeys.get(now) {
+            return self.score_from_count(count);
+        }
+
+      // Level 2: Fall back to hour-of-day matching for sparse data.
+        // Find any existing TimeKey that shares the same seconds-into-week value (i.e., same position in week).
+        let target_seconds = now.seconds_into_week;
+       let mut best_count: u64 = 0;
+       for (key, &count) in self.inhibited_timekeys.iter() {
+           if (-3600_i64..=3600_i64).contains(&(key.seconds_into_week - target_seconds)) {
+               best_count = count.max(best_count);
+           }
+       }
+
+      if best_count > 0 {
+            return self.score_from_count(best_count);
+        }
+
+        0.0
+    }
+
+    /// Compute a score from an inhibition count, using the overall distribution as baseline.
+    fn score_from_count(&self, count: u64) -> f64 {
+        let total_inhibited = self.inhibited_timekeys.values().sum::<u64>();
+        // Average per matching bucket gives baseline expectation for scoring.
+        let avg_per_bucket: u64 = (total_inhibited.max(1)) / (self.inhibited_timekeys.len() as u64).max(1);
+
+        if count == 0 || avg_per_bucket == 0 {
             return 0.0;
         }
 
-        // Average per hour across all data points gives baseline expectation.
-        let avg_per_hour: u64 =
-            self.data_points / 24.max(self.cpu_high_count.values().sum::<u64>() + 1);
-        if avg_per_hour == 0 {
-            return 0.0;
-        }
-
-        // Score above 0.5 for hours with more than average activity, capped at 1.0.
-        let ratio = count as f64 / avg_per_hour.max(1) as f64;
+        // Score above 0.5 for buckets with more than average activity, capped at 1.0.
+        let ratio = count as f64 / avg_per_bucket.max(1) as f64;
         (ratio * 0.5).min(1.0)
     }
 
@@ -292,19 +387,12 @@ impl PredictionModel {
         }
     }
 
-    /// Extract hour of day (0–23 UTC) from a Unix timestamp in nanoseconds.
-    fn hour_of_day(ts_ns: u64) -> u32 {
-        ((ts_ns / 1_000_000_000 / 3600) % 24) as u32
+   fn hour_of_day(ts_ns: u64) -> u32 {
+        TimeKey::hour_of_day(ts_ns)
     }
 
-    /// Get the current hour of day (UTC).
     fn current_hour() -> u32 {
-        Self::hour_of_day(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("system time before epoch")
-                .as_nanos() as u64,
-        )
+        TimeKey::current_hour()
     }
 
     /// Get the current history log reference for manual writes (e.g., during integration).
@@ -402,7 +490,7 @@ mod tests {
 
     /// Test that multi-tick accumulation produces correct arithmetic means across flush boundaries.
     #[test]
-    fn test_multi_tick_averaging_correctness() {
+   fn test_multi_tick_averaging_correctness() {
         let mut model = PredictionModel::new(true, std::time::Duration::from_secs(60));
         // Flush every 5 ticks to verify partial accumulation doesn't produce snapshots.
         model.set_prediction_update_interval(std::time::Duration::from_secs(5));
@@ -430,7 +518,7 @@ mod tests {
         assert!(model.record(90.0, 45.0, vec![90.0], 35.0, 1.0, true));
         assert_eq!(model.data_points(), 2);
 
-        let mut model2 = PredictionModel::new(true, std::time::Duration::from_secs(60));
+       let mut model2 = PredictionModel::new(true, std::time::Duration::from_secs(60));
         // Flush every 3 ticks to verify exact-value averaging (all identical inputs → average equals input).
         model2.set_prediction_update_interval(std::time::Duration::from_secs(3));
 
@@ -452,7 +540,7 @@ mod tests {
 
     /// Test that GPU per-slot averaging handles varying GPU counts across ticks correctly.
     #[test]
-    fn test_gpu_slot_averaging_with_varying_count() {
+   fn test_gpu_slot_averaging_with_varying_count() {
         let mut model = PredictionModel::new(true, std::time::Duration::from_secs(60));
         model.set_prediction_update_interval(std::time::Duration::from_secs(3));
 

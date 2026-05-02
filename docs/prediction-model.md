@@ -4,9 +4,12 @@ The prediction module provides adaptive cooldown extension based on historical s
 
 ## Overview
 
-Without prediction, rouser releases sleep inhibition after a fixed `cooldown_duration` (default 10s) of all metrics being below threshold. With prediction enabled, if historical patterns indicate that similar metric levels at the current time of day are usually followed by renewed activity, rouser extends this wait period by up to `max_extension_time`.
+Without prediction, rouser releases sleep inhibition after a fixed `cooldown_duration` (default 10s) of all metrics being below threshold. With prediction enabled, if historical patterns indicate that similar times are usually followed by renewed activity, rouser extends this wait period by up to `max_extension_time`.
 
-The model uses purely statistical hour-of-day analysis — no external ML libraries or training pipelines required. It tracks when CPU and network usage exceeded typical thresholds across historical data points, then compares current-time patterns against those baselines during cooldown transitions.
+The model uses purely statistical pattern matching across three time dimensions — no external ML libraries or training pipelines required:
+- **Year**: Captures seasonal trends (winter vs summer usage)
+- **Week of year**: Captures monthly/annual cycles within a year
+- **Seconds into week**: Precise position enabling hour-of-day + weekday/weekend distinction
 
 ## Data Collection
 
@@ -38,35 +41,39 @@ Each file contains only data points from that specific calendar day. Files are a
 
 ## How Prediction Works
 
-### Step 1: Build Hour-of-Day Histograms
+### Step 1: Build Inhibition Histograms by Time Key
 
-On initialization, rouser scans all existing history files and builds two per-hour histograms:
+On initialization, rouser scans all existing history files and builds per-TimeKey inhibition histograms. Each data point is classified as inhibited or not based on the `inhibited` field (which reflects whether metrics exceeded thresholds at that time). The histogram counts how many times each `(year, week_of_year, seconds_into_week)` bucket was inhibited:
 
-- **CPU high count**: For each hour (0–23 UTC), counts how many data points had CPU max >50%
-- **Network/disk high count**: For each hour (0–23 UTC), counts data points where network >10 Mbps OR disk >5 MB/s
+```
+for entry in history_entries {
+    if !entry.inhibited { continue; }
+    let key = TimeKey::from_timestamp_ns(entry.timestamp_ns);  // (year, week, sec_in_week)
+    inhibited_timekeys[key] += 1;
+}
+```
 
-These histograms represent the baseline "busy hours" for this system. A workstation used during business hours would show high counts in hours 8–17; a server running batch jobs at midnight might spike in hour 0.
+This replaces the old single-dimension hour-of-day approach with three orthogonal axes for capturing seasonal, monthly, weekly, and weekday/weekend patterns. The `seconds_into_week` field encodes precise position within a 7-day cycle (0–604799 seconds), enabling fine-grained discrimination between Saturday morning vs Monday afternoon even though both share the same wall-clock hour.
 
-### Step 2: Score Current Hour on Cooldown Transition
+### Step 2: Score Current Time Window on Cooldown Transition
 
 When metrics drop below all thresholds and rouser is about to release inhibition, the model evaluates:
 
-1. **Get current UTC hour** from system clock
-2. **Look up CPU score**: How many times did this hour have high CPU activity historically? Compared against average per-hour baseline across all data points.
-3. **Look up network/disk score**: Same comparison for network/disk thresholds.
-4. **Combine scores**: Weighted 60/40 split (CPU primary, network secondary) to produce a combined score in range [0.0, 1.0].
+1. **Get current TimeKey** from system clock (year + week_of_year + seconds_into_week)
+2. **Score via multi-level fallback matching**:
+   - **Level 1 (exact match)**: Look up inhibition count at this exact `(year, week, second_position)` bucket — most precise when sufficient historical data exists for this specific time window.
+   - **Level 2 (hour-of-day fallback)**: If no exact match, search all buckets within ±3600 seconds of the target `seconds_into_week` value. This recovers hour-of-day pattern matching behavior for sparse data.
 
-The scoring formula normalizes each metric's historical frequency at the current hour against its average across all hours:
+The scoring formula normalizes each bucket's historical inhibition frequency against its average across all time keys:
 
 ```
-ratio = count_at_hour / avg_per_hour
+ratio = count_at_timekey / avg_per_bucket
 score = min(ratio * 0.5, 1.0)    # Scales above 0.5 for above-average hours
-combined = cpu_score * 0.6 + network_score * 0.4
 ```
 
 ### Step 3: Map Score to Extension Time
 
-If the combined score is below 0.3 (insufficient evidence of activity at this hour), no extension is applied — rouser uses the standard `cooldown_duration`.
+If the score is below 0.3 (insufficient evidence of activity at this time window), no extension is applied — rouser uses the standard `cooldown_duration`.
 
 For scores above 0.3, linear interpolation maps the score to an extension time between 0 and `max_extension_time`:
 
@@ -74,7 +81,7 @@ For scores above 0.3, linear interpolation maps the score to an extension time b
 additional_time = ((score - 0.3) / 0.7) * max_extension_time
 ```
 
-This produces a smooth curve: a score of 0.3 gives zero extension, while a score of 1.0 (very high historical activity at this hour) yields the full `max_extension_time`.
+This produces a smooth curve: a score of 0.3 gives zero extension, while a score of 1.0 (very high historical inhibition at this time window) yields the full `max_extension_time`.
 
 ### Step 4: Confidence Scaling
 
@@ -143,7 +150,7 @@ Key log messages:
 - **Startup**: `Prediction model initialized with N historical data points` — shows how many past entries were loaded
 - **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, hour=H, accumulated_ticks=N)` — logged when accumulated metrics are written as one averaged entry after N ticks
 - **Pruning activity**: `Running history pruning (max age: ...)` followed by per-file debug lines when files are removed
-- **Prediction query**: `Predicted cooldown: +Xdur (score=S.SS, hour=H, data_points=N, confidence=C.CC)` — shown when transitioning from inhibited to below-threshold state
+- **Prediction query**: `Predicted cooldown: +Xdur (score=S.SS, time=year=Y week=W sec=S, data_points=N, confidence=C.CC)` — shown when transitioning from inhibited to below-threshold state
 
 ## See Also
 

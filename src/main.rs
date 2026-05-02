@@ -75,19 +75,26 @@ async fn main() -> ExitCode {
     // Initialize tracing early so that auto-install logs during config load are captured.
     init_tracing(&resolve_initial_log_level(&args));
 
-    // --print-config: merge all configs and serialize back to TOML.
+    // --print-config: serialize config as TOML and exit.
     if args.print_config {
-        match ConfigLoader::load_merged() {
-            Ok((config, _)) => {
-                if let Err(e) = ConfigLoader::print_config_toml(&config, &mut std::io::stdout()) {
-                    eprintln!("Error: {}", e);
+        let config = if let Some(ref path) = args.config {
+            match load_single_config(path) {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    error!("Failed to load configuration from {}: {}", path.display(), e);
                     return ExitCode::FAILURE;
                 }
             }
-            Err(e) => {
+        } else {
+            let (cfg, _) = ConfigLoader::load_merged().unwrap_or_else(|e| {
                 error!("Failed to load and merge configuration: {}", e);
-                return ExitCode::FAILURE;
-            }
+                std::process::exit(1);
+            });
+            cfg
+        };
+        if let Err(e) = ConfigLoader::print_config_toml(&config, &mut std::io::stdout()) {
+            eprintln!("Error: {}", e);
+            return ExitCode::FAILURE;
         }
         return ExitCode::SUCCESS;
     }
