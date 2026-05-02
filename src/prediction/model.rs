@@ -243,6 +243,7 @@ impl TrendSignal {
 
         let mut cpu_sum = 0.0f64;
         let mut net_sum = 0.0f64;
+        let mut net_samples = 0u32;
         let mut samples = 0u32;
 
         for &entry in recent_entries.iter().take(n as usize).rev() {
@@ -252,6 +253,7 @@ impl TrendSignal {
             }
             if let Some(d) = entry.network_delta_per_sec {
                 net_sum += d;
+                net_samples += 1;
             }
         }
 
@@ -261,7 +263,11 @@ impl TrendSignal {
             } else {
                 0.0
             },
-            avg_network_delta_per_sec: if n > 0 { net_sum / n as f64 } else { 0.0 },
+            avg_network_delta_per_sec: if net_samples > 0 {
+                net_sum / net_samples as f64
+            } else {
+                0.0
+            },
             samples,
         }
     }

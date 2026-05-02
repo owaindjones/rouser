@@ -1059,6 +1059,90 @@ mod tests {
     }
 
     #[test]
+    fn test_fill_gaps_deltas_recomputed_after_gap() {
+        // Entry 1: timestamp=0s, cpu=50.0, network=10.0 (active state)
+        let entry1 = HistoryEntry::with_deltas(
+            0,
+            50.0,
+            25.0,
+            vec![],
+            10.0, // network
+            5.0,
+            true,
+            None,
+        );
+        // Entry 2: timestamp=600s (10 min gap), cpu=5.0, network=0.0 (idle state)
+        let entry2 = HistoryEntry::with_deltas(
+            600_000_000_000, // +600s
+            5.0,
+            2.0,
+            vec![],
+            0.0,
+            0.0,
+            false,
+            Some(30_000_000_000), // stale elapsed (irrelevant)
+        );
+
+        let entries = vec![entry1.clone(), entry2];
+        let result = fill_gaps(entries, GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+
+        assert!(result.len() > 2, "should have synthetic entries in gap");
+
+        // Last entry is the original entry2 (unchanged timestamp).
+        let last_entry = result.last().unwrap();
+        assert_eq!(last_entry.timestamp_ns, 600_000_000_000);
+        assert!(!last_entry.inhibited);
+
+        // The second-to-last entry is synthetic zero-value (immediately before entry2).
+        let last_synthetic = &result[result.len() - 2];
+        assert_eq!(last_synthetic.cpu_usage.per_core_max, 0.0);
+        assert_eq!(last_synthetic.network_mbps, 0.0);
+
+        // Entry2's elapsed_since_last_ns should be the gap from the LAST synthetic to entry2,
+        // NOT the original stale value (30s). It should be ~FILL_INTERVAL_NS (30s) since synthetics
+        // are spaced at FILL_INTERVAL_NS intervals.
+        let last_elapsed = last_entry.elapsed_since_last_ns.unwrap_or(0);
+        assert!(
+            last_elapsed >= 1_000_000_000 && last_elapsed <= FILL_INTERVAL_NS,
+            "delta elapsed should be ~30s (fill interval), got {}ns",
+            last_elapsed
+        );
+
+        // Entry2's cpu_delta_per_sec should reflect transition from zero to 5.0 over ~30s:
+        // rate ≈ (5.0 - 0) / 30 = 0.167%/s, NOT the stale value derived from entry1→entry2 gap.
+        let last_cpu_delta = last_entry.cpu_delta_per_sec;
+        assert!(
+            last_cpu_delta.is_some(),
+            "delta should be recomputed for entries after gap-fill"
+        );
+        let cpu_rate = last_cpu_delta.unwrap();
+        // Should be a small positive rate (transition from idle to active), not stale large negative.
+        assert!(
+            cpu_rate > -10.0 && cpu_rate < 20.0,
+            "cpu delta rate should be reasonable for post-gap entry: {}",
+            cpu_rate
+        );
+
+        // Verify synthetic entries have correct spacing (~FILL_INTERVAL_NS apart).
+        let synthetic_count = result.len() - 2; // exclude first real + last real
+        if synthetic_count > 1 {
+            for i in 1..=synthetic_count {
+                let idx = i; // synthetics are at indices 1..len-1
+                let gap = result[idx]
+                    .timestamp_ns
+                    .saturating_sub(result[idx - 1].timestamp_ns);
+                assert!(
+                    (gap as i64 - FILL_INTERVAL_NS as i64).abs() < (FILL_INTERVAL_NS / 2) as i64,
+                    "synthetic spacing should be ~{}ns, got {}ns at index {}",
+                    FILL_INTERVAL_NS,
+                    gap,
+                    idx
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_compute_deltas_basic() {
         let prev = HistoryEntry::new(0, 10.0, 5.0, vec![20.0], 8.0, 2.0, false);
         // Entry 1 second later with higher values.
