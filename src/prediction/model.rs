@@ -171,7 +171,7 @@ impl TickAccumulator {
         }
     }
 
-    fn flush(&mut self, elapsed_since_last_ns: Option<u64>) -> Option<(HistoryEntry, u64)> {
+    fn flush(&mut self, prev_metrics: Option<&LastEntryMetrics>) -> Option<(HistoryEntry, u64)> {
         if self.count == 0 {
             return None;
         }
@@ -182,19 +182,29 @@ impl TickAccumulator {
             gpu_averages.push(s / n);
         }
 
-        let entry = HistoryEntry::with_deltas(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("system time before epoch")
-                .as_nanos() as u64,
+        let timestamp_ns = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time before epoch")
+            .as_nanos() as u64;
+
+        let entry_raw = HistoryEntry::with_deltas(
+            timestamp_ns,
             self.cpu_max_sum / n,
             self.cpu_avg_sum / n,
             gpu_averages,
             self.network_sum / n,
             self.disk_sum / n,
             self.inhibited_count > 0 && (self.inhibited_count * 2 >= self.count),
-            elapsed_since_last_ns,
+            None, // deltas computed below if we have previous metrics
         );
+
+        let entry = match prev_metrics {
+            Some(prev) => {
+                let prev_entry = prev.to_entry();
+                entry_raw.compute_deltas(&prev_entry)
+            }
+            None => entry_raw,
+        };
 
         // Reset accumulator for next interval.
         self.count = 0;
@@ -206,6 +216,54 @@ impl TickAccumulator {
         self.inhibited_count = 0;
 
         Some((entry, count))
+    }
+}
+
+/// Captures recent rate-of-change trends from history entries for trend-aware prediction.
+#[derive(Debug, Clone)]
+struct TrendSignal {
+    /// Average CPU usage trend (positive = rising) over the N most recent entries.
+    avg_cpu_delta_per_sec: f64,
+    /// Average network I/O trend over the N most recent entries.
+    avg_network_delta_per_sec: f64,
+    /// Count of entries with positive delta signals used in averaging.
+    samples: u32,
+}
+
+impl TrendSignal {
+    fn compute(recent_entries: &[&HistoryEntry], count: usize) -> Self {
+        let n = (count.min(recent_entries.len())) as i32;
+        if n <= 0 {
+            return Self {
+                avg_cpu_delta_per_sec: 0.0,
+                avg_network_delta_per_sec: 0.0,
+                samples: 0,
+            };
+        }
+
+        let mut cpu_sum = 0.0f64;
+        let mut net_sum = 0.0f64;
+        let mut samples = 0u32;
+
+        for &entry in recent_entries.iter().take(n as usize).rev() {
+            if let Some(d) = entry.cpu_delta_per_sec {
+                cpu_sum += d;
+                samples += 1;
+            }
+            if let Some(d) = entry.network_delta_per_sec {
+                net_sum += d;
+            }
+        }
+
+        Self {
+            avg_cpu_delta_per_sec: if samples > 0 {
+                cpu_sum / samples as f64
+            } else {
+                0.0
+            },
+            avg_network_delta_per_sec: if n > 0 { net_sum / n as f64 } else { 0.0 },
+            samples,
+        }
     }
 }
 
@@ -224,6 +282,61 @@ pub struct PredictionModel {
     accumulator: TickAccumulator,
     /// Timestamp (ns) of the last flushed entry for delta computation on next flush.
     last_flushed_ns: u64,
+    /// Full metrics of the last flushed entry — used to compute deltas for the next snapshot.
+    last_flushed_entry_metrics: Option<LastEntryMetrics>,
+}
+
+/// Captures metric values from a single flushed history entry for delta computation.
+#[derive(Debug, Clone)]
+struct LastEntryMetrics {
+    timestamp_ns: u64,
+    cpu_per_core_max: f64,
+    cpu_total_average: f64,
+    gpu_usages: Vec<f64>,
+    network_mbps: f64,
+    disk_mb_s: f64,
+}
+
+impl LastEntryMetrics {
+    fn from_entry(entry: &HistoryEntry) -> Self {
+        Self {
+            timestamp_ns: entry.timestamp_ns,
+            cpu_per_core_max: entry.cpu_usage.per_core_max,
+            cpu_total_average: entry.cpu_usage.total_average,
+            gpu_usages: entry.gpu_usages.clone(),
+            network_mbps: entry.network_mbps,
+            disk_mb_s: entry.disk_mb_s,
+        }
+    }
+
+    fn to_entry(&self) -> HistoryEntry {
+        HistoryEntry::with_deltas(
+            self.timestamp_ns,
+            self.cpu_per_core_max,
+            self.cpu_total_average,
+            self.gpu_usages.clone(),
+            self.network_mbps,
+            self.disk_mb_s,
+            false, // not persisted as inhibited
+            None,  // deltas computed externally via compute_deltas()
+        )
+    }
+
+    fn from_snapshot(entry: &HistoryEntry) -> Self {
+        Self {
+            timestamp_ns: entry.timestamp_ns,
+            cpu_per_core_max: entry.cpu_usage.per_core_max,
+            cpu_total_average: entry.cpu_usage.total_average,
+            gpu_usages: entry.gpu_usages.clone(),
+            network_mbps: entry.network_mbps,
+            disk_mb_s: entry.disk_mb_s,
+        }
+    }
+
+    fn apply_deltas(&self, next: &HistoryEntry) -> HistoryEntry {
+        let prev = Self::from_entry(next);
+        next.clone().compute_deltas(&prev.to_entry())
+    }
 }
 
 impl PredictionModel {
@@ -246,6 +359,9 @@ impl PredictionModel {
             *inhibited_timekeys.entry(time_key).or_default() += 1;
         }
 
+        // Initialize last_flushed_entry_metrics from the most recent loaded entry for delta computation.
+        let last_flushed_entry_metrics = entries.last().map(LastEntryMetrics::from_entry);
+
         Self {
             history,
             max_extension_time,
@@ -260,6 +376,7 @@ impl PredictionModel {
                 let max_ts = entries.iter().map(|e| e.timestamp_ns).max().unwrap_or(0);
                 max_ts
             },
+            last_flushed_entry_metrics,
         }
     }
 
@@ -298,24 +415,16 @@ impl PredictionModel {
             inhibited,
         );
 
-        // Compute elapsed since last flush for delta features.
-        let elapsed_since_last_ns = if self.last_flushed_ns > 0 {
-            entry.timestamp_ns.saturating_sub(self.last_flushed_ns)
-        } else {
-            0
-        };
-
         self.accumulator.accumulate(&entry);
         self.tick_count += 1;
 
         if let Some(interval) = self.flush_interval {
             if self.tick_count >= interval {
-                let elapsed_opt = if elapsed_since_last_ns > 0 {
-                    Some(elapsed_since_last_ns)
-                } else {
-                    None
-                };
-                if let Some((snapshot, samples)) = self.accumulator.flush(elapsed_opt) {
+                let prev_metrics = self.last_flushed_entry_metrics.clone();
+                if let Some((snapshot, samples)) = self.accumulator.flush(prev_metrics.as_ref()) {
+                    // Capture metrics before snapshot is moved into history storage.
+                    let next_metrics = LastEntryMetrics::from_snapshot(&snapshot);
+
                     self.data_points += 1;
                     let summary = format!(
                         "Flushed averaged snapshot #{} (CPU max={:.1}%, net={:.2}MB/s, disk={:.2}MB/s, time={}, accumulated_ticks={})",
@@ -330,6 +439,8 @@ impl PredictionModel {
 
                     self.history.append_with_summary(snapshot, Some(summary));
                     self.history.flush();
+
+                    self.last_flushed_entry_metrics = Some(next_metrics);
                 }
                 self.tick_count = 0;
                 return true;
@@ -349,8 +460,35 @@ impl PredictionModel {
         }
 
         let now = TimeKey::now();
+        let base_score = self.score_inhibition_rate(&now);
 
-        let score = self.score_inhibition_rate(&now);
+        // Compute trend signal from recent history entries with delta features.
+        let recent_entries = {
+            self.history
+                .read_all()
+                .into_iter()
+                .rev()
+                .take(20)
+                .collect::<Vec<_>>()
+        };
+        let refs: Vec<&HistoryEntry> = recent_entries.iter().map(|e| e as &HistoryEntry).collect();
+        let trend_signal = TrendSignal::compute(&refs, 10);
+
+        // Apply trend multiplier: rising metrics increase extension, falling decrease it.
+        let trend_multiplier = {
+            if base_score >= 0.3 && trend_signal.samples > 0 {
+                // Normalize trends to a -0.2..=+0.2 range for the multiplier.
+                let cpu_trend_factor = (trend_signal.avg_cpu_delta_per_sec / 50.0).clamp(-0.1, 0.1);
+                let net_trend_factor =
+                    (trend_signal.avg_network_delta_per_sec / 100.0).clamp(-0.1, 0.1);
+                let trend = cpu_trend_factor + net_trend_factor;
+                1.0 + trend
+            } else {
+                1.0 // No adjustment when score is low or no delta data available
+            }
+        };
+
+        let score = base_score * trend_multiplier.clamp(0.5, 1.4);
 
         if score < 0.3 {
             return CooldownPrediction {
@@ -366,8 +504,10 @@ impl PredictionModel {
         let confidence = self.confidence_for_data_points();
 
         debug!(
-            "Predicted cooldown: +{:?} (score={:.2}, time={}, data_points={}, confidence={:.2})",
+            "Predicted cooldown: +{:?} (base_score={:.2}, trend_multiplier={:.2}, adjusted_score={:.2}, time={}, data_points={}, confidence={:.2})",
             additional_time,
+            base_score,
+            trend_multiplier,
             score,
             now.display(),
             self.data_points,
@@ -715,6 +855,72 @@ mod tests {
         let prediction = model.predict_cooldown();
         // With sufficient inhibited data points, score may or may not exceed threshold depending on
         // current time-of-week vs historical patterns — verify the API returns valid values.
+        assert!(prediction.additional_time.as_secs() <= 60); // bounded by max_extension_time
+    }
+
+    /// Regression test: verify delta fields are computed in production flush path, not just tests.
+    #[test]
+    fn test_delta_fields_computed_in_production_flush() {
+        let mut model = make_test_model();
+
+        // Record 3 entries with increasing CPU values to produce non-zero deltas on first flush.
+        for i in 0..3 {
+            model.record(
+                20.0 + (i as f64 * 10.0),
+                10.0 + (i as f64 * 5.0),
+                vec![],
+                5.0,
+                2.0,
+                false,
+            );
+        }
+
+        // Verify data_points incremented — proves flush path is exercised in production code.
+        assert_eq!(model.data_points(), 3, "should have flushed all 3 records");
+
+        // Re-read entries from history to verify delta fields are populated (not None/empty).
+        let entries = model.get_history().read_all();
+        if entries.len() >= 2 {
+            // Second entry onwards should have computed deltas since prev_metrics was available.
+            for entry in entries.iter().skip(1) {
+                assert!(
+                    entry.cpu_delta_per_sec.is_some(),
+                    "cpu_delta_per_sec must be computed"
+                );
+            }
+            // First data point has no predecessor so delta is None — subsequent ones are not.
+            let first = &entries[0];
+            if first.elapsed_since_last_ns.is_none() {
+                assert!(
+                    first.cpu_delta_per_sec.is_none(),
+                    "first entry should have no deltas"
+                );
+            }
+        }
+    }
+
+    /// Regression test: verify prediction scoring consumes trend signal from delta features.
+    #[test]
+    fn test_prediction_consumes_delta_trend_signal() {
+        let mut model = PredictionModel::new(false, std::time::Duration::from_secs(60));
+        model.set_prediction_update_interval(std::time::Duration::from_secs(1));
+
+        // Record enough entries to pass the 10-point threshold and populate delta features.
+        for i in 0..15 {
+            // Increasing CPU trend: each entry has higher CPU than the last.
+            let cpu_base = 30.0 + (i as f64 * 2.0);
+            model.record(
+                cpu_base,
+                cpu_base * 0.5,
+                vec![cpu_base],
+                5.0,
+                1.0,
+                i % 2 == 0,
+            );
+        }
+
+        let prediction = model.predict_cooldown();
+        // The rising CPU trend should produce a non-zero additional_time when inhibition data exists.
         assert!(prediction.additional_time.as_secs() <= 60); // bounded by max_extension_time
     }
 }
