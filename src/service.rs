@@ -351,50 +351,43 @@ impl DataManager {
                 .duration_since(below_since)
                 .unwrap_or(Duration::from_secs(0));
 
-            if !self.just_released && elapsed >= config.timing.cooldown_duration {
-                info!(
-                    "Releasing sleep inhibition: all metrics below threshold for {:?}",
-                    elapsed
-                );
-                self.state.release().await;
-                self.waiting_for_cooldown = false;
-                self.metrics_below_threshold_since = None;
-                self.just_released = true;
-            } else if !self.state.is_inhibited() {
-                // Not inhibited — don't track cooldown for future release.
-                self.waiting_for_cooldown = false;
-                self.metrics_below_threshold_since = None;
-            } else if !self.predicted_additional_time.is_zero() {
-                let extended_threshold =
-                    config.timing.cooldown_duration + self.predicted_additional_time;
-
-                debug!(
-                    "Waiting for cooldown: {}s/{}s below threshold \
-                     (with {:?} predictive extension)",
-                    elapsed.as_secs(),
-                    extended_threshold.as_secs(),
+            if !self.just_released && self.state.is_inhibited() {
+                let effective_cooldown = std::cmp::max(
+                    config.timing.cooldown_duration,
                     self.predicted_additional_time,
                 );
 
-                // Check if the extended cooldown has elapsed.
-                if !self.just_released && elapsed >= extended_threshold {
-                    info!(
-                        "Releasing sleep inhibition: all metrics below threshold for {:?} \
-                         (with {}s predictive extension)",
-                        elapsed,
-                        self.predicted_additional_time.as_secs()
-                    );
+                if elapsed >= effective_cooldown {
+                    if !self.predicted_additional_time.is_zero() {
+                        info!(
+                            "Releasing sleep inhibition: all metrics below threshold for {:?} \
+                             (with {}s predictive extension)",
+                            elapsed,
+                            self.predicted_additional_time.as_secs()
+                        );
+                    } else {
+                        info!(
+                            "Releasing sleep inhibition: all metrics below threshold for {:?}",
+                            elapsed
+                        );
+                    }
                     self.state.release().await;
                     self.waiting_for_cooldown = false;
                     self.metrics_below_threshold_since = None;
                     self.just_released = true;
+                } else {
+                    debug!(
+                        "Waiting for cooldown: {}s/{}s below threshold \
+                         (with {:?} predictive extension)",
+                        elapsed.as_secs(),
+                        effective_cooldown.as_secs(),
+                        self.predicted_additional_time,
+                    );
                 }
-            } else {
-                debug!(
-                    "Waiting for cooldown: {}/{} seconds below threshold",
-                    elapsed.as_secs(),
-                    config.timing.cooldown_duration.as_secs()
-                );
+            } else if !self.state.is_inhibited() {
+                // Not inhibited — don't track cooldown for future release.
+                self.waiting_for_cooldown = false;
+                self.metrics_below_threshold_since = None;
             }
         }
 
@@ -408,7 +401,7 @@ impl DataManager {
                 },
             };
 
-            if !prediction.additional_time.is_zero() {
+            if !prediction.additional_time.is_zero() && self.predicted_additional_time.is_zero() {
                 info!(
                     "Predictive cooldown extension: +{}s (confidence={:.0}%), \
                      historical patterns suggest active usage at this hour",
