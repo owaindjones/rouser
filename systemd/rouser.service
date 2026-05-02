@@ -12,6 +12,9 @@ RestartSec=5s
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=rouser
+# History data directory (persistent across reboots, outside read-only /home).
+StateDirectory=rouser-data
+Environment=XDG_DATA_HOME=/var/lib/rouser-data
 # Security hardening (non-breaking for D-Bus access)
 ProtectHome=read-only
 PrivateTmp=true
