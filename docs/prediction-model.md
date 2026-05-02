@@ -30,23 +30,13 @@ Each averaged snapshot contains:
 
 ### Rate-of-Change (Delta) Features
 
-Each flushed snapshot also carries computed delta/rate-of-change fields that describe how metrics changed relative to the previous entry. These are calculated by comparing each averaged snapshot against its predecessor and stored alongside the raw metric values:
-
-| Delta Field | Description |
-|-------------|-------------|
-| `elapsed_since_last_ns` | Nanoseconds elapsed since the previous flushed entry (None for first entry) |
-| `cpu_delta_per_sec` | Rate of change of CPU per-core max in %/s (computed as delta / time_elapsed) |
-| `network_delta_per_sec` | Rate of change of network throughput in Mbps/s |
-| `disk_delta_per_sec` | Rate of change of disk throughput in MB/s/s |
-| `gpu_deltas_per_sec` | Per-GPU rate of change array matching the order of GPU usages |
-
-The first entry after startup has no predecessor and thus carries None/empty delta fields. Subsequent entries always have deltas computed from their immediate predecessor's metric values. These features enable trend-aware prediction (see [Trend-Aware Scoring](#trend-aware-scoring)).
+Deltas are not stored in history files. Instead, they are computed on-the-fly at prediction time by comparing consecutive flushed entries: `delta = (current - previous) / elapsed_time`. This avoids storing redundant data while preserving the ability to detect rising or falling trends across the historical record.
 
 ### Gap Handling via Zero-Fill Interpolation
 
 When the computer is shut down or sleeping, no data points are written to the history log. Without correction, this creates a temporal gap that causes the prediction model to be overfit on active-period data only — it would see high activity during those gaps and incorrectly predict future activity.
 
-To address this, rouser detects large gaps (>5 minutes) between consecutive entries when loading history from disk and inserts **synthetic zero-value entries** at 30-second intervals within the gap. These synthetic records have all metric values set to 0 and `inhibited: false`, representing idle periods where no activity was recorded because the system was powered off or sleeping.
+To address this, rouser detects gaps between consecutive entries at prediction time — any gap exceeding `[prediction].update_interval` is considered a large gap (e.g., >30s with default config). Rouser inserts **synthetic zero-value entries** at `update_interval` intervals within such gaps. These synthetic records have all metric values set to 0 and `inhibited: false`, representing idle periods where no activity was recorded because the system was powered off or sleeping. Synthetic entries exist only in memory during prediction; they are never written to history log files.
 
 This approach ensures the prediction model sees a complete picture of both active and inactive periods, producing more accurate cooldown extensions that account for normal downtime patterns.
 
@@ -95,13 +85,15 @@ score = min(ratio * 0.5, 1.0)    # Scales above 0.5 for above-average hours
 
 In addition to the histogram-based inhibition scoring, rouser examines rate-of-change patterns from recent history entries when making predictions. This trend signal provides an additional dimension beyond pure time-key matching — it captures whether system activity is currently **rising** or **falling**, which helps distinguish between a temporary dip during active work versus genuine inactivity.
 
-When `predict_cooldown()` is called, rouser reads the 20 most recent history entries and computes trend signals from their delta features:
+When `predict_cooldown()` is called, rouser selects all history entries within a timestamp window — entries where `timestamp >= current_time - max_extension_time` (e.g., the last hour with default config). From these it:
 
-1. Collects up to 20 most recent entries with populated delta fields
-2. Computes average CPU rate-of-change (delta per second) across entries that have deltas
-3. Computes average network I/O rate-of-change similarly
+1. Filters out synthetic zero-value gap-filled entries (all metrics at 0)
+2. Computes on-the-fly deltas between consecutive real entries (`(current - previous) / elapsed_time`)
+3. Averages CPU rate-of-change and network I/O rate-of-change across the entry pairs
 4. Normalizes both trends to a -0.2..=+0.2 adjustment range
 5. Multiplies the base inhibition score by `(1 + cpu_trend + net_trend)`
+
+The number of entries used depends on how frequently ticks are recorded within the window — there is no fixed cap like "20 most recent". This ensures consistent temporal coverage regardless of tick frequency or gaps in data.
 
 The trend multiplier is bounded between 0.5 and 1.4, meaning rising activity can increase the prediction extension by up to 40%, while falling activity can reduce it by up to 50%. If metrics are trending upward during a period that was historically active at this time of day, rouser extends the cooldown further — anticipating renewed activity is likely. Conversely, if usage is declining toward idle, the extension is reduced since a release from inhibition is less risky.
 
@@ -183,8 +175,8 @@ RUST_LOG=debug rouser --dry-run
 
 Key log messages:
 
-- **Startup**: `Loaded N history entries from ...` followed by `Prediction model initialized with M historical data points` — shows raw entries loaded and post-gap-filling count (M >= N since synthetic zero-fill entries are inserted for sleep/shutdown gaps)
-- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, time=year=Y week=W sec=S, accumulated_ticks=N)` — logged when accumulated metrics are written as one averaged entry after N ticks; delta fields are computed from the previous flushed entry
+- **Startup**: `Loaded N history entries from ...` followed by `Prediction model initialized with M historical data points` — shows raw entries loaded; gap-filling and trend computation happen at prediction time, not during startup
+- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, time=year=Y week=W sec=S, accumulated_ticks=N)` — logged when accumulated metrics are written as one averaged entry after N ticks; deltas are computed on-the-fly at prediction time from consecutive flushed entries
 - **Pruning activity**: Per-file debug lines when files are removed, plus an info-level summary once per day with `Pruned N old history files (retention: ...)`
 - **Prediction query**: `Predicted cooldown: +Xdur (base_score=S.SS, trend_multiplier=T.TT, adjusted_score=S.SS, time=year=Y week=W sec=S, data_points=N, confidence=C.CC)` — shown when transitioning from inhibited to below-threshold state; includes the base inhibition score and the trend multiplier applied from delta features
 
