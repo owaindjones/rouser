@@ -361,6 +361,43 @@ impl DataManager {
                 .duration_since(below_since)
                 .unwrap_or(Duration::from_secs(0));
 
+            // Skip prediction re-evaluation when metrics are actively spiking above threshold.
+            if should_inhibit {
+                return Ok(());
+            }
+
+            // Re-evaluate prediction every tick during cooldown waiting to adapt extension
+            // based on current trends (increases or decreases the remaining wait time).
+            let was_active = !self.predicted_additional_time.is_zero();
+            if self.prediction_model.is_some() {
+                let prediction = match &self.prediction_model {
+                    Some(model) => model.predict_cooldown(),
+                    None => CooldownPrediction {
+                        additional_time: std::time::Duration::ZERO,
+                        confidence: 0.0,
+                    },
+                };
+
+                // Log info-level only when first applying a non-zero extension per transition;
+                // log debug-level for subsequent updates during extended cooldown.
+                if was_active && self.predicted_additional_time != prediction.additional_time {
+                    debug!(
+                        "Updated predictive cooldown extension: {:?} -> {:?}",
+                        self.predicted_additional_time, prediction.additional_time
+                    );
+                } else if !was_active && !prediction.additional_time.is_zero() {
+                    info!(
+                        "Predictive cooldown extension: +{}s (confidence={:.0}%), \
+                         historical patterns suggest active usage at this hour",
+                        prediction.additional_time.as_secs(),
+                        prediction.confidence * 100.0,
+                    );
+                }
+
+                self.predicted_additional_time = prediction.additional_time;
+                self.cooldown_extension_applied = !self.predicted_additional_time.is_zero();
+            }
+
             if !self.just_released && self.state.is_inhibited() {
                 let effective_cooldown = std::cmp::max(
                     config.timing.cooldown_duration,
@@ -407,8 +444,7 @@ impl DataManager {
         }
 
         // Predict cooldown extension when transitioning from inhibited to below-threshold.
-        // Only compute once per transition — the flag prevents re-querying on every tick during extended cooldown.
-        if was_inhibited && !should_inhibit && !self.cooldown_extension_applied {
+        if was_inhibited && !should_inhibit {
             let prediction = match &self.prediction_model {
                 Some(model) => model.predict_cooldown(),
                 None => CooldownPrediction {
@@ -417,6 +453,7 @@ impl DataManager {
                 },
             };
 
+            // Log info only when first applying a non-zero extension (not on re-evaluation).
             if !prediction.additional_time.is_zero() && self.predicted_additional_time.is_zero() {
                 info!(
                     "Predictive cooldown extension: +{}s (confidence={:.0}%), \
@@ -427,9 +464,7 @@ impl DataManager {
             }
 
             self.predicted_additional_time = prediction.additional_time;
-            if !self.predicted_additional_time.is_zero() {
-                self.cooldown_extension_applied = true;
-            }
+            self.cooldown_extension_applied = !self.predicted_additional_time.is_zero();
         } else if should_inhibit && self.metrics_above_threshold_since.is_some() {
             // Metrics spiked again — reset extension and flag for fresh cooldown cycle.
             self.predicted_additional_time = std::time::Duration::ZERO;
