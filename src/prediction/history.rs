@@ -675,7 +675,13 @@ fn fill_gaps(
             }
         }
 
-        result.push(curr.clone());
+        let entry_to_add = if gap_ns > 0 && !result.is_empty() {
+            // Re-compute deltas against the actual predecessor in the filled sequence.
+            curr.clone().compute_deltas(&result[result.len() - 1])
+        } else {
+            curr.clone()
+        };
+        result.push(entry_to_add);
     }
 
     debug!(
