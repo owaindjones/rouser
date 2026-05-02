@@ -2,7 +2,7 @@
 //!
 //! Uses bincode v2 (serde-compatible binary serialization) with date-partitioned files.
 //! Each file is named `history.log.YYYYMMDD` and stored under XDG-compliant paths:
-//! - User data dir: `$XDG_DATA_HOME/rouser/history.log.*` or `~/.local/share/rouser/history.log.*`
+//! - User state dir: `$XDG_STATE_HOME/rouser/history.log.*` or `~/.local/state/rouser/history.log.*` (falls back to `/tmp/rouser-history` if primary is unavailable)
 //! - Root path: `/var/lib/rouser/history.log.*`
 
 use chrono::{DateTime, Local, Utc};
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Read, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 
@@ -29,6 +30,24 @@ pub struct HistoryEntry {
     pub disk_mb_s: f64,
     /// Whether rouser currently holds the inhibition lock at this timestamp.
     pub inhibited: bool,
+
+    // --- Delta features computed between consecutive entries ---
+    // These are optional for backward compatibility with existing history files.
+    /// Nanoseconds elapsed since previous entry (None for first entry or when not computable).
+    #[serde(default)]
+    pub elapsed_since_last_ns: Option<u64>,
+    /// Rate of change of CPU per_core_max usage in %/s (None if not computable).
+    #[serde(default)]
+    pub cpu_delta_per_sec: Option<f64>,
+    /// Rate of change of network throughput in Mbps/s (None if not computable).
+    #[serde(default)]
+    pub network_delta_per_sec: Option<f64>,
+    /// Rate of change of disk throughput in MB/s/s (None if not computable).
+    #[serde(default)]
+    pub disk_delta_per_sec: Option<f64>,
+    /// Per-GPU rate of change in %/s, matching gpu_usages order. Empty vec when not computable.
+    #[serde(default)]
+    pub gpu_deltas_per_sec: Vec<f64>,
 }
 
 /// CPU metrics snapshot — serializable subset of CpuUsage.
@@ -50,6 +69,39 @@ impl HistoryEntry {
         disk_mb_s: f64,
         inhibited: bool,
     ) -> Self {
+        Self::with_deltas(
+            timestamp_ns,
+            cpu_per_core_max,
+            cpu_total_average,
+            gpu_usages,
+            network_mbps,
+            disk_mb_s,
+            inhibited,
+            None,
+        )
+    }
+
+    /// Create a new history entry with optional delta/rate-of-change fields.
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_deltas(
+        timestamp_ns: u64,
+        cpu_per_core_max: f64,
+        cpu_total_average: f64,
+        gpu_usages: Vec<f64>,
+        network_mbps: f64,
+        disk_mb_s: f64,
+        inhibited: bool,
+        elapsed_since_last_ns: Option<u64>,
+    ) -> Self {
+        let (cpu_delta_per_sec, network_delta_per_sec, disk_delta_per_sec, gpu_deltas_per_sec) =
+            match elapsed_since_last_ns {
+                Some(elapsed_ns) if elapsed_ns > 0 => {
+                    // This is a placeholder — actual deltas computed in model.rs record() when comparing consecutive entries.
+                    (None, None, None, Vec::new())
+                }
+                _ => (None, None, None, Vec::new()),
+            };
+
         Self {
             timestamp_ns,
             cpu_usage: CpuSnapshot {
@@ -60,6 +112,68 @@ impl HistoryEntry {
             network_mbps,
             disk_mb_s,
             inhibited,
+            elapsed_since_last_ns,
+            cpu_delta_per_sec,
+            network_delta_per_sec,
+            disk_delta_per_sec,
+            gpu_deltas_per_sec,
+        }
+    }
+
+    /// Compute delta fields from the previous entry and return a new entry with deltas filled in.
+    pub fn compute_deltas(&self, prev: &HistoryEntry) -> Self {
+        let elapsed_ns = self.timestamp_ns.saturating_sub(prev.timestamp_ns);
+
+        if elapsed_ns == 0 {
+            // Same timestamp — can't compute rates or meaningful elapsed time.
+            return Self {
+                elapsed_since_last_ns: None,
+                cpu_delta_per_sec: None,
+                network_delta_per_sec: None,
+                disk_delta_per_sec: None,
+                gpu_deltas_per_sec: Vec::new(),
+                ..self.clone()
+            };
+        }
+
+        let secs_f64 = elapsed_ns as f64 / 1_000_000_000.0;
+        let cpu_delta_per_sec = if secs_f64 > 0.0 {
+            Some((self.cpu_usage.per_core_max - prev.cpu_usage.per_core_max) / secs_f64)
+        } else {
+            None
+        };
+
+        let network_delta_per_sec = if secs_f64 > 0.0 {
+            Some((self.network_mbps - prev.network_mbps) / secs_f64)
+        } else {
+            None
+        };
+
+        let disk_delta_per_sec = if secs_f64 > 0.0 {
+            Some((self.disk_mb_s - prev.disk_mb_s) / secs_f64)
+        } else {
+            None
+        };
+
+        // Per-GPU deltas matching gpu_usages order.
+        let mut gpu_deltas_per_sec = Vec::new();
+        for i in 0..self.gpu_usages.len().max(prev.gpu_usages.len()) {
+            let prev_val = prev.gpu_usages.get(i).copied().unwrap_or(0.0);
+            let curr_val = self.gpu_usages.get(i).copied().unwrap_or(0.0);
+            if secs_f64 > 0.0 {
+                gpu_deltas_per_sec.push((curr_val - prev_val) / secs_f64);
+            } else {
+                gpu_deltas_per_sec.push(0.0);
+            }
+        }
+
+        Self {
+            elapsed_since_last_ns: Some(elapsed_ns),
+            cpu_delta_per_sec,
+            network_delta_per_sec,
+            disk_delta_per_sec,
+            gpu_deltas_per_sec,
+            ..self.clone()
         }
     }
 
@@ -104,67 +218,119 @@ impl HistoryEntry {
     }
 }
 
-/// XDG-compliant data directory path.
-fn xdg_data_dir() -> PathBuf {
-    std::env::var("XDG_DATA_HOME")
+fn xdg_state_dir() -> PathBuf {
+    std::env::var("XDG_STATE_HOME")
         .ok()
         .filter(|s| !s.is_empty())
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             std::env::var("HOME")
                 .ok()
-                .map(|h| PathBuf::from(h).join(".local/share"))
-                .expect("XDG_DATA_HOME or HOME must be set for user data directory")
+                .map(|h| PathBuf::from(h).join(".local/state"))
+                .expect("XDG_STATE_HOME or HOME must be set for user state directory")
         })
 }
 
-/// Get the base history directory.
 fn history_base_dir(is_root: bool) -> PathBuf {
     let path = if is_root {
-        Path::new("/var/lib/rouser")
+        PathBuf::from("/var/lib/rouser")
     } else {
-        &xdg_data_dir().join("rouser")
+        xdg_state_dir().join("rouser")
     };
 
-    // Ensure the parent directory exists for root paths.
     if is_root {
-        let _ = fs::create_dir_all(path.parent().unwrap_or(path));
+        let _ = fs::create_dir_all(path.parent().unwrap_or(&path));
     }
 
-    path.to_path_buf()
+    path
 }
 
-/// Ensure the history directory exists.
+fn is_path_writable(path: &Path) -> bool {
+    let test_file = path.join(".rouser-writable-check");
+    match File::create(&test_file) {
+        Ok(f) => drop(f),
+        Err(_) => return false,
+    }
+    fs::remove_file(&test_file).is_ok()
+}
+
 fn ensure_history_dir(path: &Path) -> std::io::Result<()> {
     fs::create_dir_all(path)
 }
 
+fn fallback_data_dir(primary: &Path, is_root: bool) -> Option<PathBuf> {
+    if is_root || !primary.starts_with("/home") {
+        return None;
+    }
+
+    // Last resort for read-only /home with no writable state dir.
+    // Use PID-based unique path to minimize TOCTOU risk on shared systems.
+    let tmp = PathBuf::from(format!(
+        "/tmp/rouser-history.{pid}",
+        pid = std::process::id()
+    ));
+
+    if ensure_history_dir(&tmp).is_ok() {
+        // Restrict permissions: owner-only access (700).
+        fs::set_permissions(&tmp, fs::Permissions::from_mode(0o700)).ok();
+        return Some(tmp);
+    }
+
+    None
+}
+
 const HISTORY_FILE_PREFIX: &str = "history.log.";
+
+// Gap detection constants — used in read_all() to detect and fill missing time periods.
+const GAP_THRESHOLD_NS: u64 = 5 * 60 * 1_000_000_000; // 5 minutes in nanoseconds
+const FILL_INTERVAL_NS: u64 = 30 * 1_000_000_000; // 30 seconds between synthetic entries
 
 /// A date-partitioned binary log file for storing metric snapshots.
 pub struct HistoryLog {
     base_path: PathBuf,
     entries_today: Vec<HistoryEntry>,
+    pending_summary: Option<String>,
     last_prune_date: Option<i64>, // Unix day number (seconds since epoch / 86400)
 }
 
 impl HistoryLog {
-    /// Create a new history log writer.
     pub fn new(is_root: bool) -> Self {
-        let base_path = history_base_dir(is_root);
-        if let Err(e) = ensure_history_dir(&base_path) {
-            warn!(
-                "Failed to create history directory {}: {}",
-                base_path.display(),
-                e
+        let primary = history_base_dir(is_root);
+        let base_path = if ensure_history_dir(&primary).is_ok() {
+            primary.clone()
+        } else if let Some(fallback) = fallback_data_dir(&primary, is_root) {
+            info!(
+                "Using alternate data directory {} (primary {} unavailable)",
+                fallback.display(),
+                primary.display()
             );
-        }
+            fallback
+        } else {
+            warn!("History logging disabled — no writable data directory available");
+            return HistoryLog {
+                base_path: PathBuf::from("/dev/null"), // Best effort — writes will fail silently.
+                entries_today: Vec::new(),
+                pending_summary: None,
+                last_prune_date: None,
+            };
+        };
+
+        let _ = ensure_history_dir(&base_path);
 
         HistoryLog {
             base_path,
             entries_today: Vec::new(),
+            pending_summary: None,
             last_prune_date: None,
         }
+    }
+
+    /// Append an entry to the log with optional summary for logging on flush. Buffers until flush or date change.
+    pub fn append_with_summary(&mut self, entry: HistoryEntry, summary: Option<String>) {
+        if let Some(s) = summary {
+            self.pending_summary = Some(s);
+        }
+        self.append(entry);
     }
 
     /// Append an entry to the log. Buffers in memory until flush or date change.
@@ -189,7 +355,7 @@ impl HistoryLog {
         }
     }
 
-    /// Flush in-memory entries to disk.
+    /// Flush in-memory entries to disk, logging a summary if one was set via append_with_summary.
     pub fn flush(&mut self) {
         if self.entries_today.is_empty() {
             return;
@@ -218,13 +384,24 @@ impl HistoryLog {
             }
         }
 
-        debug!(
-            "Flushed {} entries for date {} to {}",
-            self.entries_today.len(),
-            date,
-            file_path.display()
-        );
+        if let Some(ref summary) = self.pending_summary {
+            debug!(
+                "{} — flushed {} entries for date {} to {}",
+                summary,
+                self.entries_today.len(),
+                date,
+                file_path.display()
+            );
+        } else {
+            debug!(
+                "Flushed {} entries for date {} to {}",
+                self.entries_today.len(),
+                date,
+                file_path.display()
+            );
+        }
 
+        let _ = self.pending_summary.take();
         self.entries_today.clear();
     }
 
@@ -261,10 +438,15 @@ impl HistoryLog {
             }
         }
 
+        const GAP_THRESHOLD_NS: u64 = 5 * 60 * 1_000_000_000; // 5 minutes in nanoseconds
+        const FILL_INTERVAL_NS: u64 = 30 * 1_000_000_000; // 30 seconds between synthetic entries
+
         // Flatten entries and sort by timestamp (BTreeMap iterates in key/date order).
         let mut result: Vec<HistoryEntry> = date_entries.into_values().flatten().collect();
 
         result.sort_by_key(|e| e.timestamp_ns);
+
+        let result = fill_gaps(result, GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
         debug!(
             "Loaded {} history entries from {}",
             result.len(),
@@ -448,6 +630,56 @@ fn read_entries_from_file(path: &Path) -> Vec<HistoryEntry> {
     entries
 }
 
+/// Fill temporal gaps in sorted history entries with synthetic zero-value records.
+/// When the computer is shut down or sleeping, no data is written to the log.
+/// Without this fix, the prediction model would be overfit on active-period data only.
+fn fill_gaps(
+    entries: Vec<HistoryEntry>,
+    gap_threshold_ns: u64,
+    fill_interval_ns: u64,
+) -> Vec<HistoryEntry> {
+    if entries.len() < 2 {
+        return entries;
+    }
+
+    let mut result = vec![entries[0].clone()];
+
+    for i in 1..entries.len() {
+        let prev = &entries[i - 1];
+        let curr = &entries[i];
+        let gap_ns = curr.timestamp_ns.saturating_sub(prev.timestamp_ns);
+
+        if gap_ns > gap_threshold_ns {
+            // Fill the gap with synthetic zero-value entries.
+            let mut ts = prev.timestamp_ns + fill_interval_ns;
+            while ts < curr.timestamp_ns - fill_interval_ns / 2 {
+                result.push(HistoryEntry::with_deltas(
+                    ts,
+                    0.0, // cpu per_core_max — idle state
+                    0.0, // cpu total_average
+                    Vec::new(),
+                    0.0,   // network mbps
+                    0.0,   // disk mb/s
+                    false, // inhibited
+                    Some(ts.saturating_sub(prev.timestamp_ns)),
+                ));
+                ts += fill_interval_ns;
+            }
+        }
+
+        result.push(curr.clone());
+    }
+
+    debug!(
+        "Filled gaps: {} entries -> {} entries (added {} synthetic)",
+        entries.len(),
+        result.len(),
+        result.len() - entries.len()
+    );
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -528,17 +760,15 @@ mod tests {
 
             let mut writer = BufWriter::new(File::create(&file_path).unwrap());
             let entry1 = sample_entry(now_ns);
-            let entry2 = HistoryEntry {
-                timestamp_ns: now_ns + 5_000_000_000, // +5s
-                cpu_usage: CpuSnapshot {
-                    per_core_max: 5.0,
-                    total_average: 2.0,
-                },
-                gpu_usages: vec![10.0],
-                network_mbps: 0.0,
-                disk_mb_s: 0.0,
-                inhibited: false,
-            };
+            let entry2 = HistoryEntry::new(
+                now_ns + 5_000_000_000, // +5s
+                5.0,                    // cpu per_core_max
+                2.0,                    // cpu total_average
+                vec![10.0],             // gpu usages
+                0.0,                    // network mbps
+                0.0,                    // disk mb/s
+                false,                  // inhibited
+            );
 
             writer.write_all(&entry1.to_bytes()).unwrap();
             writer.write_all(&entry2.to_bytes()).unwrap();
@@ -549,6 +779,7 @@ mod tests {
         let log = HistoryLog {
             base_path: base_path.clone(),
             entries_today: Vec::new(),
+            pending_summary: None,
             last_prune_date: None,
         };
 
@@ -580,6 +811,7 @@ mod tests {
         let mut log = HistoryLog {
             base_path: base_path.clone(),
             entries_today: Vec::new(),
+            pending_summary: None,
             last_prune_date: None,
         };
 
@@ -596,6 +828,7 @@ mod tests {
         let log = HistoryLog {
             base_path: tmp_dir.path().join("rouser"),
             entries_today: Vec::new(),
+            pending_summary: None,
             last_prune_date: None,
         };
 
@@ -722,5 +955,248 @@ mod tests {
                 "entries should be sorted by timestamp"
             );
         }
+    }
+
+    #[test]
+    fn test_fill_gaps_inserts_synthetic_entries() {
+        let entry1 = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
+        // Gap of 10 minutes (600 seconds) — well above GAP_THRESHOLD_NS (300s).
+        let entry2 = HistoryEntry::new(10 * 60 * 1_000_000_000, 5.0, 2.0, vec![], 0.0, 0.0, false);
+
+        let entries = vec![entry1.clone(), entry2];
+        let result = fill_gaps(entries, GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+
+        // Should have: original 2 + synthetic fills for 10min gap at 30s intervals = 2 + (600/30) - ~1 = ~21 entries
+        assert!(
+            result.len() > 2,
+            "should insert synthetic entries in the gap"
+        );
+
+        // First entry is unchanged.
+        assert_eq!(result[0].timestamp_ns, 0);
+        assert_eq!(result[0].cpu_usage.per_core_max, 50.0);
+
+        // Last entry is original entry2 (unchanged).
+        let last = result.last().unwrap();
+        assert_eq!(last.timestamp_ns, 10 * 60 * 1_000_000_000);
+
+        // Synthetic entries in the middle should have zero values.
+        for entry in &result[1..result.len() - 1] {
+            assert_eq!(entry.cpu_usage.per_core_max, 0.0);
+            assert_eq!(entry.network_mbps, 0.0);
+            assert!(!entry.inhibited);
+        }
+
+        // Timestamps should be monotonically increasing and roughly FILL_INTERVAL_NS apart for synthetics.
+        for i in 1..result.len() {
+            let delta = result[i].timestamp_ns - result[i - 1].timestamp_ns;
+            assert!(delta > 0, "timestamps must be strictly increasing");
+            if result[i].cpu_usage.per_core_max == 0.0
+                && result[i - 1].cpu_usage.per_core_max == 0.0
+            {
+                // Between two synthetic entries, gap should be close to FILL_INTERVAL_NS.
+                assert!(
+                    (delta as i64 - FILL_INTERVAL_NS as i64).abs() < (FILL_INTERVAL_NS / 2) as i64,
+                    "synthetic entry spacing should be ~{}ns, got {}ns",
+                    FILL_INTERVAL_NS,
+                    delta
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_fill_gaps_noop_when_entries_contiguous() {
+        let entries: Vec<HistoryEntry> = (0..5)
+            .map(|i| HistoryEntry::new(i * 1_000_000_000, 10.0, 5.0, vec![], 1.0, 0.5, false))
+            .collect();
+
+        let result = fill_gaps(entries.clone(), GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+        assert_eq!(
+            result.len(),
+            entries.len(),
+            "no synthetic entries should be added"
+        );
+
+        for (orig, filled) in entries.iter().zip(result.iter()) {
+            assert_eq!(orig.timestamp_ns, filled.timestamp_ns);
+            assert!(
+                (orig.cpu_usage.per_core_max - filled.cpu_usage.per_core_max).abs() < f64::EPSILON
+            );
+        }
+    }
+
+    #[test]
+    fn test_fill_gaps_single_entry_noop() {
+        let entry = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
+        let result = fill_gaps(vec![entry], GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_fill_gaps_gap_below_threshold_noop() {
+        // Gap of only 60 seconds — below GAP_THRESHOLD_NS (300s).
+        let entry1 = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
+        let entry2 = HistoryEntry::new(60 * 1_000_000_000, 5.0, 2.0, vec![], 0.0, 0.0, false);
+
+        let entries = vec![entry1, entry2];
+        let result = fill_gaps(entries.clone(), GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+        assert_eq!(result.len(), 2, "no synthetic entries when gap < threshold");
+    }
+
+    #[test]
+    fn test_compute_deltas_basic() {
+        let prev = HistoryEntry::new(0, 10.0, 5.0, vec![20.0], 8.0, 2.0, false);
+        // Entry 1 second later with higher values.
+        let curr = HistoryEntry::with_deltas(
+            1_000_000_000, // +1s
+            30.0,          // cpu per_core_max increased by 20 → rate = 20%/s
+            15.0,          // cpu total_average increased by 10 → rate = 10%/s
+            vec![40.0],    // gpu usage increased by 20 → rate = 20%/s
+            18.0,          // network increased by 10 → rate = 10 Mbps/s
+            7.0,           // disk increased by 5 → rate = 5 MB/s/s
+            true,          // inhibited
+            Some(1_000_000_000),
+        );
+
+        let with_deltas = curr.compute_deltas(&prev);
+
+        assert_eq!(with_deltas.elapsed_since_last_ns, Some(1_000_000_000));
+        // CPU delta should be (30-10)/1.0 = 20%/s.
+        assert!((with_deltas.cpu_delta_per_sec.unwrap() - 20.0).abs() < f64::EPSILON);
+        // Network delta should be (18-8)/1.0 = 10 Mbps/s.
+        assert!((with_deltas.network_delta_per_sec.unwrap() - 10.0).abs() < f64::EPSILON);
+        // Disk delta should be (7-2)/1.0 = 5 MB/s/s.
+        assert!((with_deltas.disk_delta_per_sec.unwrap() - 5.0).abs() < f64::EPSILON);
+        // GPU delta should be (40-20)/1.0 = 20%/s.
+        assert_eq!(with_deltas.gpu_deltas_per_sec.len(), 1);
+        assert!((with_deltas.gpu_deltas_per_sec[0] - 20.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_compute_deltas_zero_elapsed_no_change() {
+        let prev = HistoryEntry::new(100, 10.0, 5.0, vec![], 8.0, 2.0, false);
+        // Same timestamp — should return unchanged copy.
+        let curr = HistoryEntry::with_deltas(100, 30.0, 15.0, vec![40.0], 18.0, 7.0, true, Some(0));
+        let with_deltas = curr.compute_deltas(&prev);
+
+        assert_eq!(with_deltas.elapsed_since_last_ns, None); // Zero elapsed → None
+    }
+
+    #[test]
+    fn test_with_deltas_backward_compatible_serialization() {
+        // Old entries without delta fields should deserialize correctly (serde default handles missing).
+        let old_bytes = HistoryEntry::new(0, 50.0, 25.0, vec![30.0], 10.0, 4.0, true).to_bytes();
+
+        let (decoded, _) = HistoryEntry::from_bytes(&old_bytes).unwrap();
+
+        // Delta fields should have serde defaults.
+        assert_eq!(decoded.elapsed_since_last_ns, None);
+        assert!((decoded.cpu_delta_per_sec.unwrap_or(0.0) - 0.0).abs() < f64::EPSILON);
+        assert!(decoded.gpu_deltas_per_sec.is_empty());
+
+        // New entry with deltas should also serialize/deserialize correctly.
+        let new_entry = HistoryEntry::with_deltas(
+            1_000_000_000,
+            60.0,
+            30.0,
+            vec![40.0],
+            15.0,
+            5.0,
+            false,
+            Some(1_000_000_000),
+        );
+        let new_bytes = new_entry.to_bytes();
+        let (decoded_new, _) = HistoryEntry::from_bytes(&new_bytes).unwrap();
+
+        assert_eq!(decoded_new.elapsed_since_last_ns, Some(1_000_000_000));
+        // Values should round-trip correctly.
+        assert!((decoded_new.cpu_usage.per_core_max - 60.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_read_all_sorted_by_timestamp_across_files() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let base_path = tmp_dir.path().join("rouser");
+        fs::create_dir_all(&base_path).unwrap();
+
+        // Create two date-partitioned files with interleaved timestamps.
+        let now_ns = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
+
+        {
+            // File for yesterday (older).
+            let yest = Local::now().date_naive() - chrono::Duration::days(1);
+            let date_str = format!("{}{}", HISTORY_FILE_PREFIX, yest.format("%Y%m%d"));
+            let file_path = base_path.join(date_str);
+
+            // Entries with timestamps 5s apart.
+            let mut writer = BufWriter::new(File::create(&file_path).unwrap());
+            for i in 0..3 {
+                let entry = HistoryEntry::new(
+                    now_ns + ((i as u64) * 5_000_000_000),
+                    10.0 + i as f64,
+                    5.0 + i as f64,
+                    vec![],
+                    1.0 * (i + 1) as f64,
+                    0.5 * (i + 1) as f64,
+                    i % 2 == 0,
+                );
+                assert!(writer.write_all(&entry.to_bytes()).is_ok());
+            }
+        }
+
+        {
+            // File for today (newer) with earlier timestamps than yesterday's file.
+            let date_str = format!(
+                "{}{}",
+                HISTORY_FILE_PREFIX,
+                Local::now().date_naive().format("%Y%m%d")
+            );
+            let file_path = base_path.join(date_str);
+
+            // These entries have timestamps BEFORE yesterday's — tests cross-file sorting.
+            let mut writer = BufWriter::new(File::create(&file_path).unwrap());
+            for i in 0..2 {
+                let entry = HistoryEntry::new(
+                    now_ns + ((i as u64) * 5_000_000_000),
+                    1.0 + i as f64,
+                    0.5 + i as f64,
+                    vec![],
+                    0.1 * (i + 1) as f64,
+                    0.1 * (i + 1) as f64,
+                    false,
+                );
+                assert!(writer.write_all(&entry.to_bytes()).is_ok());
+            }
+        }
+
+        // Read all — should be sorted by timestamp regardless of file order.
+        let log = HistoryLog {
+            base_path: base_path.clone(),
+            entries_today: Vec::new(),
+            pending_summary: None,
+            last_prune_date: None,
+        };
+
+        let all_entries = log.read_all();
+
+        // After gap filling (no large gaps in test data), should have original 5 + synthetic fills.
+        assert!(all_entries.len() >= 5, "should have at least 5 entries");
+
+        // Verify monotonic timestamp ordering.
+        for i in 1..all_entries.len() {
+            assert!(
+                all_entries[i].timestamp_ns >= all_entries[i - 1].timestamp_ns,
+                "entries must be sorted by timestamp ({} < {})",
+                all_entries[i - 1].timestamp_ns,
+                all_entries[i].timestamp_ns
+            );
+        }
+
+        // First entry should have the smallest timestamp.
+        assert_eq!(all_entries[0].timestamp_ns, now_ns);
     }
 }

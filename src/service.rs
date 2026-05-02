@@ -119,6 +119,9 @@ pub struct DataManager {
     /// Cached predicted additional time from last tick's model query.
     /// Applied to cooldown_duration when metrics drop below threshold.
     predicted_additional_time: std::time::Duration,
+    /// Whether predictive cooldown extension has been applied in the current below-threshold transition.
+    /// Reset on metric spike so fresh prediction is computed when metrics drop again.
+    cooldown_extension_applied: bool,
     // Prediction model for adaptive cooldown extension (None if disabled).
     prediction_model: Option<PredictionModel>,
 }
@@ -198,6 +201,7 @@ impl DataManager {
             just_released: false,
             waiting_for_cooldown: false,
             predicted_additional_time: std::time::Duration::ZERO,
+            cooldown_extension_applied: false,
             prediction_model,
             cpu_smooth_max: SmoothingState::new(config.metrics.cpu.ema_alpha),
             cpu_smooth_avg: SmoothingState::new(config.metrics.cpu.ema_alpha),
@@ -339,6 +343,8 @@ impl DataManager {
                                 self.metrics_below_threshold_since = None;
                                 self.cooldown_start_time = None;
                                 self.just_released = false;
+                                // Clear prediction — fresh prediction will be computed when metrics drop below again.
+                                self.predicted_additional_time = std::time::Duration::ZERO;
                             }
                             Err(e) => warn!("Failed to acquire inhibition: {}", e),
                         }
@@ -359,11 +365,15 @@ impl DataManager {
 
                 if elapsed >= effective_cooldown {
                     if !self.predicted_additional_time.is_zero() {
+                        let total_wait =
+                            config.timing.cooldown_duration + self.predicted_additional_time;
                         info!(
                             "Releasing sleep inhibition: all metrics below threshold for {:?} \
-                             (with {}s predictive extension)",
+                             (base cooldown {}s, with {}s predictive extension, total wait {:?})",
                             elapsed,
-                            self.predicted_additional_time.as_secs()
+                            config.timing.cooldown_duration.as_secs(),
+                            self.predicted_additional_time.as_secs(),
+                            total_wait,
                         );
                     } else {
                         info!(
@@ -385,14 +395,16 @@ impl DataManager {
                     );
                 }
             } else if !self.state.is_inhibited() {
-                // Not inhibited — don't track cooldown for future release.
+                // Not inhibited — reset state tracking for fresh below-threshold cycle.
                 self.waiting_for_cooldown = false;
+                self.just_released = false;
                 self.metrics_below_threshold_since = None;
             }
         }
 
         // Predict cooldown extension when transitioning from inhibited to below-threshold.
-        if was_inhibited && !should_inhibit {
+        // Only compute once per transition — the flag prevents re-querying on every tick during extended cooldown.
+        if was_inhibited && !should_inhibit && !self.cooldown_extension_applied {
             let prediction = match &self.prediction_model {
                 Some(model) => model.predict_cooldown(),
                 None => CooldownPrediction {
@@ -411,9 +423,13 @@ impl DataManager {
             }
 
             self.predicted_additional_time = prediction.additional_time;
-        } else if !should_inhibit {
-            // Not previously inhibited — reset extension for fresh cooldown cycle.
+            if !self.predicted_additional_time.is_zero() {
+                self.cooldown_extension_applied = true;
+            }
+        } else if should_inhibit && self.metrics_above_threshold_since.is_some() {
+            // Metrics spiked again — reset extension and flag for fresh cooldown cycle.
             self.predicted_additional_time = std::time::Duration::ZERO;
+            self.cooldown_extension_applied = false;
         }
 
         if !was_inhibited && self.state.is_inhibited() {

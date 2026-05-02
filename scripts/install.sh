@@ -117,6 +117,15 @@ else
     fi
 fi
 
+# Create history data directory so systemd ReadWritePaths works with ProtectHome=read-only.
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local}/state/rouser"
+
+# Install config if not present (only when building from repo).
+if [ "$FROM_REPO" = true ] && [ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/rouser/config.toml" ]; then
+    mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/rouser"
+    cp "$PWD/config/rouser.toml" "${XDG_CONFIG_HOME:-$HOME/.config}/rouser/config.toml" 2>/dev/null && info "Config installed to ${XDG_CONFIG_HOME:-$HOME/.config}/rouser/config.toml (not present before)" || true
+fi
+
 info "Enabling rouser systemd user service..."
 systemctl --user daemon-reload
 systemctl --user enable --now rouser.service || warn "Failed to enable/start service (is logind lingering enabled?)"

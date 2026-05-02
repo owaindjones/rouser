@@ -81,21 +81,23 @@ ExecStart=/home/%i/.local/bin/rouser --config /home/%i/.config/rouser/config.tom
 Restart=on-failure
 RestartSec=5s
 
-# Security hardening
-NoNewPrivileges=true
-ProtectSystem=strict
-PrivateTmp=true
+# Security hardening — allow reading binary and config, writing history.
+ReadOnlyPaths=%h/.local/bin %h/.config/rouser
+ReadWritePaths=%h/.local/state/rouser
 ProtectHome=read-only
-ReadWritePaths=%h/.config/rouser
+PrivateTmp=true
+NoNewPrivileges=false
 
 [Install]
 WantedBy=default.target
 ```
 
-### Step 3: Create Log Directory
+### Step 3: Create History Data Directory (optional)
+
+The installer creates this automatically. Only needed for manual installs or when `ProtectHome=read-only` is used without a corresponding `ReadWritePaths` override in the service file.
 
 ```bash
-mkdir -p ~/.local/log/rouser
+mkdir -p ~/.local/state/rouser
 ```
 
 ### Step 4: Configure and Start Service
@@ -250,8 +252,9 @@ User=%u
 NoNewPrivileges=true
 ProtectSystem=strict
 PrivateTmp=true
-ProtectHome=true
-ReadWritePaths=%h/.config/rouser %h/.local/log/rouser
+ReadOnlyPaths=%h/.local/bin %h/.config/rouser
+ReadWritePaths=%h/.local/state/rouser
+ProtectHome=read-only
 ```
 
 ### System Service (More Restrictive)

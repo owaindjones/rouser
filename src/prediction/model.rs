@@ -171,7 +171,7 @@ impl TickAccumulator {
         }
     }
 
-    fn flush(&mut self) -> Option<(HistoryEntry, u64)> {
+    fn flush(&mut self, elapsed_since_last_ns: Option<u64>) -> Option<(HistoryEntry, u64)> {
         if self.count == 0 {
             return None;
         }
@@ -182,7 +182,7 @@ impl TickAccumulator {
             gpu_averages.push(s / n);
         }
 
-        let entry = HistoryEntry::new(
+        let entry = HistoryEntry::with_deltas(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .expect("system time before epoch")
@@ -193,6 +193,7 @@ impl TickAccumulator {
             self.network_sum / n,
             self.disk_sum / n,
             self.inhibited_count > 0 && (self.inhibited_count * 2 >= self.count),
+            elapsed_since_last_ns,
         );
 
         // Reset accumulator for next interval.
@@ -221,6 +222,8 @@ pub struct PredictionModel {
     flush_interval: Option<usize>,
     tick_count: usize,
     accumulator: TickAccumulator,
+    /// Timestamp (ns) of the last flushed entry for delta computation on next flush.
+    last_flushed_ns: u64,
 }
 
 impl PredictionModel {
@@ -251,6 +254,12 @@ impl PredictionModel {
             flush_interval: None,
             tick_count: 0,
             accumulator: TickAccumulator::new(),
+            last_flushed_ns: if entries.is_empty() {
+                0
+            } else {
+                let max_ts = entries.iter().map(|e| e.timestamp_ns).max().unwrap_or(0);
+                max_ts
+            },
         }
     }
 
@@ -289,14 +298,26 @@ impl PredictionModel {
             inhibited,
         );
 
+        // Compute elapsed since last flush for delta features.
+        let elapsed_since_last_ns = if self.last_flushed_ns > 0 {
+            entry.timestamp_ns.saturating_sub(self.last_flushed_ns)
+        } else {
+            0
+        };
+
         self.accumulator.accumulate(&entry);
         self.tick_count += 1;
 
         if let Some(interval) = self.flush_interval {
             if self.tick_count >= interval {
-                if let Some((snapshot, samples)) = self.accumulator.flush() {
+                let elapsed_opt = if elapsed_since_last_ns > 0 {
+                    Some(elapsed_since_last_ns)
+                } else {
+                    None
+                };
+                if let Some((snapshot, samples)) = self.accumulator.flush(elapsed_opt) {
                     self.data_points += 1;
-                    debug!(
+                    let summary = format!(
                         "Flushed averaged snapshot #{} (CPU max={:.1}%, net={:.2}MB/s, disk={:.2}MB/s, time={}, accumulated_ticks={})",
                         self.data_points,
                         snapshot.cpu_usage.per_core_max,
@@ -305,7 +326,10 @@ impl PredictionModel {
                         TimeKey::from_timestamp_ns(snapshot.timestamp_ns).display(),
                         samples,
                     );
-                    self.history.append(snapshot);
+                    self.last_flushed_ns = snapshot.timestamp_ns;
+
+                    self.history.append_with_summary(snapshot, Some(summary));
+                    self.history.flush();
                 }
                 self.tick_count = 0;
                 return true;

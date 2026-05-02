@@ -34,7 +34,7 @@ Data points are buffered in memory until the flush interval elapses, then writte
 
 History files follow the naming pattern `history.log.YYYYMMDD` under:
 
-- **User mode**: `$XDG_DATA_HOME/rouser/` (defaults to `~/.local/share/rouser/`)
+- **User mode**: `$XDG_STATE_HOME/rouser/` (defaults to `~/.local/state/rouser/`)
 - **Root mode**: `/var/lib/rouser/`
 
 Each file contains only data points from that specific calendar day. Files are appended sequentially — new entries are written as binary blobs with a 4-byte length prefix followed by the bincode-encoded serde struct. This allows efficient streaming reads without loading entire files into memory for size estimation.
@@ -53,7 +53,7 @@ for entry in history_entries {
 }
 ```
 
-This replaces the old single-dimension hour-of-day approach with three orthogonal axes for capturing seasonal, monthly, weekly, and weekday/weekend patterns. The `seconds_into_week` field encodes precise position within a 7-day cycle (0–604799.999 seconds, millisecond resolution), enabling fine-grained discrimination between Saturday morning vs Monday afternoon even though both share the same wall-clock hour.
+The `seconds_into_week` field encodes precise position within a 7-day cycle (0–604799.999 seconds, millisecond resolution), enabling fine-grained discrimination between Saturday morning vs Monday afternoon even though both share the same wall-clock hour. Combined with year and week-of-year axes, this captures seasonal, monthly, weekly, and weekday/weekend patterns in historical data.
 
 ### Step 2: Score Current Time Window on Cooldown Transition
 
@@ -147,9 +147,9 @@ RUST_LOG=debug rouser --dry-run
 
 Key log messages:
 
-- **Startup**: `Prediction model initialized with N historical data points` — shows how many past entries were loaded
-- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, hour=H, accumulated_ticks=N)` — logged when accumulated metrics are written as one averaged entry after N ticks
-- **Pruning activity**: `Running history pruning (max age: ...)` followed by per-file debug lines when files are removed
+- **Startup**: `Loaded N history entries from ...` followed by `Prediction model initialized with 0 historical data points` — shows how many past entries were loaded at startup (the second message always says "initialized" even when entries are present)
+- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, time=year=Y week=W sec=S, accumulated_ticks=N)` followed by a separate line showing the number of entries flushed to disk for that date — logged when accumulated metrics are written as one averaged entry after N ticks
+- **Pruning activity**: Per-file debug lines when files are removed, plus an info-level summary once per day with `Pruned N old history files (retention: ...)`
 - **Prediction query**: `Predicted cooldown: +Xdur (score=S.SS, time=year=Y week=W sec=S, data_points=N, confidence=C.CC)` — shown when transitioning from inhibited to below-threshold state
 
 ## See Also

@@ -14,6 +14,8 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 - **Follow existing patterns first**: Before proposing new patterns or structures, search for and follow established conventions in the codebase. When in doubt, match what's already there.
 - **Graceful degradation over panics**: Metric collectors return `Result` types and fall back to zero values on failure. The daemon continues operating even when individual metrics are unavailable.
 - **Descriptive comments are encouraged**: Comments that explain non-obvious intent, arithmetic expectations, or why a particular approach was chosen should be kept — especially in tests where the "what" is clear but the "why" and expected values may not be. Docstrings on public APIs and complex algorithms (e.g., accumulation logic, security-critical code) are welcome. Avoid comments that merely restate what the code already says ("increment counter by one"), but keep those that add context a reader wouldn't get from reading alone.
+- **Docs document current state only**: All documentation must describe how things work now — never reference "previous behaviour", "this replaces", or any historical comparison. Documentation is read against the current codebase; past implementation details belong in git history, not docs.
+- **Use todos tool for task tracking**: Always use the `todos` tool to track tasks and keep it updated as you progress. When interrupted or new requests are made during work, update the todos list ordering by priority. This ensures continuity across session boundaries and prevents lost context on resumption.
 
 ### Agent-Specific Rules (do NOT apply to human developers)
 
@@ -300,3 +302,7 @@ echo "https://github.com/{owner}/{repo}/actions/runs/RUN_ID"
 - **Missing `needs` dependencies**: If a job references another via `needs: [foo]`, and `foo` is conditional (`if:`), the dependent job inherits that condition — it will skip if the dependency was skipped. Always verify both jobs have matching trigger conditions.
 - **Container vs runner environment mismatch**: Steps running in containers (e.g., `container: fedora:latest`) cannot access tools on the host runner (like `gh` CLI). Split containerized build steps from upload/CLI steps that run on `ubuntu-latest` without a container.
 - **Artifact download path defaults to `.`**: When using `actions/download-artifact@v4`, always specify `path: some-dir/` explicitly, then move files with `mv some-dir/* .` before consuming them — default behavior may merge artifacts unpredictably.
+
+## XDG State Directory Migration
+
+History data was migrated from `$XDG_DATA_HOME/rouser` (or `~/.local/share/rouser`) to `$XDG_STATE_HOME/rouser` (or `~/.local/state/rouser`). This is a breaking change: existing history files at the old path are not read by new binaries. The fallback for read-only `/home` with no writable state dir uses `/tmp/rouser-history.<pid>` with 0700 permissions to minimize TOCTOU risk on shared systems. When updating config defaults or docs, always reference `XDG_STATE_HOME`, never `XDG_DATA_HOME`.

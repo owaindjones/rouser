@@ -143,7 +143,7 @@ The prediction module learns from historical system metric patterns over days an
 | `history_length` | duration | `"30d"` | Amount of historical data to retain. Older entries and files are pruned automatically. Uses humantime format: `"7d"`, `"30d"`, `"90d"` |
 | `max_extension_time` | duration | `"1h"` | Maximum additional time added to the cooldown duration by prediction. The model will never extend beyond this cap, even if historical patterns suggest it. Uses humantime format: `"5m"`, `"30m"`, `"1h"` |
 
-**Data storage**: Historical data is stored as binary files (`history.log.YYYYMMDD`) using bincode v2 serialization under `$XDG_DATA_HOME/rouser/` (or `/var/lib/rouser/` when running as root). Files are date-partitioned for efficient pruning.
+**Data storage**: Historical data is stored as binary files (`history.log.YYYYMMDD`) using bincode v2 serialization under `$XDG_STATE_HOME/rouser/` (defaults to `~/.local/state/rouser/`, or `/var/lib/rouser/` when running as root). Files are date-partitioned for efficient pruning.
 
 ## Inhibition Configuration
 
