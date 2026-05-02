@@ -58,7 +58,7 @@ impl SleepInhibitor {
             return Ok(inhibitor);
         }
 
-        // If that failed and it was an auth error, retry with the fallback type.
+        // First attempt failed — retry with the more widely-available "sleep" type as fallback.
         match Self::acquire_inhibition(FALLBACK_INHIBIT_TYPE, who, why, dbus_mode).await {
             Ok(fb) => {
                 warn!(

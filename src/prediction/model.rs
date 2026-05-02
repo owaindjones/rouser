@@ -281,12 +281,12 @@ impl PredictionModel {
                 if let Some((snapshot, samples)) = self.accumulator.flush() {
                     self.data_points += 1;
                     debug!(
-                        "Flushed averaged snapshot #{} (CPU max={:.1}%, net={:.2}MB/s, disk={:.2}MB/s, hour={}, accumulated_ticks={})",
+                        "Flushed averaged snapshot #{} (CPU max={:.1}%, net={:.2}MB/s, disk={:.2}MB/s, time={}, accumulated_ticks={})",
                         self.data_points,
                         snapshot.cpu_usage.per_core_max,
                         snapshot.network_mbps,
                         snapshot.disk_mb_s,
-                        Self::hour_of_day(snapshot.timestamp_ns),
+                        TimeKey::from_timestamp_ns(snapshot.timestamp_ns).display(),
                         samples,
                     );
                     self.history.append(snapshot);
