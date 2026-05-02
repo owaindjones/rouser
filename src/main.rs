@@ -81,7 +81,11 @@ async fn main() -> ExitCode {
             match load_single_config(path) {
                 Ok(cfg) => cfg,
                 Err(e) => {
-                    error!("Failed to load configuration from {}: {}", path.display(), e);
+                    error!(
+                        "Failed to load configuration from {}: {}",
+                        path.display(),
+                        e
+                    );
                     return ExitCode::FAILURE;
                 }
             }

@@ -15,7 +15,9 @@ fn is_auth_error(error_msg: &str) -> bool {
         "not authenticated",
     ];
     let lower = error_msg.to_lowercase();
-    AUTH_INDICATORS.iter().any(|indicator| lower.contains(indicator))
+    AUTH_INDICATORS
+        .iter()
+        .any(|indicator| lower.contains(indicator))
 }
 
 /// Sleep inhibitor using lower-level dbus crate.
@@ -30,7 +32,12 @@ impl SleepInhibitor {
     /// Attempt D-Bus Inhibit call with the requested `what` type. Returns an OwnedFd that keeps
     /// inhibition active for the inhibitor's lifetime. Panics if mode is "block-weak" (use
     /// acquire_with_fallback() which handles this internally).
-    async fn acquire_inhibition(what: &str, who: &str, why: &str, dbus_mode: &str) -> anyhow::Result<Self> {
+    async fn acquire_inhibition(
+        what: &str,
+        who: &str,
+        why: &str,
+        dbus_mode: &str,
+    ) -> anyhow::Result<Self> {
         let conn = Connection::new_system()
             .map_err(|e| anyhow::anyhow!("Failed to connect to system D-Bus: {}", e))?;
 
@@ -56,12 +63,15 @@ impl SleepInhibitor {
     /// Attempt inhibition with the requested `what` type. On desktop systems without polkit rules,
     /// `"shutdown:idle"` may fail with an authentication error — in that case this method falls back
     /// to using `"sleep"` which is less restrictive but more widely available. Only auth errors trigger fallback; other D-Bus failures propagate unchanged.
-    pub async fn acquire_with_fallback(what: &str, who: &str, why: &str, mode: &str) -> anyhow::Result<Self> {
+    pub async fn acquire_with_fallback(
+        what: &str,
+        who: &str,
+        why: &str,
+        mode: &str,
+    ) -> anyhow::Result<Self> {
         let dbus_mode = match mode {
             "block-weak" => {
-                warn!(
-                    "D-Bus API does not support 'block-weak' mode. Using 'block' instead."
-                );
+                warn!("D-Bus API does not support 'block-weak' mode. Using 'block' instead.");
                 "block"
             }
             m => m,
@@ -87,7 +97,11 @@ impl SleepInhibitor {
                              Also tried fallback type '{}': {}",
                             what, FALLBACK_INHIBIT_TYPE, e2
                         );
-                        Err(anyhow::anyhow!("Failed to acquire inhibition with both '{}' and fallback '{}'", what, FALLBACK_INHIBIT_TYPE))
+                        Err(anyhow::anyhow!(
+                            "Failed to acquire inhibition with both '{}' and fallback '{}'",
+                            what,
+                            FALLBACK_INHIBIT_TYPE
+                        ))
                     }
                 }
             }
@@ -95,7 +109,8 @@ impl SleepInhibitor {
                 // Not an auth error — report the original failure without masking it.
                 Err(anyhow::anyhow!(
                     "Inhibition failed for type '{}': {} (not an auth error)",
-                    what, e
+                    what,
+                    e
                 ))
             }
         }

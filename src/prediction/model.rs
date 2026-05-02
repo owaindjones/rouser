@@ -5,7 +5,7 @@
 //! - Year (captures seasonal trends)
 //! - Week of year (captures monthly/annual cycles)
 //! - Seconds into week (precise position within a 7-day cycle, enabling hour-of-day and weekday/weekend distinction).
-//! 
+//!
 //! Purely statistical — no external ML dependencies required.
 
 use crate::prediction::{HistoryEntry, HistoryLog};
@@ -47,7 +47,7 @@ impl TimeKey {
         let dt = chrono::DateTime::<chrono::Utc>::from_timestamp(secs as i64, 0)
             .unwrap_or_else(chrono::Utc::now);
 
-       // Use calendar year and ISO week number for seasonal pattern tracking.
+        // Use calendar year and ISO week number for seasonal pattern tracking.
         let year = dt.year();
         let iso_week = dt.iso_week();
 
@@ -60,7 +60,10 @@ impl TimeKey {
         Self {
             year,
             week_of_year: iso_week.week(),
-            seconds_into_week: ((dow - 1) * 86400 + hours_in_day * 3600 + minutes_in_hour * 60 + seconds_in_min) as i64,
+            seconds_into_week: ((dow - 1) * 86400
+                + hours_in_day * 3600
+                + minutes_in_hour * 60
+                + seconds_in_min) as i64,
         }
     }
 
@@ -94,8 +97,7 @@ impl TimeKey {
             self.year, self.week_of_year, self.seconds_into_week
         )
     }
-
- }
+}
 
 /// Prediction result from the cooldown model.
 #[derive(Debug, Clone)]
@@ -331,7 +333,11 @@ impl PredictionModel {
 
         debug!(
             "Predicted cooldown: +{:?} (score={:.2}, time={}, data_points={}, confidence={:.2})",
-            additional_time, score, now.display(), self.data_points, confidence
+            additional_time,
+            score,
+            now.display(),
+            self.data_points,
+            confidence
         );
 
         CooldownPrediction {
@@ -340,7 +346,7 @@ impl PredictionModel {
         }
     }
 
-   // Multi-level fallback matching:
+    // Multi-level fallback matching:
     // Level 1: Exact TimeKey match — most precise, used with sufficient historical data for this time window.
     // Level 2: Hour-of-day fallback — original single-dimension approach when no exact matches exist (sparse data).
     fn score_inhibition_rate(&self, now: &TimeKey) -> f64 {
@@ -349,19 +355,20 @@ impl PredictionModel {
             return self.score_from_count(count);
         }
 
-      // Level 2: Fall back to hour-of-day matching for sparse data.
+        // Level 2: Fall back to hour-of-day matching for sparse data.
         // Use linear day index to handle ISO week wraparound at year boundaries correctly.
         let target_seconds = now.seconds_into_week;
-       let mut best_count: u64 = 0;
-       for (key, &count) in self.inhibited_timekeys.iter() {
-           if key.year == now.year
-               && (-7_i64..=7_i64).contains(&(key.linear_day() - now.linear_day()))
-               && (-3600_i64..=3600_i64).contains(&(key.seconds_into_week - target_seconds)) {
-               best_count = count.max(best_count);
-           }
-       }
+        let mut best_count: u64 = 0;
+        for (key, &count) in self.inhibited_timekeys.iter() {
+            if key.year == now.year
+                && (-7_i64..=7_i64).contains(&(key.linear_day() - now.linear_day()))
+                && (-3600_i64..=3600_i64).contains(&(key.seconds_into_week - target_seconds))
+            {
+                best_count = count.max(best_count);
+            }
+        }
 
-      if best_count > 0 {
+        if best_count > 0 {
             return self.score_from_count(best_count);
         }
 
@@ -372,7 +379,8 @@ impl PredictionModel {
     fn score_from_count(&self, count: u64) -> f64 {
         let total_inhibited = self.inhibited_timekeys.values().sum::<u64>();
         // Average per matching bucket gives baseline expectation for scoring.
-        let avg_per_bucket: u64 = (total_inhibited.max(1)) / (self.inhibited_timekeys.len() as u64).max(1);
+        let avg_per_bucket: u64 =
+            (total_inhibited.max(1)) / (self.inhibited_timekeys.len() as u64).max(1);
 
         if count == 0 || avg_per_bucket == 0 {
             return 0.0;
@@ -393,7 +401,7 @@ impl PredictionModel {
         }
     }
 
-   fn hour_of_day(ts_ns: u64) -> u32 {
+    fn hour_of_day(ts_ns: u64) -> u32 {
         TimeKey::hour_of_day(ts_ns)
     }
 
@@ -496,7 +504,7 @@ mod tests {
 
     /// Test that multi-tick accumulation produces correct arithmetic means across flush boundaries.
     #[test]
-   fn test_multi_tick_averaging_correctness() {
+    fn test_multi_tick_averaging_correctness() {
         let mut model = PredictionModel::new(true, std::time::Duration::from_secs(60));
         // Flush every 5 ticks to verify partial accumulation doesn't produce snapshots.
         model.set_prediction_update_interval(std::time::Duration::from_secs(5));
@@ -524,7 +532,7 @@ mod tests {
         assert!(model.record(90.0, 45.0, vec![90.0], 35.0, 1.0, true));
         assert_eq!(model.data_points(), 2);
 
-       let mut model2 = PredictionModel::new(true, std::time::Duration::from_secs(60));
+        let mut model2 = PredictionModel::new(true, std::time::Duration::from_secs(60));
         // Flush every 3 ticks to verify exact-value averaging (all identical inputs → average equals input).
         model2.set_prediction_update_interval(std::time::Duration::from_secs(3));
 
@@ -550,7 +558,7 @@ mod tests {
         // Monday Jan 1 2024 00:00 UTC (ISO week starts on Monday)
         let monday_00 = TimeKey::from_timestamp_ns(1704067200 * 1_000_000_000);
         assert_eq!(monday_00.year, 2024);
-       assert_eq!(monday_00.seconds_into_week, 0); // Monday at midnight
+        assert_eq!(monday_00.seconds_into_week, 0); // Monday at midnight
 
         // Same day, noon (still Monday since Jan 1 2024 is a Monday in ISO calendar)
         let monday_noon = TimeKey::from_timestamp_ns((1704067200 + 3600 * 12) * 1_000_000_000);
@@ -559,19 +567,24 @@ mod tests {
         assert_eq!(monday_noon.seconds_into_week, 43200);
 
         // Sunday at 23:59 should be near end of week (day index 6)
-        let sunday_night = TimeKey::from_timestamp_ns((1704067200 + (6 * 86400) + (23 * 3600) + (59 * 60)) * 1_000_000_000);
+        let sunday_night = TimeKey::from_timestamp_ns(
+            (1704067200 + (6 * 86400) + (23 * 3600) + (59 * 60)) * 1_000_000_000,
+        );
         assert_eq!(sunday_night.year, 2024);
         // Sunday = day index 6, so seconds = 6*86400 + 23*3600 + 59*60 = 604740
         assert_eq!(sunday_night.seconds_into_week, 604740);
     }
 
-     /// Test that same weekday+time in different weeks of the same year produces identical seconds-into-week.
+    /// Test that same weekday+time in different weeks of the same year produces identical seconds-into-week.
     #[test]
     fn test_timekey_same_position_different_weeks() {
         // Monday Jan 1 2024 at 06:30 UTC (ISO calendar Monday)
-        let tk_wk1 = TimeKey::from_timestamp_ns((1704067200 + (6 * 3600) + (30 * 60)) * 1_000_000_000);
+        let tk_wk1 =
+            TimeKey::from_timestamp_ns((1704067200 + (6 * 3600) + (30 * 60)) * 1_000_000_000);
         // Monday Jan 8 2024 at 06:30 UTC — same day-of-week and time, different week of year
-        let tk_wk2 = TimeKey::from_timestamp_ns((1704067200 + (7 * 86400) + (6 * 3600) + (30 * 60)) * 1_000_000_000);
+        let tk_wk2 = TimeKey::from_timestamp_ns(
+            (1704067200 + (7 * 86400) + (6 * 3600) + (30 * 60)) * 1_000_000_000,
+        );
 
         assert_eq!(tk_wk1.year, 2024);
         assert_eq!(tk_wk2.year, 2024);
@@ -581,14 +594,14 @@ mod tests {
         assert_eq!(tk_wk1.seconds_into_week, tk_wk2.seconds_into_week);
     }
 
-
     /// Test that different weekdays at the same time produce distinct seconds-into-week values.
     #[test]
     fn test_timekey_different_weekdays_distinct() {
         // Monday Jan 1 2024 at noon UTC
         let monday = TimeKey::from_timestamp_ns((1704067200 + (12 * 3600)) * 1_000_000_000);
         // Tuesday Jan 2 2024 at noon UTC
-        let tuesday = TimeKey::from_timestamp_ns((1704067200 + (86400) + (12 * 3600)) * 1_000_000_000);
+        let tuesday =
+            TimeKey::from_timestamp_ns((1704067200 + (86400) + (12 * 3600)) * 1_000_000_000);
 
         assert_eq!(monday.year, 2024);
         assert_eq!(tuesday.year, 2024);
@@ -641,7 +654,14 @@ mod tests {
 
         // Record 15 entries, none inhibited — this gives enough points to pass the 10-point guard.
         for i in 0..15 {
-            model.record(10.0 + (i as f64 * 2.0), 5.0 + (i as f64), vec![8.0], 2.0, 0.5, false);
+            model.record(
+                10.0 + (i as f64 * 2.0),
+                5.0 + (i as f64),
+                vec![8.0],
+                2.0,
+                0.5,
+                false,
+            );
         }
 
         // With no inhibited entries, score should be 0 and additional_time = 0.
