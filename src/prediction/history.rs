@@ -430,7 +430,10 @@ impl HistoryLog {
 
             let entries = read_entries_from_file(&path);
             // Use filename YYYYMMDD as sort key for BTreeMap (lexicographic == chronological).
-            // Fall back to file modification time when filename doesn't contain a valid date.
+            // Fall back to file creation/modification time when filename doesn't contain a valid date.
+            // On Linux, std::fs provides no safe way to access birth/creation times without unsafe
+            // syscalls — modification time is used as the best available proxy since historical log
+            // files are typically not modified after their initial writes (only appended or pruned).
             let sort_key: String = extract_date_str(&path).unwrap_or_else(|| {
                 path.metadata()
                     .and_then(|m| m.modified())
