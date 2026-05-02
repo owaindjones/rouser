@@ -159,7 +159,11 @@ impl DataManager {
             #[cfg(not(unix))]
             let is_root: bool = false;
 
-            let mut model = PredictionModel::new(is_root, config.prediction.max_extension_time);
+            let mut model = PredictionModel::new(
+                is_root,
+                config.prediction.update_interval.as_nanos() as u64,
+                config.prediction.max_extension_time,
+            );
             let effective_prediction_interval =
                 std::cmp::max(config.prediction.update_interval, config.update_interval);
             if config.prediction.update_interval < config.update_interval

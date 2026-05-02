@@ -5,5 +5,5 @@
 mod history;
 mod model;
 
-pub use history::{HistoryEntry, HistoryLog};
+pub use history::{fill_gaps, EntryDeltas, HistoryEntry, HistoryLog};
 pub use model::{CooldownPrediction, PredictionModel};

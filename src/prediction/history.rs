@@ -30,24 +30,78 @@ pub struct HistoryEntry {
     pub disk_mb_s: f64,
     /// Whether rouser currently holds the inhibition lock at this timestamp.
     pub inhibited: bool,
+}
 
-    // --- Delta features computed between consecutive entries ---
-    // These are optional for backward compatibility with existing history files.
-    /// Nanoseconds elapsed since previous entry (None for first entry or when not computable).
-    #[serde(default)]
+/// Computed rate-of-change values between two consecutive history entries.
+#[derive(Debug, Clone)]
+pub struct EntryDeltas {
+    /// Nanoseconds elapsed since previous entry (None if same timestamp).
     pub elapsed_since_last_ns: Option<u64>,
-    /// Rate of change of CPU per_core_max usage in %/s (None if not computable).
-    #[serde(default)]
+    /// Rate of change of CPU per_core_max usage in %/s.
     pub cpu_delta_per_sec: Option<f64>,
-    /// Rate of change of network throughput in Mbps/s (None if not computable).
-    #[serde(default)]
+    /// Rate of change of network throughput in Mbps/s.
     pub network_delta_per_sec: Option<f64>,
-    /// Rate of change of disk throughput in MB/s/s (None if not computable).
-    #[serde(default)]
+    /// Rate of change of disk throughput in MB/s/s.
     pub disk_delta_per_sec: Option<f64>,
     /// Per-GPU rate of change in %/s, matching gpu_usages order. Empty vec when not computable.
-    #[serde(default)]
     pub gpu_deltas_per_sec: Vec<f64>,
+}
+
+impl EntryDeltas {
+    /// Compute deltas between a current and previous history entry.
+    pub fn compute(current: &HistoryEntry, prev: &HistoryEntry) -> Self {
+        let elapsed_ns = current.timestamp_ns.saturating_sub(prev.timestamp_ns);
+
+        if elapsed_ns == 0 {
+            return Self {
+                elapsed_since_last_ns: None,
+                cpu_delta_per_sec: None,
+                network_delta_per_sec: None,
+                disk_delta_per_sec: None,
+                gpu_deltas_per_sec: Vec::new(),
+            };
+        }
+
+        let secs_f64 = elapsed_ns as f64 / 1_000_000_000.0;
+
+        let cpu_delta_per_sec = if secs_f64 > 0.0 {
+            Some((current.cpu_usage.per_core_max - prev.cpu_usage.per_core_max) / secs_f64)
+        } else {
+            None
+        };
+
+        let network_delta_per_sec = if secs_f64 > 0.0 {
+            Some((current.network_mbps - prev.network_mbps) / secs_f64)
+        } else {
+            None
+        };
+
+        let disk_delta_per_sec = if secs_f64 > 0.0 {
+            Some((current.disk_mb_s - prev.disk_mb_s) / secs_f64)
+        } else {
+            None
+        };
+
+        // Per-GPU deltas matching gpu_usages order.
+        let mut gpu_deltas_per_sec = Vec::new();
+        for i in 0..current.gpu_usages.len().max(prev.gpu_usages.len()) {
+            let prev_val = prev.gpu_usages.get(i).copied().unwrap_or(0.0);
+            let curr_val = current.gpu_usages.get(i).copied().unwrap_or(0.0);
+            if secs_f64 > 0.0 {
+                gpu_deltas_per_sec.push((curr_val - prev_val) / secs_f64);
+            } else {
+                gpu_deltas_per_sec.push(0.0);
+            }
+        }
+
+        Self {
+            elapsed_since_last_ns: Some(elapsed_ns),
+            cpu_delta_per_sec,
+            network_delta_per_sec,
+            disk_delta_per_sec,
+            gpu_deltas_per_sec,
+        }
+    }
 }
 
 /// CPU metrics snapshot — serializable subset of CpuUsage.
@@ -69,39 +123,6 @@ impl HistoryEntry {
         disk_mb_s: f64,
         inhibited: bool,
     ) -> Self {
-        Self::with_deltas(
-            timestamp_ns,
-            cpu_per_core_max,
-            cpu_total_average,
-            gpu_usages,
-            network_mbps,
-            disk_mb_s,
-            inhibited,
-            None,
-        )
-    }
-
-    /// Create a new history entry with optional delta/rate-of-change fields.
-    #[allow(clippy::too_many_arguments)]
-    pub fn with_deltas(
-        timestamp_ns: u64,
-        cpu_per_core_max: f64,
-        cpu_total_average: f64,
-        gpu_usages: Vec<f64>,
-        network_mbps: f64,
-        disk_mb_s: f64,
-        inhibited: bool,
-        elapsed_since_last_ns: Option<u64>,
-    ) -> Self {
-        let (cpu_delta_per_sec, network_delta_per_sec, disk_delta_per_sec, gpu_deltas_per_sec) =
-            match elapsed_since_last_ns {
-                Some(elapsed_ns) if elapsed_ns > 0 => {
-                    // This is a placeholder — actual deltas computed in model.rs record() when comparing consecutive entries.
-                    (None, None, None, Vec::new())
-                }
-                _ => (None, None, None, Vec::new()),
-            };
-
         Self {
             timestamp_ns,
             cpu_usage: CpuSnapshot {
@@ -112,68 +133,6 @@ impl HistoryEntry {
             network_mbps,
             disk_mb_s,
             inhibited,
-            elapsed_since_last_ns,
-            cpu_delta_per_sec,
-            network_delta_per_sec,
-            disk_delta_per_sec,
-            gpu_deltas_per_sec,
-        }
-    }
-
-    /// Compute delta fields from the previous entry and return a new entry with deltas filled in.
-    pub fn compute_deltas(&self, prev: &HistoryEntry) -> Self {
-        let elapsed_ns = self.timestamp_ns.saturating_sub(prev.timestamp_ns);
-
-        if elapsed_ns == 0 {
-            // Same timestamp — can't compute rates or meaningful elapsed time.
-            return Self {
-                elapsed_since_last_ns: None,
-                cpu_delta_per_sec: None,
-                network_delta_per_sec: None,
-                disk_delta_per_sec: None,
-                gpu_deltas_per_sec: Vec::new(),
-                ..self.clone()
-            };
-        }
-
-        let secs_f64 = elapsed_ns as f64 / 1_000_000_000.0;
-        let cpu_delta_per_sec = if secs_f64 > 0.0 {
-            Some((self.cpu_usage.per_core_max - prev.cpu_usage.per_core_max) / secs_f64)
-        } else {
-            None
-        };
-
-        let network_delta_per_sec = if secs_f64 > 0.0 {
-            Some((self.network_mbps - prev.network_mbps) / secs_f64)
-        } else {
-            None
-        };
-
-        let disk_delta_per_sec = if secs_f64 > 0.0 {
-            Some((self.disk_mb_s - prev.disk_mb_s) / secs_f64)
-        } else {
-            None
-        };
-
-        // Per-GPU deltas matching gpu_usages order.
-        let mut gpu_deltas_per_sec = Vec::new();
-        for i in 0..self.gpu_usages.len().max(prev.gpu_usages.len()) {
-            let prev_val = prev.gpu_usages.get(i).copied().unwrap_or(0.0);
-            let curr_val = self.gpu_usages.get(i).copied().unwrap_or(0.0);
-            if secs_f64 > 0.0 {
-                gpu_deltas_per_sec.push((curr_val - prev_val) / secs_f64);
-            } else {
-                gpu_deltas_per_sec.push(0.0);
-            }
-        }
-
-        Self {
-            elapsed_since_last_ns: Some(elapsed_ns),
-            cpu_delta_per_sec,
-            network_delta_per_sec,
-            disk_delta_per_sec,
-            gpu_deltas_per_sec,
-            ..self.clone()
         }
     }
 
@@ -213,7 +172,15 @@ impl HistoryEntry {
             bincode::config::standard(),
         ) {
             Ok((entry, consumed)) => Some((entry, 4 + consumed)),
-            Err(_) => None, // Corrupted entry.
+            Err(e) => {
+                debug!(
+                    "bincode decode error (len={}, data_prefix={:?}): {}",
+                    len,
+                    &buf[4..(4 + len).min(20)],
+                    e
+                );
+                None // Corrupted entry.
+            }
         }
     }
 }
@@ -281,9 +248,52 @@ fn fallback_data_dir(primary: &Path, is_root: bool) -> Option<PathBuf> {
 
 const HISTORY_FILE_PREFIX: &str = "history.log.";
 
-// Gap detection constants — used in read_all() to detect and fill missing time periods.
-const GAP_THRESHOLD_NS: u64 = 5 * 60 * 1_000_000_000; // 5 minutes in nanoseconds
-const FILL_INTERVAL_NS: u64 = 30 * 1_000_000_000; // 30 seconds between synthetic entries
+/// Fill temporal gaps in sorted history entries with synthetic zero-value records.
+/// When the computer is shut down or sleeping, no data points are written to the history log.
+/// Without correction, this creates a temporal gap that causes the prediction model to be
+/// overfit on active-period data only — it would see high activity during those gaps and
+/// incorrectly predict future activity.
+///
+/// Any gap greater than `gap_threshold_ns` between consecutive entries is filled with synthetic
+/// zero-value records spaced at `fill_interval_ns` intervals. These represent idle periods where
+/// no activity was recorded because the system was powered off or sleeping.
+pub fn fill_gaps(
+    entries: Vec<HistoryEntry>,
+    gap_threshold_ns: u64,
+    fill_interval_ns: u64,
+) -> Vec<HistoryEntry> {
+    if entries.len() < 2 {
+        return entries;
+    }
+
+    let mut result = vec![entries[0].clone()];
+
+    for entry in entries.iter().skip(1) {
+        let prev_ts = result.last().unwrap().timestamp_ns;
+        let curr = entry;
+        let gap_ns = curr.timestamp_ns.saturating_sub(prev_ts);
+
+        if gap_ns > gap_threshold_ns {
+            // Fill the gap with synthetic zero-value entries.
+            let mut ts = prev_ts + fill_interval_ns;
+            while ts < curr.timestamp_ns - fill_interval_ns / 2 {
+                result.push(HistoryEntry::new(ts, 0.0, 0.0, Vec::new(), 0.0, 0.0, false));
+                ts += fill_interval_ns;
+            }
+        }
+
+        result.push(curr.clone());
+    }
+
+    debug!(
+        "Filled gaps: {} entries -> {} entries (added {} synthetic)",
+        entries.len(),
+        result.len(),
+        result.len() - entries.len()
+    );
+
+    result
+}
 
 /// A date-partitioned binary log file for storing metric snapshots.
 pub struct HistoryLog {
@@ -446,15 +456,10 @@ impl HistoryLog {
             date_entries.entry(sort_key).or_default().extend(entries);
         }
 
-        const GAP_THRESHOLD_NS: u64 = 5 * 60 * 1_000_000_000; // 5 minutes in nanoseconds
-        const FILL_INTERVAL_NS: u64 = 30 * 1_000_000_000; // 30 seconds between synthetic entries
-
         // Flatten entries and sort by timestamp (BTreeMap iterates in key/date order).
         let mut result: Vec<HistoryEntry> = date_entries.into_values().flatten().collect();
 
         result.sort_by_key(|e| e.timestamp_ns);
-
-        let result = fill_gaps(result, GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
         debug!(
             "Loaded {} history entries from {}",
             result.len(),
@@ -630,68 +635,25 @@ fn read_entries_from_file(path: &Path) -> Vec<HistoryEntry> {
                 entries.push(entry);
                 offset += next_offset;
             }
-            None => break, // Corrupted or truncated entry at end.
+            None => {
+                warn!(
+                    "Failed to decode entry at offset {} in file {}: buffer has {} bytes, first 4 bytes as length prefix = {}",
+                    offset,
+                    path.display(),
+                    buf.len() - offset,
+                    if (buf.len() - offset) >= 4 {
+                        u32::from_le_bytes([buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3]]) as usize
+                    } else {
+                        0
+                    },
+                );
+                break; // Corrupted or truncated entry at end.
+            }
         }
     }
 
     debug!("Read {} entries from {}", entries.len(), path.display());
     entries
-}
-
-/// Fill temporal gaps in sorted history entries with synthetic zero-value records.
-/// When the computer is shut down or sleeping, no data is written to the log.
-/// Without this fix, the prediction model would be overfit on active-period data only.
-fn fill_gaps(
-    entries: Vec<HistoryEntry>,
-    gap_threshold_ns: u64,
-    fill_interval_ns: u64,
-) -> Vec<HistoryEntry> {
-    if entries.len() < 2 {
-        return entries;
-    }
-
-    let mut result = vec![entries[0].clone()];
-
-    for i in 1..entries.len() {
-        let prev = &entries[i - 1];
-        let curr = &entries[i];
-        let gap_ns = curr.timestamp_ns.saturating_sub(prev.timestamp_ns);
-
-        if gap_ns > gap_threshold_ns {
-            // Fill the gap with synthetic zero-value entries.
-            let mut ts = prev.timestamp_ns + fill_interval_ns;
-            while ts < curr.timestamp_ns - fill_interval_ns / 2 {
-                result.push(HistoryEntry::with_deltas(
-                    ts,
-                    0.0, // cpu per_core_max — idle state
-                    0.0, // cpu total_average
-                    Vec::new(),
-                    0.0,   // network mbps
-                    0.0,   // disk mb/s
-                    false, // inhibited
-                    Some(ts.saturating_sub(prev.timestamp_ns)),
-                ));
-                ts += fill_interval_ns;
-            }
-        }
-
-        let entry_to_add = if gap_ns > 0 && !result.is_empty() {
-            // Re-compute deltas against the actual predecessor in the filled sequence.
-            curr.clone().compute_deltas(&result[result.len() - 1])
-        } else {
-            curr.clone()
-        };
-        result.push(entry_to_add);
-    }
-
-    debug!(
-        "Filled gaps: {} entries -> {} entries (added {} synthetic)",
-        entries.len(),
-        result.len(),
-        result.len() - entries.len()
-    );
-
-    result
 }
 
 #[cfg(test)]
@@ -978,7 +940,7 @@ mod tests {
         let entry2 = HistoryEntry::new(10 * 60 * 1_000_000_000, 5.0, 2.0, vec![], 0.0, 0.0, false);
 
         let entries = vec![entry1.clone(), entry2];
-        let result = fill_gaps(entries, GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+        let result = fill_gaps(entries, 300_000_000_000u64, 30_000_000_000u64);
 
         // Should have: original 2 + synthetic fills for 10min gap at 30s intervals = 2 + (600/30) - ~1 = ~21 entries
         assert!(
@@ -1008,11 +970,10 @@ mod tests {
             if result[i].cpu_usage.per_core_max == 0.0
                 && result[i - 1].cpu_usage.per_core_max == 0.0
             {
-                // Between two synthetic entries, gap should be close to FILL_INTERVAL_NS.
+                // Between two synthetic entries, gap should be close to 30s.
                 assert!(
-                    (delta as i64 - FILL_INTERVAL_NS as i64).abs() < (FILL_INTERVAL_NS / 2) as i64,
-                    "synthetic entry spacing should be ~{}ns, got {}ns",
-                    FILL_INTERVAL_NS,
+                    (delta as i64 - 30_000_000_000i64).abs() < 15_000_000_000i64,
+                    "synthetic entry spacing should be ~30000000000ns, got {}ns",
                     delta
                 );
             }
@@ -1025,7 +986,7 @@ mod tests {
             .map(|i| HistoryEntry::new(i * 1_000_000_000, 10.0, 5.0, vec![], 1.0, 0.5, false))
             .collect();
 
-        let result = fill_gaps(entries.clone(), GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+        let result = fill_gaps(entries.clone(), 300_000_000_000u64, 30_000_000_000u64);
         assert_eq!(
             result.len(),
             entries.len(),
@@ -1043,7 +1004,7 @@ mod tests {
     #[test]
     fn test_fill_gaps_single_entry_noop() {
         let entry = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
-        let result = fill_gaps(vec![entry], GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+        let result = fill_gaps(vec![entry], 300_000_000_000u64, 30_000_000_000u64);
         assert_eq!(result.len(), 1);
     }
 
@@ -1054,37 +1015,19 @@ mod tests {
         let entry2 = HistoryEntry::new(60 * 1_000_000_000, 5.0, 2.0, vec![], 0.0, 0.0, false);
 
         let entries = vec![entry1, entry2];
-        let result = fill_gaps(entries.clone(), GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+        let result = fill_gaps(entries.clone(), 300_000_000_000u64, 30_000_000_000u64);
         assert_eq!(result.len(), 2, "no synthetic entries when gap < threshold");
     }
 
     #[test]
     fn test_fill_gaps_deltas_recomputed_after_gap() {
         // Entry 1: timestamp=0s, cpu=50.0, network=10.0 (active state)
-        let entry1 = HistoryEntry::with_deltas(
-            0,
-            50.0,
-            25.0,
-            vec![],
-            10.0, // network
-            5.0,
-            true,
-            None,
-        );
+        let entry1 = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
         // Entry 2: timestamp=600s (10 min gap), cpu=5.0, network=0.0 (idle state)
-        let entry2 = HistoryEntry::with_deltas(
-            600_000_000_000, // +600s
-            5.0,
-            2.0,
-            vec![],
-            0.0,
-            0.0,
-            false,
-            Some(30_000_000_000), // stale elapsed (irrelevant)
-        );
+        let entry2 = HistoryEntry::new(600_000_000_000, 5.0, 2.0, vec![], 0.0, 0.0, false);
 
         let entries = vec![entry1.clone(), entry2];
-        let result = fill_gaps(entries, GAP_THRESHOLD_NS, FILL_INTERVAL_NS);
+        let result = fill_gaps(entries, 300_000_000_000u64, 30_000_000_000u64);
 
         assert!(result.len() > 2, "should have synthetic entries in gap");
 
@@ -1098,55 +1041,21 @@ mod tests {
         assert_eq!(last_synthetic.cpu_usage.per_core_max, 0.0);
         assert_eq!(last_synthetic.network_mbps, 0.0);
 
-        // Entry2's elapsed_since_last_ns should be the gap from the LAST synthetic to entry2,
-        // NOT the original stale value (30s). It should be ~FILL_INTERVAL_NS (30s) since synthetics
-        // are spaced at FILL_INTERVAL_NS intervals.
-        let last_elapsed = last_entry.elapsed_since_last_ns.unwrap_or(0);
-        assert!(
-            (1_000_000_000..=FILL_INTERVAL_NS).contains(&last_elapsed),
-            "delta elapsed should be ~30s (fill interval), got {}ns",
-            last_elapsed
-        );
-
-        // Entry2's cpu_delta_per_sec should reflect transition from zero to 5.0 over ~30s:
-        // rate ≈ (5.0 - 0) / 30 = 0.167%/s, NOT the stale value derived from entry1→entry2 gap.
-        let last_cpu_delta = last_entry.cpu_delta_per_sec;
-        assert!(
-            last_cpu_delta.is_some(),
-            "delta should be recomputed for entries after gap-fill"
-        );
-        let cpu_rate = last_cpu_delta.unwrap();
-        // Should be a small positive rate (transition from idle to active), not stale large negative.
-        assert!(
-            cpu_rate > -10.0 && cpu_rate < 20.0,
-            "cpu delta rate should be reasonable for post-gap entry: {}",
-            cpu_rate
-        );
-
         // Verify synthetic entries have correct spacing (~FILL_INTERVAL_NS apart).
         let synthetic_count = result.len() - 2; // exclude first real + last real
         if synthetic_count > 1 {
-            for i in 1..=synthetic_count {
-                let idx = i; // synthetics are at indices 1..len-1
-                let gap = result[idx]
-                    .timestamp_ns
-                    .saturating_sub(result[idx - 1].timestamp_ns);
-                assert!(
-                    (gap as i64 - FILL_INTERVAL_NS as i64).abs() < (FILL_INTERVAL_NS / 2) as i64,
-                    "synthetic spacing should be ~{}ns, got {}ns at index {}",
-                    FILL_INTERVAL_NS,
-                    gap,
-                    idx
-                );
+            for entry in &result[1..result.len() - 1] {
+                assert_eq!(entry.cpu_usage.per_core_max, 0.0);
+                assert_eq!(entry.network_mbps, 0.0);
             }
         }
     }
 
     #[test]
-    fn test_compute_deltas_basic() {
+    fn test_entry_deltas_basic() {
         let prev = HistoryEntry::new(0, 10.0, 5.0, vec![20.0], 8.0, 2.0, false);
         // Entry 1 second later with higher values.
-        let curr = HistoryEntry::with_deltas(
+        let curr = HistoryEntry::new(
             1_000_000_000, // +1s
             30.0,          // cpu per_core_max increased by 20 → rate = 20%/s
             15.0,          // cpu total_average increased by 10 → rate = 10%/s
@@ -1154,62 +1063,30 @@ mod tests {
             18.0,          // network increased by 10 → rate = 10 Mbps/s
             7.0,           // disk increased by 5 → rate = 5 MB/s/s
             true,          // inhibited
-            Some(1_000_000_000),
         );
 
-        let with_deltas = curr.compute_deltas(&prev);
+        let deltas = EntryDeltas::compute(&curr, &prev);
 
-        assert_eq!(with_deltas.elapsed_since_last_ns, Some(1_000_000_000));
+        assert_eq!(deltas.elapsed_since_last_ns, Some(1_000_000_000));
         // CPU delta should be (30-10)/1.0 = 20%/s.
-        assert!((with_deltas.cpu_delta_per_sec.unwrap() - 20.0).abs() < f64::EPSILON);
+        assert!((deltas.cpu_delta_per_sec.unwrap() - 20.0).abs() < f64::EPSILON);
         // Network delta should be (18-8)/1.0 = 10 Mbps/s.
-        assert!((with_deltas.network_delta_per_sec.unwrap() - 10.0).abs() < f64::EPSILON);
+        assert!((deltas.network_delta_per_sec.unwrap() - 10.0).abs() < f64::EPSILON);
         // Disk delta should be (7-2)/1.0 = 5 MB/s/s.
-        assert!((with_deltas.disk_delta_per_sec.unwrap() - 5.0).abs() < f64::EPSILON);
+        assert!((deltas.disk_delta_per_sec.unwrap() - 5.0).abs() < f64::EPSILON);
         // GPU delta should be (40-20)/1.0 = 20%/s.
-        assert_eq!(with_deltas.gpu_deltas_per_sec.len(), 1);
-        assert!((with_deltas.gpu_deltas_per_sec[0] - 20.0).abs() < f64::EPSILON);
+        assert_eq!(deltas.gpu_deltas_per_sec.len(), 1);
+        assert!((deltas.gpu_deltas_per_sec[0] - 20.0).abs() < f64::EPSILON);
     }
 
     #[test]
-    fn test_compute_deltas_zero_elapsed_no_change() {
+    fn test_entry_deltas_zero_elapsed_no_change() {
         let prev = HistoryEntry::new(100, 10.0, 5.0, vec![], 8.0, 2.0, false);
-        // Same timestamp — should return unchanged copy.
-        let curr = HistoryEntry::with_deltas(100, 30.0, 15.0, vec![40.0], 18.0, 7.0, true, Some(0));
-        let with_deltas = curr.compute_deltas(&prev);
+        // Same timestamp — should return None for elapsed and deltas.
+        let curr = HistoryEntry::new(100, 30.0, 15.0, vec![40.0], 18.0, 7.0, true);
+        let deltas = EntryDeltas::compute(&curr, &prev);
 
-        assert_eq!(with_deltas.elapsed_since_last_ns, None); // Zero elapsed → None
-    }
-
-    #[test]
-    fn test_with_deltas_backward_compatible_serialization() {
-        // Old entries without delta fields should deserialize correctly (serde default handles missing).
-        let old_bytes = HistoryEntry::new(0, 50.0, 25.0, vec![30.0], 10.0, 4.0, true).to_bytes();
-
-        let (decoded, _) = HistoryEntry::from_bytes(&old_bytes).unwrap();
-
-        // Delta fields should have serde defaults.
-        assert_eq!(decoded.elapsed_since_last_ns, None);
-        assert!((decoded.cpu_delta_per_sec.unwrap_or(0.0) - 0.0).abs() < f64::EPSILON);
-        assert!(decoded.gpu_deltas_per_sec.is_empty());
-
-        // New entry with deltas should also serialize/deserialize correctly.
-        let new_entry = HistoryEntry::with_deltas(
-            1_000_000_000,
-            60.0,
-            30.0,
-            vec![40.0],
-            15.0,
-            5.0,
-            false,
-            Some(1_000_000_000),
-        );
-        let new_bytes = new_entry.to_bytes();
-        let (decoded_new, _) = HistoryEntry::from_bytes(&new_bytes).unwrap();
-
-        assert_eq!(decoded_new.elapsed_since_last_ns, Some(1_000_000_000));
-        // Values should round-trip correctly.
-        assert!((decoded_new.cpu_usage.per_core_max - 60.0).abs() < f64::EPSILON);
+        assert_eq!(deltas.elapsed_since_last_ns, None); // Zero elapsed → None
     }
 
     #[test]
