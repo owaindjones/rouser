@@ -20,11 +20,11 @@ pub struct Config {
 }
 
 fn default_gpu_threshold() -> f64 {
-    15.0
+    25.0
 }
 
 fn default_gpu_total_threshold() -> f64 {
-    15.0
+    40.0
 }
 
 fn default_network_io() -> f64 {
@@ -452,8 +452,8 @@ mod tests {
 
         assert_eq!(metrics.cpu.per_core_threshold, 80.0);
         assert_eq!(metrics.cpu.total_threshold, 25.0);
-        assert_eq!(metrics.gpu.per_gpu_threshold, 15.0);
-        assert_eq!(metrics.gpu.total_threshold, 15.0);
+        assert_eq!(metrics.gpu.per_gpu_threshold, 25.0);
+        assert_eq!(metrics.gpu.total_threshold, 40.0);
         assert_eq!(metrics.network.threshold, 10.0);
         assert_eq!(metrics.disk.threshold, 10.0);
         assert_eq!(metrics.cpu.ema_alpha, 0.7);

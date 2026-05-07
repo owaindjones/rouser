@@ -40,7 +40,8 @@ per_core_threshold = 80.0   # CPU max usage % (0–100) above which to inhibit s
 total_threshold = 25.0      # Total averaged CPU usage % (default: 25.0)
 
 [metrics.gpu]
-threshold = 15.0            # GPU usage % per device (default: 15.0)
+per_gpu_threshold = 25.0    # Per-GPU max usage that triggers inhibition
+total_threshold = 40.0      # System-wide average threshold (both use OR logic)
 ema_alpha = 0.7             # EMA smoothing factor for GPU readings
 
 [metrics.network]

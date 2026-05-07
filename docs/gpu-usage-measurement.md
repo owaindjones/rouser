@@ -63,8 +63,8 @@ rouser applies **two configurable thresholds** with OR logic across all GPUs reg
 
 ```toml
 [metrics.gpu]
-per_gpu_threshold = 15.0   # Per-GPU max usage that triggers inhibition
-total_threshold = 15.0     # System-wide GPU average that triggers inhibition (both use OR logic)
+per_gpu_threshold = 25.0   # Per-GPU max usage that triggers inhibition
+total_threshold = 40.0     # System-wide GPU average that triggers inhibition (both use OR logic)
 ema_alpha = 0.3
 ```
 

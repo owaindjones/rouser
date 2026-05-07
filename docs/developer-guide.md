@@ -351,10 +351,10 @@ impl ThresholdManager {
     
     pub fn check(&self, config: &Config) -> bool {
         // Check each metric against its threshold using smoothed values
-        let cpu_ok = self.check_metric(&self.cpu_state, metrics.cpu.usage(), config.metrics.cpu.threshold);
-        let gpu_ok = self.gpu_states.iter().all(|state| {
-            self.check_metric(state, /* GPU value */, config.metrics.gpu.threshold)
-        });
+        let cpu_ok = self.check_metric(&self.cpu_state, metrics.cpu.usage(), config.metrics.cpu.per_core_threshold);
+        let gpu_agg = GpuAggregate::from_gpus(&metrics.gpu_usage);
+        let gpu_ok = gpu_agg.per_gpu_max > config.metrics.gpu.per_gpu_threshold
+            || gpu_agg.total_average > config.metrics.gpu.total_threshold;
         // ... similar for network and disk
         cpu_ok || gpu_ok || /* others */ false
     }

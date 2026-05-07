@@ -42,8 +42,8 @@ total_threshold = 25.0
 ema_alpha = 0.7
 
 [metrics.gpu]
-per_gpu_threshold = 15.0    # Per-GPU utilization percentage that triggers inhibition
-total_threshold = 15.0      # System-wide average GPU utilization threshold (both use OR logic)
+per_gpu_threshold = 25.0    # Per-GPU utilization percentage that triggers inhibition
+total_threshold = 40.0      # System-wide average GPU utilization threshold (both use OR logic)
 ema_alpha = 0.7             # EMA smoothing factor
 
 [metrics.network]
@@ -97,8 +97,8 @@ Per-device GPU collection (NVIDIA via NVML, AMD/Intel via sysfs). Both threshold
 
 | Key | Type | Default (0–100) | Description |
 |-----|------|-----------------|-------------|
-| `per_gpu_threshold` | f64 | `15.0` | Per-GPU utilization percentage above which to inhibit sleep |
-| `total_threshold` | f64 | `15.0` | System-wide average GPU utilization threshold (both use OR logic) |
+| `per_gpu_threshold` | f64 | `25.0` | Per-GPU utilization percentage above which to inhibit sleep |
+| `total_threshold` | f64 | `40.0` | System-wide average GPU utilization threshold (both use OR logic) |
 | `ema_alpha` | f64 | `0.7` | EMA smoothing factor for per-GPU readings |
 
 ### `[metrics.network]` — Network Throughput Threshold
