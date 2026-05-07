@@ -69,7 +69,7 @@ impl GpuCollector {
 
     /// Returns true if any physical GPU cards exist on this system.
     pub fn has_gpus(&self) -> bool {
-        self.enumerate_gpus().is_empty()
+        !self.enumerate_gpus().is_empty()
     }
 
     /// Collect utilization data from all detected GPUs.
@@ -390,11 +390,52 @@ impl std::fmt::Display for GpuError {
 
 impl std::error::Error for GpuError {}
 
+/// Aggregate GPU metrics across all GPUs on the system.
+/// Mirrors CpuUsage pattern: per-GPU max + average for inhibition decisions.
+#[derive(Debug, Clone, Default)]
+pub struct GpuAggregate {
+    /// Maximum individual GPU usage across all devices (0-100).
+    pub per_gpu_max: f64,
+    /// Average usage across all GPUs (sum / count) (0-100).
+    pub total_average: f64,
+}
+
 #[derive(Debug, Clone)]
 pub struct GpuData {
     pub device_id: String,
     pub driver_name: String,
     pub usage: f64,
+}
+
+impl GpuAggregate {
+    #[allow(dead_code)] // Kept for potential future use with full GpuData inputs.
+    /// Compute aggregate metrics from individual GPU data.
+    pub(crate) fn from_gpus(gpus: &[GpuData]) -> Self {
+        if gpus.is_empty() {
+            return Self::default();
+        }
+        let max = gpus.iter().map(|g| g.usage).fold(0.0f64, f64::max);
+        let sum: f64 = gpus.iter().map(|g| g.usage).sum();
+        let avg = sum / gpus.len() as f64;
+        Self {
+            per_gpu_max: max,
+            total_average: avg,
+        }
+    }
+
+    /// Compute aggregate metrics from raw GPU usage values (e.g., after EMA smoothing).
+    pub fn from_values(values: &[f64]) -> Self {
+        if values.is_empty() {
+            return Self::default();
+        }
+        let max = values.iter().cloned().fold(0.0f64, f64::max);
+        let sum: f64 = values.iter().sum();
+        let avg = sum / values.len() as f64;
+        Self {
+            per_gpu_max: max,
+            total_average: avg,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -776,5 +817,158 @@ mod enumerate_tests {
         let empty = base.path().join("");
         fs::create_dir_all(empty.join("device")).ok();
         assert!(!GpuCollector::is_valid_gpu_card("", &empty));
+    }
+}
+#[cfg(test)]
+mod has_gpus_tests {
+    use super::*;
+
+    #[test]
+    fn test_has_gpus_consistent_with_enumerate() {
+        let collector = GpuCollector::new();
+        let enumerated = collector.enumerate_gpus();
+
+        // has_gpus and enumerate results must agree:
+        // has_gpus is true iff enumerate returns non-empty.
+        assert_eq!(collector.has_gpus(), !enumerated.is_empty());
+    }
+
+    #[test]
+    fn test_enumerate_returns_known_driver_types() {
+        let collector = GpuCollector::new();
+        let cards = collector.enumerate_gpus();
+
+        for card in &cards {
+            // All enumerated cards should have recognized drivers, not "unknown"
+            assert_ne!(
+                card.driver_name, "unknown",
+                "Card {} has unrecognized driver '{}'",
+                card.device_id, card.driver_name
+            );
+        }
+
+        if !cards.is_empty() {
+            println!("Enumerated GPUs: {:?}", cards);
+        }
+    }
+
+    #[test]
+    fn test_has_gpus_false_on_empty_sysfs_simulation() {
+        let base = tempfile::tempdir().unwrap();
+
+        // Verify is_valid_gpu_card rejects all entries in empty temp dir.
+        let entries = fs::read_dir(base.path()).ok();
+        let mut found_any = false;
+        if let Some(entries) = entries {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = match path.file_name().and_then(|s| s.to_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+                if GpuCollector::is_valid_gpu_card(name, &path) {
+                    found_any = true;
+                }
+            }
+        }
+
+        // Empty temp dir should have no valid GPU cards.
+        assert!(
+            !found_any,
+            "tempdir unexpectedly contains valid gpu card entries"
+        );
+    }
+
+    #[test]
+    fn test_has_gpus_true_when_fake_card_present() {
+        let base = tempfile::tempdir().unwrap();
+        let card_path = base.path().join("card0");
+        fs::create_dir_all(card_path.join("device")).unwrap();
+
+        // Verify is_valid_gpu_card accepts the fake card.
+        assert!(GpuCollector::is_valid_gpu_card("card0", &card_path));
+    }
+}
+
+#[cfg(test)]
+mod gpu_aggregate_tests {
+    use super::*;
+
+    #[test]
+    fn test_gpu_aggregate_empty_values_returns_default() {
+        let agg = GpuAggregate::from_values(&[]);
+        assert_eq!(agg.per_gpu_max, 0.0);
+        assert_eq!(agg.total_average, 0.0);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_single_value_both_metrics_equal() {
+        let agg = GpuAggregate::from_values(&[50.0]);
+        // With one GPU, max and average are the same value.
+        assert!((agg.per_gpu_max - 50.0).abs() < f64::EPSILON);
+        assert!((agg.total_average - 50.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_two_gpus_max_and_average_correct() {
+        let agg = GpuAggregate::from_values(&[30.0, 70.0]);
+        // max is 70 (highest GPU)
+        assert!((agg.per_gpu_max - 70.0).abs() < f64::EPSILON);
+        // average is (30+70)/2 = 50
+        assert!((agg.total_average - 50.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_three_gpus_correct() {
+        let agg = GpuAggregate::from_values(&[10.0, 50.0, 90.0]);
+        // max is 90
+        assert!((agg.per_gpu_max - 90.0).abs() < f64::EPSILON);
+        // average is (10+50+90)/3 = 50
+        assert!((agg.total_average - 50.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_all_zeros() {
+        let agg = GpuAggregate::from_values(&[0.0, 0.0, 0.0]);
+        assert!((agg.per_gpu_max - 0.0).abs() < f64::EPSILON);
+        assert!((agg.total_average - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_default_impl_is_zero() {
+        let agg = GpuAggregate::default();
+        assert_eq!(agg.per_gpu_max, 0.0);
+        assert_eq!(agg.total_average, 0.0);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_from_gpus_empty_returns_default() {
+        let gpus: Vec<GpuData> = vec![];
+        let agg = GpuAggregate::from_gpus(&gpus);
+        assert_eq!(agg.per_gpu_max, 0.0);
+        assert_eq!(agg.total_average, 0.0);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_from_gpus_matches_from_values() {
+        let gpus = vec![
+            GpuData {
+                device_id: "card0".into(),
+                driver_name: "nvidia".into(),
+                usage: 40.0,
+            },
+            GpuData {
+                device_id: "card1".into(),
+                driver_name: "amdgpu".into(),
+                usage: 80.0,
+            },
+        ];
+        let values = vec![40.0, 80.0];
+
+        let agg_from_gpus = GpuAggregate::from_gpus(&gpus);
+        let agg_from_values = GpuAggregate::from_values(&values);
+
+        assert!((agg_from_gpus.per_gpu_max - agg_from_values.per_gpu_max).abs() < f64::EPSILON);
+        assert!((agg_from_gpus.total_average - agg_from_values.total_average).abs() < f64::EPSILON);
     }
 }

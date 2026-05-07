@@ -163,18 +163,21 @@ rocm-smi --showgpuutilization
 
 NVML, amdgpu, and i915 all report a 0–100% value but measure different things under the hood. NVIDIA's SM kernel utilization, AMD's aggregate IP core activity via SMU firmware, and Intel's GT engine ticks are not directly comparable as percentages. See [GPU Usage Measurement](gpu-usage-measurement.md) for a detailed breakdown of what each driver reports and why this doesn't affect rouser's sleep inhibition behavior in practice.
 
-### Aggregation Strategy — Per-Device Reporting Over Averaging
+### Aggregation Strategy — Dual Thresholds with Per-Device Reporting
 
-rouser reports each physical GPU **individually** rather than aggregating across devices. Each detected GPU is compared independently against the configured threshold:
+rouser collects each physical GPU **individually** (independent EMA smoothing per device) but uses two aggregate metrics for inhibition decisions: the maximum per-GPU utilization and the system-wide average across all GPUs. Either threshold exceeding its configured value triggers sleep inhibition via OR logic.
 
 ```
-card0(nvidia): 95%   ← above 90% threshold → inhibits sleep
-card1(amdgpu): 78%  ← below 90% threshold → does not inhibit alone
+card0(nvidia): 95%   ← above per_gpu_threshold → inhibits sleep (per-device max exceeded)
+card1(amdgpu): 78%    total_average = (95+78)/2 = 86.5%
+                      both thresholds evaluated independently — either triggers inhibition
 ```
 
-A single GPU exceeding its threshold triggers inhibition regardless of other GPUs' states. This provides accurate per-GPU logging and prevents one low-usage card from masking a high-usage card's activity.
+A single GPU exceeding `per_gpu_threshold` OR the system-wide average (`total_average`) exceeding `total_threshold` inhibits sleep. This prevents one low-usage card from masking a high-usage card while also catching scenarios where all GPUs are moderately loaded simultaneously (high aggregate even if no single card exceeds its individual threshold).
 
-**EMA Smoothing**: Each device has independent EMA smoothing applied to its readings before comparison against the threshold. The `ema_alpha` value in `[metrics.gpu]` controls smoothing strength uniformly across all GPUs.
+**History Format**: Each flushed history entry stores a fixed-size `GpuSnapshot { per_gpu_max, total_average }` rather than a variable-length vector of per-GPU values. This ensures consistent serialization regardless of GPU count — adding or removing GPUs does not break historical data comparison.
+
+**EMA Smoothing**: Each device has independent EMA smoothing applied to its readings before both the debug display and aggregate computation. The `ema_alpha` value in `[metrics.gpu]` controls smoothing strength uniformly across all GPUs.
 
 ## Network I/O
 

@@ -16,75 +16,65 @@ pub struct Config {
     pub metrics: Metrics,
     pub timing: TimingConfig,
     pub inhibitor: InhibitionConfig,
+    pub prediction: PredictionConfig,
 }
 
-fn default_gpu_threshold() -> f64 {
-    15.0
-}
-
-fn default_network_io() -> f64 {
-    10.0
-}
-
-fn default_disk_activity() -> f64 {
-    10.0
-}
-
-#[allow(dead_code)]
+/// CPU metrics configuration with per-core and total thresholds.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Thresholds {
-    #[serde(default = "default_cpu_usage_threshold")]
-    pub cpu_usage: f64,
-    #[serde(default = "default_gpu_threshold")]
-    pub gpu_usage: f64,
-    #[serde(default = "default_network_io")]
-    pub network_io: f64,
-    #[serde(default = "default_disk_activity")]
-    pub disk_activity: f64,
-}
-
-fn default_cpu_usage_threshold() -> f64 {
-    80.0
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MetricsConfig {
-    #[serde(default = "default_ema_alpha_cpu")]
-    pub ema_alpha: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CpuConfig {
-    #[serde(default = "default_per_core_threshold")]
+    /// Per-core CPU usage threshold (percentage). Exceeding this triggers inhibition.
+    #[serde(default)]
     pub per_core_threshold: f64,
-    #[serde(default = "default_total_threshold")]
+    /// Total averaged CPU usage threshold (percentage). Exceeding this triggers inhibition.
+    #[serde(default)]
     pub total_threshold: f64,
-    #[serde(default = "default_ema_alpha_cpu")]
+    /// EMA smoothing factor for CPU readings.
+    #[serde(default)]
     pub ema_alpha: f64,
 }
 
-fn default_per_core_threshold() -> f64 {
-    80.0
+impl Default for CpuConfig {
+    fn default() -> Self {
+        Self {
+            per_core_threshold: 80.0,
+            total_threshold: 25.0,
+            ema_alpha: 0.7,
+        }
+    }
 }
 
-fn default_total_threshold() -> f64 {
-    25.0
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// GPU metrics configuration with per-GPU and aggregate thresholds.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuConfig {
-    #[serde(default = "default_gpu_threshold")]
-    pub threshold: f64,
-    #[serde(default = "default_ema_alpha_gpu")]
+    /// GPU usage threshold per individual card (percentage). Any single GPU above this triggers inhibition.
+    #[serde(default)]
+    pub per_gpu_threshold: f64,
+    /// System-wide aggregate GPU threshold (average across all GPUs, percentage). The average GPU load exceeding this triggers inhibition.
+    #[serde(default)]
+    pub total_threshold: f64,
+    /// EMA smoothing factor for GPU readings.
+    #[serde(default)]
     pub ema_alpha: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+impl Default for GpuConfig {
+    fn default() -> Self {
+        Self {
+            per_gpu_threshold: 25.0,
+            total_threshold: 40.0,
+            ema_alpha: 0.7,
+        }
+    }
+}
+
+/// Network metrics configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
-    #[serde(default = "default_network_io")]
+    /// Network throughput threshold (Mbps). Exceeding this triggers inhibition.
+    #[serde(default)]
     pub threshold: f64,
-    #[serde(default = "default_ema_alpha_network")]
+    /// EMA smoothing factor for network I/O readings.
+    #[serde(default)]
     pub ema_alpha: f64,
     #[serde(default)]
     pub exclude_interfaces: Vec<String>,
@@ -92,29 +82,51 @@ pub struct NetworkConfig {
     pub include_interfaces: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            threshold: 10.0,
+            ema_alpha: 0.5,
+            exclude_interfaces: vec!["lo".to_string()],
+            include_interfaces: Vec::new(),
+        }
+    }
+}
+
+/// Disk metrics configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiskConfig {
-    #[serde(default = "default_disk_activity")]
+    /// Disk I/O threshold (MB/s). Exceeding this triggers inhibition.
+    #[serde(default)]
     pub threshold: f64,
-    #[serde(default = "default_ema_alpha_disk")]
+    /// EMA smoothing factor for disk activity readings.
+    #[serde(default)]
     pub ema_alpha: f64,
     #[serde(default)]
     pub exclude_device_prefixes: Vec<String>,
 }
 
-fn default_cpu() -> CpuConfig {
-    Default::default()
+impl Default for DiskConfig {
+    fn default() -> Self {
+        Self {
+            threshold: 10.0,
+            ema_alpha: 0.5,
+            exclude_device_prefixes: vec![
+                "loop".to_string(),
+                "fd".to_string(),
+                "sr".to_string(),
+                "cdrom".to_string(),
+            ],
+        }
+    }
 }
 
-fn default_gpu() -> GpuConfig {
-    Default::default()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Aggregated metrics configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Metrics {
-    #[serde(default = "default_cpu")]
+    #[serde(default)]
     pub cpu: CpuConfig,
-    #[serde(default = "default_gpu")]
+    #[serde(default)]
     pub gpu: GpuConfig,
     #[serde(default)]
     pub network: NetworkConfig,
@@ -122,52 +134,82 @@ pub struct Metrics {
     pub disk: DiskConfig,
 }
 
-fn default_duration_threshold() -> Duration {
-    Duration::from_secs(30)
-}
-
-fn default_cooldown_duration() -> Duration {
-    Duration::from_secs(60)
-}
-
-fn default_ema_alpha_cpu() -> f64 {
-    0.7
-}
-
-fn default_ema_alpha_gpu() -> f64 {
-    0.7
-}
-
-fn default_ema_alpha_network() -> f64 {
-    0.5
-}
-
-fn default_ema_alpha_disk() -> f64 {
-    0.5
-}
-
+/// Timing configuration for threshold evaluation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimingConfig {
-    #[serde(default = "default_duration_threshold", with = "humantime_serde")]
+    /// Minimum continuous time metrics must exceed threshold before inhibiting sleep.
+    #[serde(with = "humantime_serde")]
     pub duration_threshold: Duration,
-    #[serde(default = "default_cooldown_duration", with = "humantime_serde")]
+    /// Time after releasing inhibition during which the daemon won't re-inhibit even if thresholds are exceeded again.
+    #[serde(default, with = "humantime_serde")]
     pub cooldown_duration: Duration,
 }
 
-fn default_what() -> String {
-    "shutdown:idle".to_string()
+impl Default for TimingConfig {
+    fn default() -> Self {
+        Self {
+            duration_threshold: Duration::from_secs(5),
+            cooldown_duration: Duration::from_secs(10),
+        }
+    }
 }
 
-fn default_mode() -> String {
-    "block".to_string()
-}
-
+/// Inhibition configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InhibitionConfig {
-    #[serde(default = "default_what")]
+    /// Operations to inhibit (colon-separated). See D-Bus login1 API for options.
+    #[serde(default)]
     pub what: String,
-    #[serde(default = "default_mode")]
+    /// Mode of inhibition: block, delay, or block-weak.
+    #[serde(default)]
     pub mode: String,
+}
+
+impl Default for InhibitionConfig {
+    fn default() -> Self {
+        Self {
+            what: "shutdown:idle".to_string(),
+            mode: "block".to_string(),
+        }
+    }
+}
+
+/// Predictive cooldown configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PredictionConfig {
+    /// Seconds between averaged snapshots written to history log; must be >= root update_interval.
+    #[serde(default, with = "humantime_serde")]
+    pub update_interval: Duration,
+    /// Keep this much historical data; older entries are pruned periodically.
+    #[serde(default = "default_history_length", with = "humantime_serde")]
+    pub history_length: Duration,
+    /// Maximum additional time for predictive cooldown extension.
+    #[serde(default, with = "humantime_serde")]
+    pub max_extension_time: Duration,
+    /// Number of hidden neurons in the NG-RC reservoir computing model. Controls model capacity; larger values capture more complex patterns but use more memory (O(n^2) for n hidden_dim).
+    #[serde(default)]
+    pub ml_hidden_dim: usize,
+    /// Size of the delay buffer used by the NG-RC model to create polynomial features from past states. Must be <= history_length / update_interval.
+    #[serde(default)]
+    pub ml_delay_buffer_size: usize,
+}
+
+fn default_history_length() -> Duration {
+    // 30 days — matches config/rouser.toml. Kept because humantime_serde
+    // requires a Duration-typed function (can't use bare "default").
+    Duration::from_secs(30 * 24 * 60 * 60)
+}
+
+impl Default for PredictionConfig {
+    fn default() -> Self {
+        Self {
+            update_interval: Duration::from_secs(30),
+            history_length: Duration::from_secs(30 * 24 * 60 * 60),
+            max_extension_time: Duration::from_secs(3600),
+            ml_hidden_dim: 16,
+            ml_delay_buffer_size: 8,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -381,32 +423,12 @@ mod tests {
 
     #[test]
     fn test_metrics_defaults() {
-        let metrics = Metrics {
-            cpu: CpuConfig {
-                per_core_threshold: default_per_core_threshold(),
-                total_threshold: default_total_threshold(),
-                ema_alpha: default_ema_alpha_cpu(),
-            },
-            gpu: GpuConfig {
-                threshold: default_gpu_threshold(),
-                ema_alpha: default_ema_alpha_gpu(),
-            },
-            network: NetworkConfig {
-                threshold: default_network_io(),
-                ema_alpha: default_ema_alpha_network(),
-                exclude_interfaces: vec![],
-                include_interfaces: vec![],
-            },
-            disk: DiskConfig {
-                threshold: default_disk_activity(),
-                ema_alpha: default_ema_alpha_disk(),
-                exclude_device_prefixes: vec![],
-            },
-        };
+        let metrics = Metrics::default();
 
         assert_eq!(metrics.cpu.per_core_threshold, 80.0);
         assert_eq!(metrics.cpu.total_threshold, 25.0);
-        assert_eq!(metrics.gpu.threshold, 15.0);
+        assert_eq!(metrics.gpu.per_gpu_threshold, 25.0);
+        assert_eq!(metrics.gpu.total_threshold, 40.0);
         assert_eq!(metrics.network.threshold, 10.0);
         assert_eq!(metrics.disk.threshold, 10.0);
         assert_eq!(metrics.cpu.ema_alpha, 0.7);
@@ -417,12 +439,9 @@ mod tests {
 
     #[test]
     fn test_timing_defaults() {
-        let timing = TimingConfig {
-            duration_threshold: default_duration_threshold(),
-            cooldown_duration: default_cooldown_duration(),
-        };
+        let timing = TimingConfig::default();
 
-        assert_eq!(timing.duration_threshold.as_secs(), 30);
-        assert_eq!(timing.cooldown_duration.as_secs(), 60);
+        assert_eq!(timing.duration_threshold.as_secs(), 5);
+        assert_eq!(timing.cooldown_duration.as_secs(), 10);
     }
 }

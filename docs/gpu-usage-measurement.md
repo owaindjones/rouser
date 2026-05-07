@@ -59,11 +59,12 @@ Measured via PMU (Performance Monitoring Unit) counters from the GuC (Graphics M
 
 ### Why This Matters for Sleep Inhibition
 
-rouser applies a single configurable GPU utilization threshold across all GPUs regardless of vendor:
+rouser applies **two configurable thresholds** with OR logic across all GPUs regardless of vendor: either a single GPU exceeding its per-GPU threshold, or the system-wide average total utilization exceeding its own threshold. Both trigger sleep inhibition independently.
 
 ```toml
 [metrics.gpu]
-threshold = 20   # Inhibit sleep if any GPU exceeds this percentage
+per_gpu_threshold = 25.0   # Per-GPU max usage that triggers inhibition
+total_threshold = 40.0     # System-wide GPU average that triggers inhibition (both use OR logic)
 ema_alpha = 0.3
 ```
 

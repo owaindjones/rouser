@@ -2,6 +2,7 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 
 use crate::config::Config;
+use crate::prediction::{CooldownPrediction, PredictionModel};
 
 use crate::inhibit::InhibitionState;
 use crate::metrics::{
@@ -54,7 +55,8 @@ impl SmoothingState {
 pub struct ThresholdManager {
     cpu_per_core_threshold: f64,
     cpu_total_threshold: f64,
-    gpu_threshold: f64,
+    gpu_per_gpu_threshold: f64,
+    gpu_total_threshold: f64,
     network_threshold: f64,
     disk_threshold: f64,
 }
@@ -64,14 +66,16 @@ impl ThresholdManager {
     pub fn new(
         cpu_per_core_threshold: f64,
         cpu_total_threshold: f64,
-        gpu_threshold: f64,
+        gpu_per_gpu_threshold: f64,
+        gpu_total_threshold: f64,
         network_threshold: f64,
         disk_threshold: f64,
     ) -> Self {
         Self {
             cpu_per_core_threshold,
             cpu_total_threshold,
-            gpu_threshold,
+            gpu_per_gpu_threshold,
+            gpu_total_threshold,
             network_threshold,
             disk_threshold,
         }
@@ -81,13 +85,14 @@ impl ThresholdManager {
         &self,
         smoothed_cpu_max: f64,
         smoothed_cpu_avg: f64,
-        gpu_smoothed_values: &[f64],
+        gpu_aggregate: &crate::metrics::GpuAggregate,
         smoothed_network: f64,
         smoothed_disk: f64,
     ) -> bool {
         smoothed_cpu_max > self.cpu_per_core_threshold
             || smoothed_cpu_avg > self.cpu_total_threshold
-            || gpu_smoothed_values.iter().any(|&v| v > self.gpu_threshold)
+            || gpu_aggregate.per_gpu_max > self.gpu_per_gpu_threshold
+            || gpu_aggregate.total_average > self.gpu_total_threshold
             || smoothed_network > self.network_threshold
             || smoothed_disk > self.disk_threshold
     }
@@ -115,6 +120,11 @@ pub struct DataManager {
     previous_inhibited_state: bool,
     just_released: bool,
     waiting_for_cooldown: bool,
+    /// Cached predicted additional time from last tick's model query.
+    /// Applied to cooldown_duration when metrics drop below threshold.
+    predicted_additional_time: std::time::Duration,
+    // Prediction model for adaptive cooldown extension (None if disabled).
+    prediction_model: Option<PredictionModel>,
 }
 
 pub struct DataService {
@@ -137,10 +147,44 @@ impl DataManager {
         let threshold_manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
+
+        // Initialize prediction model if enabled (prediction.update_interval is set).
+        let prediction_model = if config.prediction.update_interval.as_secs() > 0 {
+            // Determine if running as root to choose history directory.
+            #[cfg(unix)]
+            let is_root: bool = unsafe { libc::geteuid() == 0 };
+            #[cfg(not(unix))]
+            let is_root: bool = false;
+
+            let mut model = PredictionModel::new(
+                is_root,
+                config.prediction.update_interval.as_nanos() as u64,
+                config.prediction.max_extension_time,
+            );
+            let effective_prediction_interval =
+                std::cmp::max(config.prediction.update_interval, config.update_interval);
+            if config.prediction.update_interval < config.update_interval
+                && config.update_interval.as_secs() > 0
+            {
+                warn!(
+                    "prediction.update_interval ({:?}) is less than root update_interval ({}s) — \
+                 using {:?} instead to avoid erratic accumulation flush timing",
+                    config.prediction.update_interval,
+                    config.update_interval.as_secs(),
+                    effective_prediction_interval,
+                );
+            }
+            // Configure how often to flush averaged snapshots (every N ticks).
+            model.set_prediction_update_interval(effective_prediction_interval);
+            Some(model)
+        } else {
+            None
+        };
 
         // Initialize per-GPU smoothing states based on detected GPUs
         let gpu_collector = GpuCollector::new();
@@ -162,6 +206,8 @@ impl DataManager {
             previous_inhibited_state: false,
             just_released: false,
             waiting_for_cooldown: false,
+            predicted_additional_time: std::time::Duration::ZERO,
+            prediction_model,
             cpu_smooth_max: SmoothingState::new(config.metrics.cpu.ema_alpha),
             cpu_smooth_avg: SmoothingState::new(config.metrics.cpu.ema_alpha),
             gpu_smoothing: (0..num_gpus)
@@ -199,6 +245,8 @@ impl DataManager {
             }
         }
 
+        let gpu_aggregate = crate::metrics::GpuAggregate::from_values(&gpu_smoothed_values);
+
         let sorted_entries = sorted_gpu_display(&metrics.gpu_usage, &gpu_smoothed_values);
         let gpu_debug = gpu_display_string(&sorted_entries);
 
@@ -222,25 +270,46 @@ impl DataManager {
         );
 
         debug!(
-            "Metrics: CPU max={:.1}% avg={:.1}%, GPU: {}, Network={}, Disk={}",
-            smoothed_cpu_max, smoothed_cpu_avg, gpu_debug, network_log, disk_log
+            "Metrics: CPU max={:.1}% avg={:.1}%, GPU: {} (max={:.1}% avg={:.1}%), Network={}, Disk={}",
+            smoothed_cpu_max,
+            smoothed_cpu_avg,
+            gpu_debug,
+            gpu_aggregate.per_gpu_max,
+            gpu_aggregate.total_average,
+            network_log,
+            disk_log
         );
 
         let should_inhibit = self.threshold_manager.should_inhibit(
             smoothed_cpu_max,
             smoothed_cpu_avg,
-            &gpu_smoothed_values,
+            &gpu_aggregate,
             smoothed_network,
             smoothed_disk,
         );
+
+        // Record metrics into prediction history if enabled. Accumulates per-tick and flushes averaged snapshots on interval.
+        if let Some(ref mut model) = self.prediction_model {
+            let _flushed = model.record(
+                smoothed_cpu_max,
+                smoothed_cpu_avg,
+                gpu_smoothed_values.clone(),
+                smoothed_network,
+                smoothed_disk,
+                should_inhibit,
+            );
+            // debug! already logs inside model.record() when a snapshot is flushed.
+        }
+
+        if let Some(ref mut model) = self.prediction_model {
+            model.prune(config.prediction.history_length);
+        }
 
         self.update_state(should_inhibit).await?;
 
         let was_inhibited = self.previous_inhibited_state;
 
         if should_inhibit {
-            debug!("Metrics exceed threshold, checking inhibition status");
-
             // Cancel cooldown — metrics spiked again while waiting.
             if self.waiting_for_cooldown {
                 self.waiting_for_cooldown = false;
@@ -287,6 +356,8 @@ impl DataManager {
                                 self.metrics_below_threshold_since = None;
                                 self.cooldown_start_time = None;
                                 self.just_released = false;
+                                // Clear prediction — fresh prediction will be computed when metrics drop below again.
+                                self.predicted_additional_time = std::time::Duration::ZERO;
                             }
                             Err(e) => warn!("Failed to acquire inhibition: {}", e),
                         }
@@ -299,26 +370,109 @@ impl DataManager {
                 .duration_since(below_since)
                 .unwrap_or(Duration::from_secs(0));
 
-            if !self.just_released && elapsed >= config.timing.cooldown_duration {
-                info!(
-                    "Releasing sleep inhibition: all metrics below threshold for {:?}",
-                    elapsed
-                );
-                self.state.release().await;
-                self.waiting_for_cooldown = false;
-                self.metrics_below_threshold_since = None;
-                self.just_released = true;
-            } else if !self.state.is_inhibited() {
-                // Not inhibited — don't track cooldown for future release.
-                self.waiting_for_cooldown = false;
-                self.metrics_below_threshold_since = None;
-            } else {
-                debug!(
-                    "Waiting for cooldown: {}/{} seconds below threshold",
-                    elapsed.as_secs(),
-                    config.timing.cooldown_duration.as_secs()
-                );
+            // Re-evaluate prediction every tick during cooldown waiting to adapt extension
+            // based on current trends (increases or decreases the remaining wait time).
+            let was_active = !self.predicted_additional_time.is_zero();
+            if self.prediction_model.is_some() {
+                let prediction = match &self.prediction_model {
+                    Some(model) => model.predict_cooldown(),
+                    None => CooldownPrediction {
+                        additional_time: std::time::Duration::ZERO,
+                        confidence: 0.0,
+                    },
+                };
+
+                // Log info-level only when first applying a non-zero extension per transition;
+                // log debug-level for subsequent updates during extended cooldown.
+                if was_active && self.predicted_additional_time != prediction.additional_time {
+                    debug!(
+                        "Updated predictive cooldown extension: {:?} -> {:?}",
+                        self.predicted_additional_time, prediction.additional_time
+                    );
+                } else if !was_active && !prediction.additional_time.is_zero() {
+                    info!(
+                        "Predictive cooldown extension: +{}s (confidence={:.0}%), \
+                         historical patterns suggest active usage at this hour",
+                        prediction.additional_time.as_secs(),
+                        prediction.confidence * 100.0,
+                    );
+                }
+
+                self.predicted_additional_time = prediction.additional_time;
             }
+
+            if !self.just_released && self.state.is_inhibited() {
+                let effective_cooldown = std::cmp::max(
+                    config.timing.cooldown_duration,
+                    self.predicted_additional_time,
+                );
+
+                if elapsed >= effective_cooldown {
+                    if !self.predicted_additional_time.is_zero() {
+                        let total_wait =
+                            config.timing.cooldown_duration + self.predicted_additional_time;
+                        info!(
+                            "Releasing sleep inhibition: all metrics below threshold for {:?} \
+                             (base cooldown {}s, with {}s predictive extension, total wait {:?})",
+                            elapsed,
+                            config.timing.cooldown_duration.as_secs(),
+                            self.predicted_additional_time.as_secs(),
+                            total_wait,
+                        );
+                    } else {
+                        info!(
+                            "Releasing sleep inhibition: all metrics below threshold for {:?}",
+                            elapsed
+                        );
+                    }
+                    self.state.release().await;
+                    self.waiting_for_cooldown = false;
+                    self.metrics_below_threshold_since = None;
+                    self.just_released = true;
+                } else {
+                    debug!(
+                        "Waiting for cooldown: {}s/{}s below threshold \
+                         (with {:?} predictive extension)",
+                        elapsed.as_secs(),
+                        effective_cooldown.as_secs(),
+                        self.predicted_additional_time,
+                    );
+                }
+            } else if !self.state.is_inhibited() {
+                // Not inhibited — reset state tracking for fresh below-threshold cycle.
+                self.waiting_for_cooldown = false;
+                self.just_released = false;
+                self.metrics_below_threshold_since = None;
+            }
+        }
+
+        // Predict cooldown extension when transitioning from inhibited to below-threshold.
+        // Only set initial prediction here — the active cooldown block (above) re-evaluates
+        // every tick and produces fresher predictions based on updated in-memory model state.
+        if was_inhibited && !should_inhibit {
+            let prediction = match &self.prediction_model {
+                Some(model) => model.predict_cooldown(),
+                None => CooldownPrediction {
+                    additional_time: std::time::Duration::ZERO,
+                    confidence: 0.0,
+                },
+            };
+
+            // Only apply from the transition block if no prediction exists yet (first tick below threshold).
+            if self.predicted_additional_time.is_zero() {
+                self.predicted_additional_time = prediction.additional_time;
+                if !prediction.additional_time.is_zero() {
+                    info!(
+                        "Predictive cooldown extension: +{}s (confidence={:.0}%), \
+                         historical patterns suggest active usage at this hour",
+                        prediction.additional_time.as_secs(),
+                        prediction.confidence * 100.0,
+                    );
+                }
+            }
+        } else if should_inhibit && self.metrics_above_threshold_since.is_some() {
+            // Metrics spiked again — reset extension and flag for fresh cooldown cycle.
+            self.predicted_additional_time = std::time::Duration::ZERO;
         }
 
         if !was_inhibited && self.state.is_inhibited() {
@@ -404,7 +558,8 @@ mod tests {
                     ema_alpha: 0.3,
                 },
                 gpu: crate::config::GpuConfig {
-                    threshold: 90.0,
+                    per_gpu_threshold: 90.0,
+                    total_threshold: 90.0,
                     ema_alpha: 0.3,
                 },
                 network: crate::config::NetworkConfig {
@@ -427,6 +582,13 @@ mod tests {
                 what: "sleep".to_string(),
                 mode: "block".to_string(),
             },
+            prediction: crate::config::PredictionConfig {
+                update_interval: std::time::Duration::from_secs(30),
+                history_length: std::time::Duration::from_secs(30 * 24 * 60 * 60),
+                max_extension_time: std::time::Duration::from_secs(60),
+                ml_hidden_dim: 16,
+                ml_delay_buffer_size: 8,
+            },
         }
     }
 
@@ -436,7 +598,8 @@ mod tests {
         let _manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
@@ -448,12 +611,14 @@ mod tests {
         let manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
 
-        assert!(manager.should_inhibit(90.0, 30.0, &[50.0], 10.0, 5.0));
+        let agg = crate::metrics::GpuAggregate::from_values(&[50.0]);
+        assert!(manager.should_inhibit(90.0, 30.0, &agg, 10.0, 5.0));
     }
 
     #[test]
@@ -462,12 +627,14 @@ mod tests {
         let manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
 
-        assert!(!manager.should_inhibit(50.0, 30.0, &[10.0], 10.0, 5.0));
+        let agg = crate::metrics::GpuAggregate::from_values(&[10.0]);
+        assert!(!manager.should_inhibit(50.0, 30.0, &agg, 10.0, 5.0));
     }
 
     #[test]
@@ -476,12 +643,14 @@ mod tests {
         let manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
 
-        assert!(manager.should_inhibit(80.0, 45.0, &[95.0], 10.0, 5.0));
+        let agg = crate::metrics::GpuAggregate::from_values(&[95.0]);
+        assert!(manager.should_inhibit(80.0, 45.0, &agg, 10.0, 5.0));
     }
 
     #[test]
@@ -490,12 +659,14 @@ mod tests {
         let manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
 
-        assert!(manager.should_inhibit(80.0, 45.0, &[50.0, 95.0], 10.0, 5.0));
+        let agg = crate::metrics::GpuAggregate::from_values(&[50.0, 95.0]);
+        assert!(manager.should_inhibit(80.0, 45.0, &agg, 10.0, 5.0));
     }
 
     #[test]

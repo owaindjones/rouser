@@ -36,4 +36,5 @@ site/
 
 # Scratch directories
 .scratch/
+.sisyphus/
 scratch/

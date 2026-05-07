@@ -6,14 +6,20 @@ Wants=network.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/rouser --config %h/.config/rouser/config.toml
+ExecStart=%h/.local/bin/rouser
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=rouser
-# Security hardening (non-breaking for D-Bus access)
+# Binary and config live in home — must be readable by the service.
+ReadOnlyPaths=%h/.local/bin %h/.config/rouser
+# History data: allow writing to XDG_STATE_HOME despite ProtectHome=read-only.
+ReadWritePaths=%h/.local/state/rouser
 ProtectHome=read-only
+
+# Root/system mode: state directory at /var/lib/rouser (standard location).
+StateDirectory=rouser
 PrivateTmp=true
 NoNewPrivileges=false
 

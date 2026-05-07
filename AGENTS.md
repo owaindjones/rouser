@@ -5,6 +5,7 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
 ## Core Principles
 
 - **Read CONTRIBUTING.md first**: Before making changes, read [CONTRIBUTING.md](./CONTRIBUTING.md) for coding standards, testing conventions, and documentation sync rules that apply to all contributors (agents included). AGENTS.md covers agent-specific behavior; CONTRIBUTING.md covers everything else.
+- **Work in branches only**: All work must be done in feature or topic branches unless the user explicitly specifies otherwise. Commits directly to `main` are forbidden without explicit instruction. Before beginning any task, check what branch you're on and create a new one if needed (e.g., `feat/description`, `fix/description`).
 - **Build before committing**: The code MUST compile (`cargo build`), pass all tests (`cargo test --all-targets`), and be clean under clippy (`cargo clippy --all-targets -- -D warnings`) before any git commit. Never ship broken code. Always match CI commands exactly — `--all-targets` includes test targets which may have lint warnings not visible otherwise.
 - **Conventional commits**: All git commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope): description`. See section below.
 - **Commit frequently when stable**: Make atomic, logical commits whenever the codebase is in a working state (builds, tests pass). Do not batch unrelated changes into a single commit. Each commit should represent one coherent unit of change.
@@ -13,6 +14,9 @@ These guidelines are specific to **AI/LLM agents** working on this codebase. Hum
   - For larger units of work (major refactoring, big new feature), split into small, manageable commits rather than one massive commit to preserve history granularity and make rollbacks easier.
 - **Follow existing patterns first**: Before proposing new patterns or structures, search for and follow established conventions in the codebase. When in doubt, match what's already there.
 - **Graceful degradation over panics**: Metric collectors return `Result` types and fall back to zero values on failure. The daemon continues operating even when individual metrics are unavailable.
+- **Descriptive comments are encouraged**: Comments that explain non-obvious intent, arithmetic expectations, or why a particular approach was chosen should be kept — especially in tests where the "what" is clear but the "why" and expected values may not be. Docstrings on public APIs and complex algorithms (e.g., accumulation logic, security-critical code) are welcome. Avoid comments that merely restate what the code already says ("increment counter by one"), but keep those that add context a reader wouldn't get from reading alone.
+- **Docs document current state only**: All documentation must describe how things work now — never reference "previous behaviour", "this replaces", or any historical comparison. Documentation is read against the current codebase; past implementation details belong in git history, not docs.
+- **Use todos tool for task tracking**: Always use the `todos` tool to track tasks and keep it updated as you progress. When interrupted or new requests are made during work, update the todos list ordering by priority. This ensures continuity across session boundaries and prevents lost context on resumption.
 
 ### Agent-Specific Rules (do NOT apply to human developers)
 
@@ -96,6 +100,7 @@ Use the affected module as scope: `service`, `config`, `gpu`, `cpu`, `network`, 
 ## Logging Conventions
 
 - Use the `tracing` crate (`debug!`, `info!`, `warn!`, `error!` macros).
+- **Log level priority chain**: When resolving the effective tracing log level, always follow this exact order: CLI `-l` flag > RUST_LOG env var > config.log_level from any loaded config file > default of `'info'`. Never reorder these — the function `resolve_tracing_log_level()` in main.rs implements this and must not be changed.
 - **State-change-only logging**: When tracking persistent states (inhibition, connection status), only emit INFO logs on actual state transitions. Do not log every polling cycle when state is unchanged. Track previous state and compare at the end of each tick/loop iteration.
 
 ## Error Handling Conventions
@@ -114,8 +119,8 @@ Use the affected module as scope: `service`, `config`, `gpu`, `cpu`, `network`, 
 ## Configuration Conventions
 
 - TOML format via the `toml` crate with serde derive macros.
-- All config values have sensible defaults defined as `fn default_*() -> T` helper functions.
-- Optional fields use `#[serde(default)]`; required overrides use `#[serde(default = "default_fn")]`.
+- All config values have sensible defaults defined in `config/rouser.toml`, embedded at compile time via `include_str!()`. Struct fields use bare `#[serde(default)]`; Duration fields may need explicit helper functions only when humantime_serde requires a function-typed default (e.g., `default_history_length()` for 30-day history).
+- Explicit `Default` trait impls on config structs hardcode values from `config/rouser.toml`. Never add `fn default_*() -> T` helper functions — the TOML file is the single source of truth.
 - Duration parsing uses `humantime_serde` for human-readable format (e.g., `"5s"`, `"30m"`).
 
 ## XDG Base Directory Compliance
@@ -219,7 +224,7 @@ The old `/org/freedesktop/PowerManagement.Inhibit` API is obsolete (deprecated ~
 `config/rouser.toml` is the single source of truth for all configuration defaults — not `src/config.rs`, not documentation, not code comments. When updating default values:
 
 1. **Always update `config/rouser.toml` first** with the new default value
-2. Then update `src/config.rs` to match (default helper functions like `default_ema_alpha_cpu()`)
+2. Then update `src/config.rs` to match (hardcoded values in `Default` trait impls)
 3. Then update all documentation (`docs/configuration.md`, `docs/metrics-overview.md`, etc.)
 
 The code defaults in `config/rouser.toml` are embedded at compile time via `include_str!()` and served as both the shipped config file AND the binary's built-in fallback. Never change a default value without updating all three locations simultaneously.
@@ -299,3 +304,20 @@ echo "https://github.com/{owner}/{repo}/actions/runs/RUN_ID"
 - **Missing `needs` dependencies**: If a job references another via `needs: [foo]`, and `foo` is conditional (`if:`), the dependent job inherits that condition — it will skip if the dependency was skipped. Always verify both jobs have matching trigger conditions.
 - **Container vs runner environment mismatch**: Steps running in containers (e.g., `container: fedora:latest`) cannot access tools on the host runner (like `gh` CLI). Split containerized build steps from upload/CLI steps that run on `ubuntu-latest` without a container.
 - **Artifact download path defaults to `.`**: When using `actions/download-artifact@v4`, always specify `path: some-dir/` explicitly, then move files with `mv some-dir/* .` before consuming them — default behavior may merge artifacts unpredictably.
+
+## XDG State Directory Migration
+
+History data was migrated from `$XDG_DATA_HOME/rouser` (or `~/.local/share/rouser`) to `$XDG_STATE_HOME/rouser` (or `~/.local/state/rouser`). This is a breaking change: existing history files at the old path are not read by new binaries. The fallback for read-only `/home` with no writable state dir uses `/tmp/rouser-history.<pid>` with 0700 permissions to minimize TOCTOU risk on shared systems. When updating config defaults or docs, always reference `XDG_STATE_HOME`, never `XDG_DATA_HOME`.
+
+## Prediction Model Refactoring (In Progress)
+
+The prediction module is undergoing a major refactoring to replace the histogram-based TimeKey approach with an unsupervised ML model using NG-RC reservoir computing from the [irithyll](https://crates.io/crates/irithyll) crate. See [`docs/prediction-todo.md`](./docs/prediction-todo.md) for the complete task tracker and architecture decisions.
+
+**Key changes:**
+- **TimeKey deprecation**: The `(year, week_of_year, seconds_into_week)` histogram key is being removed. Year provides no pattern-matching value (it's monotonically increasing), and 604800 buckets/week is wasteful for sparse data. The ML approach eliminates bucketing entirely — each history entry becomes a feature vector.
+- **Feature vectors**: Six normalized values per entry: CPU max, CPU avg, GPU max, GPU avg, network MB/s, disk MB/s. No time-key bucketing; temporal patterns learned via reservoir delay embeddings.
+- **Unsupervised learning**: NG-RC updates weights at each prediction `update_interval` (default 30s) without labeled data. Anomaly score maps to cooldown extension.
+- **Gap-filled entries preserved**: Unlike the previous approach that filtered out zero-value gap entries, these represent valid idle states and contribute to baseline anomaly scoring.
+- **GPU deltas added**: EntryDeltas now includes `gpu_delta_per_gpu_max` and `gpu_delta_total_average`, updated in TrendSignal alongside CPU/network/disk trends.
+
+**Config changes:** New fields planned for `[prediction]`: `hidden_dim: usize (default 16)`, `delay_buffer_size: usize (default 8)` to control reservoir capacity.

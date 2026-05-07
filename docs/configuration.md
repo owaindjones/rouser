@@ -42,8 +42,9 @@ total_threshold = 25.0
 ema_alpha = 0.7
 
 [metrics.gpu]
-threshold = 15.0      # GPU usage threshold (percentage)
-ema_alpha = 0.7       # EMA smoothing factor
+per_gpu_threshold = 25.0    # Per-GPU utilization percentage that triggers inhibition
+total_threshold = 40.0      # System-wide average GPU utilization threshold (both use OR logic)
+ema_alpha = 0.7             # EMA smoothing factor
 
 [metrics.network]
 threshold = 10.0      # Network I/O threshold (Mbps)
@@ -60,6 +61,13 @@ exclude_device_prefixes = ["loop", "fd", "sr", "cdrom"]
 [timing]
 duration_threshold = "5s"    # Min time above threshold before inhibiting sleep
 cooldown_duration = "10s"     # Time below threshold before releasing inhibition
+
+[prediction]
+update_interval = "30s"              # Seconds between averaged snapshots; must be >= root update_interval
+history_length = "30d"               # Keep this much historical data; older entries pruned periodically
+max_extension_time = "1h"            # Maximum additional time for predictive cooldown extension
+ml_hidden_dim = 16                   # Hidden neurons in NG-RC reservoir computing model (O(n^2) memory)
+ml_delay_buffer_size = 8             # Delay buffer size for temporal feature creation from past states
 
 [inhibitor]
 what = "shutdown:idle"     # Lock type: idle, sleep, suspend, shutdown (colon-separated)
@@ -87,11 +95,12 @@ CPU usage is measured per-core (frequency-weighted from sysfs cpufreq data) and 
 
 ### `[metrics.gpu]` — GPU Usage Threshold
 
-Per-device GPU collection (NVIDIA via NVML, AMD/Intel via sysfs). Each detected GPU is compared independently against this threshold.
+Per-device GPU collection (NVIDIA via NVML, AMD/Intel via sysfs). Both thresholds use OR logic — exceeding either one triggers inhibition.
 
 | Key | Type | Default (0–100) | Description |
 |-----|------|-----------------|-------------|
-| `threshold` | f64 | `15.0` | GPU usage percentage above which to inhibit sleep |
+| `per_gpu_threshold` | f64 | `25.0` | Per-GPU utilization percentage above which to inhibit sleep |
+| `total_threshold` | f64 | `40.0` | System-wide average GPU utilization threshold (both use OR logic) |
 | `ema_alpha` | f64 | `0.7` | EMA smoothing factor for per-GPU readings |
 
 ### `[metrics.network]` — Network Throughput Threshold
@@ -125,6 +134,22 @@ Disk activity is calculated as total bytes transferred across monitored devices 
 | `cooldown_duration` | duration | `"10s"` | Time after releasing inhibition during which the daemon won't re-inhibit even if thresholds are exceeded again. Helps with bursty workloads. |
 
 **Note**: There is no `idle_duration` field — the cooldown mechanism replaces it. A metric exceeding threshold for at least `duration_threshold` triggers inhibition; all metrics below their respective thresholds for at least `cooldown_duration` releases inhibition. See [d-bus-inhibition.md](d-bus-inhibition.md) for details on how inhibition works.
+
+## Prediction Configuration
+
+### `[prediction]` Section — Adaptive Cooldown Extension
+
+The prediction module uses an unsupervised NG-RC (Narmala-Gated Reservoir Computing) neural network to learn historical system metric patterns over days and weeks, then dynamically extends the post-idle cooldown duration when learned patterns indicate likely continued active use. This reduces false-positive sleep inhibition during typical work hours while still allowing sleep during known idle periods (e.g., late nights). See [prediction-model.md](prediction-model.md) for a detailed explanation of how the model works.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `update_interval` | duration | `"30s"` | Seconds between averaged snapshots written to history log. Must be greater than or equal to the root `update_interval`. Metrics from each tick are accumulated and averaged, then a single snapshot is flushed every N ticks where N = update_interval / root_update_interval. Set to `"0s"` to disable prediction entirely. |
+| `history_length` | duration | `"30d"` | Amount of historical data to retain. Older entries and files are pruned automatically. Uses humantime format: `"7d"`, `"30d"`, `"90d"` |
+| `max_extension_time` | duration | `"1h"` | Maximum additional time added to the cooldown duration by prediction. The model will never extend beyond this cap, even if historical patterns suggest it. Uses humantime format: `"5m"`, `"30m"`, `"1h"` |
+| `ml_hidden_dim` | usize | `16` | Number of hidden neurons in the NG-RC reservoir computing model. Controls model capacity; larger values capture more complex temporal patterns but use O(n^2) memory (e.g., 16 → ~4KB, 32 → ~16KB). Adjust based on pattern complexity and available memory. |
+| `ml_delay_buffer_size` | usize | `8` | Size of the delay buffer used by the NG-RC model to create polynomial features from past states. Controls how far back in time the model looks for temporal patterns. Should be <= history_length / update_interval (e.g., with 30-day history and 30s intervals, max is ~8640). |
+
+**Data storage**: Historical data is stored as binary files (`history.log.YYYYMMDD`) using bincode v2 serialization under `$XDG_STATE_HOME/rouser/` (defaults to `~/.local/state/rouser/`, or `/var/lib/rouser/` when running as root). Files are date-partitioned for efficient pruning.
 
 ## Inhibition Configuration
 
@@ -183,7 +208,7 @@ There are no `ROUSER_*` environment variable overrides for configuration values 
 
 ## Best Practices
 
-1. **Start with conservative thresholds**: Begin with higher per-core CPU (80%) and GPU (15%) thresholds, then lower them based on observed baselines from dry-run logs
+1. **Start with conservative thresholds**: Begin with higher per-core CPU (80%), per-GPU (15%), and total GPU average (15%) thresholds, then lower them based on observed baselines from dry-run logs
 2. **Use EMA smoothing**: Default alpha values provide a good balance between responsiveness and noise filtering for your workload
 3. **Test before production**: Always use `--dry-run` mode to verify thresholds before deploying in daemon mode
 4. **Review logs regularly**: Use debug logging (`RUST_LOG=debug`) to understand your system's baseline activity before finalizing thresholds
@@ -192,4 +217,5 @@ There are no `ROUSER_*` environment variable overrides for configuration values 
 
 - [Command Line Reference](command-line.md) — All CLI arguments and usage examples
 - [Metrics Overview](metrics-overview.md) — How CPU, GPU, network, and disk metrics are collected
+- [Prediction Model](prediction-model.md) — How adaptive cooldown extension works from historical patterns
 - [D-Bus Inhibition](d-bus-inhibition.md) — How sleep inhibition works under the hood
