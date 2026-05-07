@@ -111,7 +111,12 @@ impl Default for DiskConfig {
         Self {
             threshold: 10.0,
             ema_alpha: 0.5,
-            exclude_device_prefixes: vec!["loop".to_string(), "fd".to_string(), "sr".to_string(), "cdrom".to_string()],
+            exclude_device_prefixes: vec![
+                "loop".to_string(),
+                "fd".to_string(),
+                "sr".to_string(),
+                "cdrom".to_string(),
+            ],
         }
     }
 }
