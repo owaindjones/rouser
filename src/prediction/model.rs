@@ -434,18 +434,27 @@ impl PredictionModel {
                     // Capture metrics before snapshot is moved into history storage.
                     let next_metrics = LastEntryMetrics::from_snapshot(&snapshot);
 
-                    self.data_points += 1;
-                    let summary = format!(
-                        "Flushed averaged snapshot #{} (CPU max={:.1}%, net={:.2}MB/s, disk={:.2}MB/s, time={}, accumulated_ticks={})",
-                        self.data_points,
-                        snapshot.cpu_usage.per_core_max,
-                        snapshot.network_mbps,
-                        snapshot.disk_mb_s,
-                        TimeKey::from_timestamp_ns(snapshot.timestamp_ns).display(),
-                        samples,
-                    );
+                  self.data_points += 1;
+                      let time_key = TimeKey::from_timestamp_ns(snapshot.timestamp_ns);
+                        let gpu_summary: String = if snapshot.gpu_usage.per_gpu_max > 0.0 {
+                            format!("max={:.1}% avg={:.1}%", 
+                                    snapshot.gpu_usage.per_gpu_max, snapshot.gpu_usage.total_average)
+                        } else {
+                            "no GPUs".to_string()
+                        };
+                        let summary = format!(
+                            "Flushed averaged snapshot #{} (CPU max={:.1}%, GPU {}, net={:.2}MB/s, disk={:.2}MB/s), time={}, accumulated_ticks={}",
+                            self.data_points,
+                            snapshot.cpu_usage.per_core_max,
+                            &gpu_summary,
+                            snapshot.network_mbps,
+                            snapshot.disk_mb_s,
+                            &time_key.display(),
+                            samples,
+                        );
 
                     // Update in-memory inhibition counts for online prediction.
+
                     if inhibited {
                         let time_key = TimeKey::from_timestamp_ns(snapshot.timestamp_ns);
                         *self.inhibited_timekeys.entry(time_key).or_default() += 1;
