@@ -889,3 +889,86 @@ mod has_gpus_tests {
         assert!(GpuCollector::is_valid_gpu_card("card0", &card_path));
     }
 }
+
+#[cfg(test)]
+mod gpu_aggregate_tests {
+    use super::*;
+
+    #[test]
+    fn test_gpu_aggregate_empty_values_returns_default() {
+        let agg = GpuAggregate::from_values(&[]);
+        assert_eq!(agg.per_gpu_max, 0.0);
+        assert_eq!(agg.total_average, 0.0);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_single_value_both_metrics_equal() {
+        let agg = GpuAggregate::from_values(&[50.0]);
+        // With one GPU, max and average are the same value.
+        assert!((agg.per_gpu_max - 50.0).abs() < f64::EPSILON);
+        assert!((agg.total_average - 50.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_two_gpus_max_and_average_correct() {
+        let agg = GpuAggregate::from_values(&[30.0, 70.0]);
+        // max is 70 (highest GPU)
+        assert!((agg.per_gpu_max - 70.0).abs() < f64::EPSILON);
+        // average is (30+70)/2 = 50
+        assert!((agg.total_average - 50.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_three_gpus_correct() {
+        let agg = GpuAggregate::from_values(&[10.0, 50.0, 90.0]);
+        // max is 90
+        assert!((agg.per_gpu_max - 90.0).abs() < f64::EPSILON);
+        // average is (10+50+90)/3 = 50
+        assert!((agg.total_average - 50.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_all_zeros() {
+        let agg = GpuAggregate::from_values(&[0.0, 0.0, 0.0]);
+        assert!((agg.per_gpu_max - 0.0).abs() < f64::EPSILON);
+        assert!((agg.total_average - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_default_impl_is_zero() {
+        let agg = GpuAggregate::default();
+        assert_eq!(agg.per_gpu_max, 0.0);
+        assert_eq!(agg.total_average, 0.0);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_from_gpus_empty_returns_default() {
+        let gpus: Vec<GpuData> = vec![];
+        let agg = GpuAggregate::from_gpus(&gpus);
+        assert_eq!(agg.per_gpu_max, 0.0);
+        assert_eq!(agg.total_average, 0.0);
+    }
+
+    #[test]
+    fn test_gpu_aggregate_from_gpus_matches_from_values() {
+        let gpus = vec![
+            GpuData {
+                device_id: "card0".into(),
+                driver_name: "nvidia".into(),
+                usage: 40.0,
+            },
+            GpuData {
+                device_id: "card1".into(),
+                driver_name: "amdgpu".into(),
+                usage: 80.0,
+            },
+        ];
+        let values = vec![40.0, 80.0];
+
+        let agg_from_gpus = GpuAggregate::from_gpus(&gpus);
+        let agg_from_values = GpuAggregate::from_values(&values);
+
+        assert!((agg_from_gpus.per_gpu_max - agg_from_values.per_gpu_max).abs() < f64::EPSILON);
+        assert!((agg_from_gpus.total_average - agg_from_values.total_average).abs() < f64::EPSILON);
+    }
+}
