@@ -197,7 +197,7 @@ fn default_history_length() -> Duration {
 impl Default for PredictionConfig {
     fn default() -> Self {
         Self {
-           update_interval: Duration::from_secs(30),
+            update_interval: Duration::from_secs(30),
             history_length: Duration::from_secs(30 * 24 * 60 * 60),
             max_extension_time: Duration::from_secs(3600),
         }

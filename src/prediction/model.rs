@@ -4,7 +4,9 @@
 //! and predict how long inhibition should remain active after metrics drop below threshold.
 //! Anomaly scores from the ML model are combined with trend signals for robust predictions.
 
-use crate::prediction::{fill_gaps, EntryDeltas, HistoryEntry, HistoryLog, MlPredictor, NormalizationStats};
+use crate::prediction::{
+    fill_gaps, EntryDeltas, HistoryEntry, HistoryLog, MlPredictor, NormalizationStats,
+};
 use std::path::PathBuf;
 use tracing::debug;
 
@@ -213,13 +215,12 @@ impl LastEntryMetrics {
 }
 
 impl PredictionModel {
-   /// Create a new prediction model. Loads existing history if available.
+    /// Create a new prediction model. Loads existing history if available.
     pub fn new(
         is_root: bool,
         update_interval_ns: u64,
         max_extension_time: std::time::Duration,
     ) -> Self {
-
         let history = HistoryLog::new(is_root);
 
         // Determine checkpoint directory based on privilege level.
@@ -227,13 +228,14 @@ impl PredictionModel {
             PathBuf::from("/var/lib/rouser")
         } else {
             let state_home = std::env::var("XDG_STATE_HOME").unwrap_or_else(|_| {
-                std::env::var("HOME").map(|home| format!("{}/.local/state", home)).unwrap_or_default()
+                std::env::var("HOME")
+                    .map(|home| format!("{}/.local/state", home))
+                    .unwrap_or_default()
             });
             PathBuf::from(state_home).join("rouser/ml_checkpoints")
         };
 
-         let mut ml_predictor = MlPredictor::new(checkpoint_dir.clone());
-
+        let mut ml_predictor = MlPredictor::new(checkpoint_dir.clone());
 
         // Load normalization stats from previous training if available.
         let _ = ml_predictor.load();
@@ -330,12 +332,24 @@ impl PredictionModel {
                     self.data_points += 1;
 
                     // Update normalization stats with raw values and train on raw features so the model learns actual distributions.
-                    self.normalization_stats.get_cpu_stats_mut().update(snapshot.cpu_usage.per_core_max);
-                    self.normalization_stats.get_cpu_stats_mut().update(snapshot.cpu_usage.total_average);
-                    self.normalization_stats.get_gpu_stats_mut().update(snapshot.gpu_usage.per_gpu_max);
-                    self.normalization_stats.get_gpu_stats_mut().update(snapshot.gpu_usage.total_average);
-                    self.normalization_stats.get_network_stats_mut().update(snapshot.network_mbps);
-                    self.normalization_stats.get_disk_stats_mut().update(snapshot.disk_mb_s);
+                    self.normalization_stats
+                        .get_cpu_stats_mut()
+                        .update(snapshot.cpu_usage.per_core_max);
+                    self.normalization_stats
+                        .get_cpu_stats_mut()
+                        .update(snapshot.cpu_usage.total_average);
+                    self.normalization_stats
+                        .get_gpu_stats_mut()
+                        .update(snapshot.gpu_usage.per_gpu_max);
+                    self.normalization_stats
+                        .get_gpu_stats_mut()
+                        .update(snapshot.gpu_usage.total_average);
+                    self.normalization_stats
+                        .get_network_stats_mut()
+                        .update(snapshot.network_mbps);
+                    self.normalization_stats
+                        .get_disk_stats_mut()
+                        .update(snapshot.disk_mb_s);
 
                     let raw_features = [
                         snapshot.cpu_usage.per_core_max,
@@ -389,20 +403,21 @@ impl PredictionModel {
         }
 
         // Get current metrics for ML scoring (use recent entry or defaults).
-        let (cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk) = if let Some(last) = &self.last_flushed_entry_metrics {
-            (
-                last.cpu_per_core_max,
-                last.cpu_total_average,
-                last.gpu_per_gpu_max,
-                last.gpu_total_average,
-                last.network_mbps,
-                last.disk_mb_s,
-            )
-        } else {
-            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-        };
+        let (cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk) =
+            if let Some(last) = &self.last_flushed_entry_metrics {
+                (
+                    last.cpu_per_core_max,
+                    last.cpu_total_average,
+                    last.gpu_per_gpu_max,
+                    last.gpu_total_average,
+                    last.network_mbps,
+                    last.disk_mb_s,
+                )
+            } else {
+                (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            };
 
-       let features = [cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk];
+        let features = [cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk];
 
         // Get anomaly score from ML model (0-1 scale).
         let ml_score = self.ml_predictor.predict_raw(&features);

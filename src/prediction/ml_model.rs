@@ -4,7 +4,10 @@
 //! The Next Generation Reservoir Computing (NG-RC) architecture learns normal system usage patterns
 //! by continuously updating its weights at each prediction interval, without requiring labeled training data.
 
-use irithyll::{reservoir::{NextGenRC, NGRCConfig}, StreamingLearner};
+use irithyll::{
+    reservoir::{NGRCConfig, NextGenRC},
+    StreamingLearner,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -53,7 +56,14 @@ impl FeatureVector {
 
     /// Convert feature vector to array for ML model input/output.
     pub fn to_array(&self) -> [f64; 6] {
-        [self.cpu_max, self.cpu_avg, self.gpu_max, self.gpu_avg, self.network, self.disk]
+        [
+            self.cpu_max,
+            self.cpu_avg,
+            self.gpu_max,
+            self.gpu_avg,
+            self.network,
+            self.disk,
+        ]
     }
 
     /// Create a zero vector (represents idle state for gap-filled entries).
@@ -255,12 +265,13 @@ impl MlPredictor {
 
         let model = NextGenRC::new(config.clone());
 
-        debug!(
-            "Created ML predictor with temporal_window=5, degree=2"
-        );
+        debug!("Created ML predictor with temporal_window=5, degree=2");
 
         if let Err(e) = fs::create_dir_all(&checkpoint_dir) {
-            debug!("Failed to create checkpoint directory {:?}: {}", checkpoint_dir, e);
+            debug!(
+                "Failed to create checkpoint directory {:?}: {}",
+                checkpoint_dir, e
+            );
         }
 
         Self {
@@ -328,7 +339,7 @@ impl MlPredictor {
         Ok(())
     }
 
- pub fn load(&mut self) -> std::io::Result<()> {
+    pub fn load(&mut self) -> std::io::Result<()> {
         if let Some(stats) = NormalizationStats::load(&self.checkpoint_path) {
             self.stats = stats;
             debug!("Loaded existing normalization stats from checkpoint");
@@ -343,7 +354,7 @@ impl MlPredictor {
         self.training_count
     }
 
-  pub fn train_raw(&mut self, features: &[f64]) {
+    pub fn train_raw(&mut self, features: &[f64]) {
         self.model.train_one(features, features[0], 1.0);
         self.training_count += 1;
 
@@ -359,11 +370,21 @@ impl MlPredictor {
 
         let count = entries.len();
         for entry in entries {
-            self.stats.get_cpu_stats_mut().update(entry.cpu_usage.per_core_max);
-            self.stats.get_cpu_stats_mut().update(entry.cpu_usage.total_average);
-            self.stats.get_gpu_stats_mut().update(entry.gpu_usage.per_gpu_max);
-            self.stats.get_gpu_stats_mut().update(entry.gpu_usage.total_average);
-            self.stats.get_network_stats_mut().update(entry.network_mbps);
+            self.stats
+                .get_cpu_stats_mut()
+                .update(entry.cpu_usage.per_core_max);
+            self.stats
+                .get_cpu_stats_mut()
+                .update(entry.cpu_usage.total_average);
+            self.stats
+                .get_gpu_stats_mut()
+                .update(entry.gpu_usage.per_gpu_max);
+            self.stats
+                .get_gpu_stats_mut()
+                .update(entry.gpu_usage.total_average);
+            self.stats
+                .get_network_stats_mut()
+                .update(entry.network_mbps);
             self.stats.get_disk_stats_mut().update(entry.disk_mb_s);
 
             let array = [
@@ -433,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_ml_predictor_creation() {
-         let predictor = MlPredictor::new(PathBuf::from("/tmp/test_ml"));
+        let predictor = MlPredictor::new(PathBuf::from("/tmp/test_ml"));
 
         assert_eq!(predictor.get_training_count(), 0);
         assert!(!predictor.has_sufficient_data());
@@ -464,5 +485,3 @@ mod tests {
         assert_eq!(loaded.get_cpu_stats().count, 20);
     }
 }
-
-
