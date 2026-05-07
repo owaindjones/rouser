@@ -23,6 +23,10 @@ fn default_gpu_threshold() -> f64 {
     15.0
 }
 
+fn default_gpu_total_threshold() -> f64 {
+    15.0
+}
+
 fn default_network_io() -> f64 {
     10.0
 }
@@ -75,8 +79,12 @@ fn default_total_threshold() -> f64 {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GpuConfig {
+    /// GPU usage threshold per individual card (percentage). Any single GPU above this triggers inhibition.
     #[serde(default = "default_gpu_threshold")]
-    pub threshold: f64,
+    pub per_gpu_threshold: f64,
+    /// System-wide aggregate GPU threshold (average across all GPUs, percentage). The average GPU load exceeding this triggers inhibition.
+    #[serde(default = "default_gpu_total_threshold")]
+    pub total_threshold: f64,
     #[serde(default = "default_ema_alpha_gpu")]
     pub ema_alpha: f64,
 }
@@ -425,7 +433,8 @@ mod tests {
                 ema_alpha: default_ema_alpha_cpu(),
             },
             gpu: GpuConfig {
-                threshold: default_gpu_threshold(),
+                per_gpu_threshold: default_gpu_threshold(),
+                total_threshold: default_gpu_total_threshold(),
                 ema_alpha: default_ema_alpha_gpu(),
             },
             network: NetworkConfig {
@@ -443,7 +452,8 @@ mod tests {
 
         assert_eq!(metrics.cpu.per_core_threshold, 80.0);
         assert_eq!(metrics.cpu.total_threshold, 25.0);
-        assert_eq!(metrics.gpu.threshold, 15.0);
+        assert_eq!(metrics.gpu.per_gpu_threshold, 15.0);
+        assert_eq!(metrics.gpu.total_threshold, 15.0);
         assert_eq!(metrics.network.threshold, 10.0);
         assert_eq!(metrics.disk.threshold, 10.0);
         assert_eq!(metrics.cpu.ema_alpha, 0.7);

@@ -390,11 +390,52 @@ impl std::fmt::Display for GpuError {
 
 impl std::error::Error for GpuError {}
 
+/// Aggregate GPU metrics across all GPUs on the system.
+/// Mirrors CpuUsage pattern: per-GPU max + average for inhibition decisions.
+#[derive(Debug, Clone, Default)]
+pub struct GpuAggregate {
+    /// Maximum individual GPU usage across all devices (0-100).
+    pub per_gpu_max: f64,
+    /// Average usage across all GPUs (sum / count) (0-100).
+    pub total_average: f64,
+}
+
 #[derive(Debug, Clone)]
 pub struct GpuData {
     pub device_id: String,
     pub driver_name: String,
     pub usage: f64,
+}
+
+impl GpuAggregate {
+    #[allow(dead_code)] // Kept for potential future use with full GpuData inputs.
+    /// Compute aggregate metrics from individual GPU data.
+    pub(crate) fn from_gpus(gpus: &[GpuData]) -> Self {
+        if gpus.is_empty() {
+            return Self::default();
+        }
+        let max = gpus.iter().map(|g| g.usage).fold(0.0f64, f64::max);
+        let sum: f64 = gpus.iter().map(|g| g.usage).sum();
+        let avg = sum / gpus.len() as f64;
+        Self {
+            per_gpu_max: max,
+            total_average: avg,
+        }
+    }
+
+    /// Compute aggregate metrics from raw GPU usage values (e.g., after EMA smoothing).
+    pub fn from_values(values: &[f64]) -> Self {
+        if values.is_empty() {
+            return Self::default();
+        }
+        let max = values.iter().cloned().fold(0.0f64, f64::max);
+        let sum: f64 = values.iter().sum();
+        let avg = sum / values.len() as f64;
+        Self {
+            per_gpu_max: max,
+            total_average: avg,
+        }
+    }
 }
 
 #[cfg(test)]

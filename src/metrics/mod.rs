@@ -8,7 +8,7 @@ use std::fmt;
 
 pub use cpu::{CpuCollector, CpuUsage};
 pub use disk::{DiskCollector, DiskThroughput};
-pub use gpu::{GpuCollector, GpuData};
+pub use gpu::{GpuAggregate, GpuCollector, GpuData};
 pub use network::{NetworkCollector, NetworkThroughput};
 
 #[derive(Debug, Clone)]

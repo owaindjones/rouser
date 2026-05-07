@@ -250,8 +250,10 @@ async fn run_dry_run(config: &config::Config) -> Result<()> {
         config.metrics.cpu.ema_alpha
     );
     info!(
-        "  - GPU threshold: {}%, EMA alpha: {:.2}",
-        config.metrics.gpu.threshold, config.metrics.gpu.ema_alpha
+        "  - GPU per-GPU threshold: {}%, total threshold: {}%, EMA alpha: {:.2}",
+        config.metrics.gpu.per_gpu_threshold,
+        config.metrics.gpu.total_threshold,
+        config.metrics.gpu.ema_alpha
     );
     info!(
         "  - Network threshold: {} Mbps, EMA alpha: {:.2}",

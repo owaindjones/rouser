@@ -126,7 +126,8 @@ struct TickAccumulator {
     cpu_avg_sum: f64,
     network_sum: f64,
     disk_sum: f64,
-    gpu_sums: Vec<f64>,
+    gpu_max_sum: f64,
+    gpu_avg_sum: f64,
     inhibited_count: u64,
 }
 
@@ -138,7 +139,8 @@ impl TickAccumulator {
             cpu_avg_sum: 0.0,
             network_sum: 0.0,
             disk_sum: 0.0,
-            gpu_sums: Vec::new(),
+            gpu_max_sum: 0.0,
+            gpu_avg_sum: 0.0,
             inhibited_count: 0,
         }
     }
@@ -150,21 +152,9 @@ impl TickAccumulator {
         self.network_sum += entry.network_mbps;
         self.disk_sum += entry.disk_mb_s;
 
-        // Expand GPU sums vec to accommodate this tick's GPUs.
-        let gpu_count = entry.gpu_usages.len();
-        if gpu_count > self.gpu_sums.len() {
-            for _ in 0..(gpu_count - self.gpu_sums.len()) {
-                self.gpu_sums.push(0.0);
-            }
-        }
-        // Average per-GPU independently by slot index.
-        for (i, gpu_val) in entry.gpu_usages.iter().enumerate() {
-            if i < self.gpu_sums.len() {
-                self.gpu_sums[i] += *gpu_val;
-            } else {
-                self.gpu_sums.push(*gpu_val);
-            }
-        }
+        // Accumulate aggregate GPU metrics.
+        self.gpu_max_sum += entry.gpu_usage.per_gpu_max;
+        self.gpu_avg_sum += entry.gpu_usage.total_average;
 
         if entry.inhibited {
             self.inhibited_count += 1;
@@ -177,10 +167,6 @@ impl TickAccumulator {
         }
         let n = self.count as f64;
         let count = self.count;
-        let mut gpu_averages: Vec<f64> = Vec::with_capacity(self.gpu_sums.len());
-        for s in self.gpu_sums.iter() {
-            gpu_averages.push(s / n);
-        }
 
         let timestamp_ns = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -191,7 +177,8 @@ impl TickAccumulator {
             timestamp_ns,
             self.cpu_max_sum / n,
             self.cpu_avg_sum / n,
-            gpu_averages,
+            self.gpu_max_sum / n,
+            self.gpu_avg_sum / n,
             self.network_sum / n,
             self.disk_sum / n,
             self.inhibited_count > 0 && (self.inhibited_count * 2 >= self.count),
@@ -203,7 +190,8 @@ impl TickAccumulator {
         self.cpu_avg_sum = 0.0;
         self.network_sum = 0.0;
         self.disk_sum = 0.0;
-        self.gpu_sums.clear();
+        self.gpu_max_sum = 0.0;
+        self.gpu_avg_sum = 0.0;
         self.inhibited_count = 0;
 
         Some((entry, count))
@@ -236,7 +224,7 @@ impl TrendSignal {
         // Filter out synthetic zero-value entries (gap-filled) before computing trends.
         let real_entries: Vec<&HistoryEntry> = entries_to_use
             .into_iter()
-            .filter(|e| e.cpu_usage.per_core_max > 0.0 || !e.gpu_usages.is_empty())
+            .filter(|e| e.cpu_usage.per_core_max > 0.0 || e.gpu_usage.per_gpu_max > 0.0)
             .collect();
 
         let mut cpu_sum = 0.0f64;
@@ -297,7 +285,8 @@ struct LastEntryMetrics {
     timestamp_ns: u64,
     cpu_per_core_max: f64,
     cpu_total_average: f64,
-    gpu_usages: Vec<f64>,
+    gpu_per_gpu_max: f64,
+    gpu_total_average: f64,
     network_mbps: f64,
     disk_mb_s: f64,
 }
@@ -308,7 +297,8 @@ impl LastEntryMetrics {
             timestamp_ns: entry.timestamp_ns,
             cpu_per_core_max: entry.cpu_usage.per_core_max,
             cpu_total_average: entry.cpu_usage.total_average,
-            gpu_usages: entry.gpu_usages.clone(),
+            gpu_per_gpu_max: entry.gpu_usage.per_gpu_max,
+            gpu_total_average: entry.gpu_usage.total_average,
             network_mbps: entry.network_mbps,
             disk_mb_s: entry.disk_mb_s,
         }
@@ -319,7 +309,8 @@ impl LastEntryMetrics {
             self.timestamp_ns,
             self.cpu_per_core_max,
             self.cpu_total_average,
-            self.gpu_usages.clone(),
+            self.gpu_per_gpu_max,
+            self.gpu_total_average,
             self.network_mbps,
             self.disk_mb_s,
             false, // not persisted as inhibited
@@ -331,7 +322,8 @@ impl LastEntryMetrics {
             timestamp_ns: entry.timestamp_ns,
             cpu_per_core_max: entry.cpu_usage.per_core_max,
             cpu_total_average: entry.cpu_usage.total_average,
-            gpu_usages: entry.gpu_usages.clone(),
+            gpu_per_gpu_max: entry.gpu_usage.per_gpu_max,
+            gpu_total_average: entry.gpu_usage.total_average,
             network_mbps: entry.network_mbps,
             disk_mb_s: entry.disk_mb_s,
         }
@@ -414,6 +406,16 @@ impl PredictionModel {
         disk_mb_s: f64,
         inhibited: bool,
     ) -> bool {
+        // Compute aggregate GPU metrics from individual values for history storage.
+        let (gpu_per_gpu_max, gpu_total_average) = if gpu_usages.is_empty() {
+            (0.0, 0.0)
+        } else {
+            let max = gpu_usages.iter().cloned().fold(0.0f64, f64::max);
+            let sum: f64 = gpu_usages.iter().sum();
+            let avg = sum / gpu_usages.len() as f64;
+            (max, avg)
+        };
+
         let entry = HistoryEntry::new(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -421,7 +423,8 @@ impl PredictionModel {
                 .as_nanos() as u64,
             cpu_per_core_max,
             cpu_total_average,
-            gpu_usages,
+            gpu_per_gpu_max,
+            gpu_total_average,
             network_mbps,
             disk_mb_s,
             inhibited,
@@ -498,9 +501,17 @@ impl PredictionModel {
         // Use in-memory rolling window for trend analysis, falling back to disk read only
         // when no entries have been flushed yet (initial startup).
         let mut recent_entries: Vec<HistoryEntry> = if self.recent_entries.is_empty() {
-            self.history.read_all().into_iter().filter(|e| e.timestamp_ns >= cutoff_ns).collect()
+            self.history
+                .read_all()
+                .into_iter()
+                .filter(|e| e.timestamp_ns >= cutoff_ns)
+                .collect()
         } else {
-            self.recent_entries.iter().filter(|e| e.timestamp_ns >= cutoff_ns).cloned().collect()
+            self.recent_entries
+                .iter()
+                .filter(|e| e.timestamp_ns >= cutoff_ns)
+                .cloned()
+                .collect()
         };
 
         // Sort by timestamp for gap detection and delta computation.
@@ -516,7 +527,7 @@ impl PredictionModel {
         // Filter out synthetic zero-value entries before computing trends.
         let filtered: Vec<_> = recent_entries
             .into_iter()
-            .filter(|e| e.cpu_usage.per_core_max > 0.0 || !e.gpu_usages.is_empty())
+            .filter(|e| e.cpu_usage.per_core_max > 0.0 || e.gpu_usage.per_gpu_max > 0.0)
             .rev()
             .collect();
 

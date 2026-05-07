@@ -14,6 +14,15 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 
+/// Aggregate GPU metrics stored in history entries (mirrors CpuSnapshot pattern).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GpuSnapshot {
+    /// Maximum individual GPU usage across all devices (0-100).
+    pub per_gpu_max: f64,
+    /// Average usage across all GPUs (sum / count) (0-100).
+    pub total_average: f64,
+}
+
 /// A single data point recorded at each tick.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -21,9 +30,9 @@ pub struct HistoryEntry {
     pub timestamp_ns: u64,
     /// CPU usage metrics (per_core_max, total_average).
     pub cpu_usage: CpuSnapshot,
-    /// GPU smoothed usages in order of device enumeration.
+    /// Aggregate GPU metrics across all devices for consistent history format regardless of GPU count.
     #[serde(default)]
-    pub gpu_usages: Vec<f64>,
+    pub gpu_usage: GpuSnapshot,
     /// Network throughput (Mbps), aggregated across all interfaces.
     pub network_mbps: f64,
     /// Disk throughput (MB/s), aggregated across all devices.
@@ -43,8 +52,6 @@ pub struct EntryDeltas {
     pub network_delta_per_sec: Option<f64>,
     /// Rate of change of disk throughput in MB/s/s.
     pub disk_delta_per_sec: Option<f64>,
-    /// Per-GPU rate of change in %/s, matching gpu_usages order. Empty vec when not computable.
-    pub gpu_deltas_per_sec: Vec<f64>,
 }
 
 impl EntryDeltas {
@@ -58,7 +65,6 @@ impl EntryDeltas {
                 cpu_delta_per_sec: None,
                 network_delta_per_sec: None,
                 disk_delta_per_sec: None,
-                gpu_deltas_per_sec: Vec::new(),
             };
         }
 
@@ -82,24 +88,11 @@ impl EntryDeltas {
             None
         };
 
-        // Per-GPU deltas matching gpu_usages order.
-        let mut gpu_deltas_per_sec = Vec::new();
-        for i in 0..current.gpu_usages.len().max(prev.gpu_usages.len()) {
-            let prev_val = prev.gpu_usages.get(i).copied().unwrap_or(0.0);
-            let curr_val = current.gpu_usages.get(i).copied().unwrap_or(0.0);
-            if secs_f64 > 0.0 {
-                gpu_deltas_per_sec.push((curr_val - prev_val) / secs_f64);
-            } else {
-                gpu_deltas_per_sec.push(0.0);
-            }
-        }
-
         Self {
             elapsed_since_last_ns: Some(elapsed_ns),
             cpu_delta_per_sec,
             network_delta_per_sec,
             disk_delta_per_sec,
-            gpu_deltas_per_sec,
         }
     }
 }
@@ -112,13 +105,14 @@ pub struct CpuSnapshot {
 }
 
 impl HistoryEntry {
-    /// Create a new history entry from tick metrics and current inhibition state.
     #[allow(clippy::too_many_arguments)]
+    /// Create a new history entry from tick metrics and current inhibition state.
     pub fn new(
         timestamp_ns: u64,
         cpu_per_core_max: f64,
         cpu_total_average: f64,
-        gpu_usages: Vec<f64>,
+        gpu_per_gpu_max: f64,
+        gpu_total_average: f64,
         network_mbps: f64,
         disk_mb_s: f64,
         inhibited: bool,
@@ -129,7 +123,10 @@ impl HistoryEntry {
                 per_core_max: cpu_per_core_max,
                 total_average: cpu_total_average,
             },
-            gpu_usages,
+            gpu_usage: GpuSnapshot {
+                per_gpu_max: gpu_per_gpu_max,
+                total_average: gpu_total_average,
+            },
             network_mbps,
             disk_mb_s,
             inhibited,
@@ -277,7 +274,7 @@ pub fn fill_gaps(
             // Fill the gap with synthetic zero-value entries.
             let mut ts = prev_ts + fill_interval_ns;
             while ts < curr.timestamp_ns - fill_interval_ns / 2 {
-                result.push(HistoryEntry::new(ts, 0.0, 0.0, Vec::new(), 0.0, 0.0, false));
+                result.push(HistoryEntry::new(ts, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false));
                 ts += fill_interval_ns;
             }
         }
@@ -664,12 +661,13 @@ mod tests {
     fn sample_entry(timestamp_ns: u64) -> HistoryEntry {
         HistoryEntry::new(
             timestamp_ns,
-            25.0,             // cpu per_core_max
-            12.0,             // cpu total_average
-            vec![45.0, 78.0], // gpu usages (2 GPUs)
-            15.5,             // network mbps
-            3.2,              // disk mb/s
-            true,             // inhibited
+            25.0, // cpu per_core_max
+            12.0, // cpu total_average
+            78.0, // gpu per_gpu_max (max of [45, 78])
+            61.5, // gpu total_average ((45+78)/2)
+            15.5, // network mbps
+            3.2,  // disk mb/s
+            true, // inhibited
         )
     }
 
@@ -695,7 +693,11 @@ mod tests {
             entry.cpu_usage.total_average,
             decoded.cpu_usage.total_average
         );
-        assert_eq!(entry.gpu_usages, decoded.gpu_usages);
+        assert_eq!(entry.gpu_usage.per_gpu_max, decoded.gpu_usage.per_gpu_max);
+        assert_eq!(
+            entry.gpu_usage.total_average,
+            decoded.gpu_usage.total_average
+        );
         assert!((entry.network_mbps - decoded.network_mbps).abs() < f64::EPSILON);
         assert!((entry.disk_mb_s - decoded.disk_mb_s).abs() < f64::EPSILON);
         assert_eq!(entry.inhibited, decoded.inhibited);
@@ -740,7 +742,8 @@ mod tests {
                 now_ns + 5_000_000_000, // +5s
                 5.0,                    // cpu per_core_max
                 2.0,                    // cpu total_average
-                vec![10.0],             // gpu usages
+                10.0,                   // gpu per_gpu_max
+                10.0,                   // gpu total_average (single GPU)
                 0.0,                    // network mbps
                 0.0,                    // disk mb/s
                 false,                  // inhibited
@@ -861,7 +864,8 @@ mod tests {
                     now_ns + i * 5_000_000_000, // 5s apart
                     (i as f64) * 10.0,
                     (i as f64) * 5.0,
-                    vec![(i as f64) * 20.0],
+                    (i as f64) * 20.0, // gpu per_gpu_max
+                    (i as f64) * 20.0, // gpu total_average (single GPU)
                     i as f64,
                     (i as f64) / 10.0,
                     i % 3 == 0,
@@ -897,13 +901,14 @@ mod tests {
 
     #[test]
     fn test_history_entry_gpu_usages_empty_vec() {
-        let entry = HistoryEntry::new(0, 0.0, 0.0, vec![], 0.0, 0.0, false);
-        assert!(entry.gpu_usages.is_empty());
+        let entry = HistoryEntry::new(0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false);
+        assert!(entry.gpu_usage.total_average == 0.0 && entry.gpu_usage.per_gpu_max == 0.0);
 
         // Should serialize/deserialize fine with empty GPU array.
         let bytes = entry.to_bytes();
         let (decoded, _) = HistoryEntry::from_bytes(&bytes).unwrap();
-        assert_eq!(decoded.gpu_usages.len(), 0);
+        assert_eq!(decoded.gpu_usage.per_gpu_max, 0.0);
+        assert_eq!(decoded.gpu_usage.total_average, 0.0);
     }
 
     #[test]
@@ -913,12 +918,13 @@ mod tests {
             .map(|i| {
                 HistoryEntry::new(
                     i as u64 * 1_000_000_000,
-                    10.0,
-                    20.0,
-                    vec![],
-                    0.0,
-                    0.0,
-                    false,
+                    10.0,  // cpu per_core_max
+                    20.0,  // cpu total_average
+                    0.0,   // gpu per_gpu_max
+                    0.0,   // gpu total_average
+                    0.0,   // network mbps
+                    0.0,   // disk mb/s
+                    false, // inhibited
                 )
             })
             .collect();
@@ -935,9 +941,10 @@ mod tests {
 
     #[test]
     fn test_fill_gaps_inserts_synthetic_entries() {
-        let entry1 = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
+        let entry1 = HistoryEntry::new(0, 50.0, 25.0, 0.0, 0.0, 10.0, 5.0, true);
         // Gap of 10 minutes (600 seconds) — well above GAP_THRESHOLD_NS (300s).
-        let entry2 = HistoryEntry::new(10 * 60 * 1_000_000_000, 5.0, 2.0, vec![], 0.0, 0.0, false);
+        let entry2 =
+            HistoryEntry::new(10 * 60 * 1_000_000_000, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, false);
 
         let entries = vec![entry1.clone(), entry2];
         let result = fill_gaps(entries, 300_000_000_000u64, 30_000_000_000u64);
@@ -983,7 +990,7 @@ mod tests {
     #[test]
     fn test_fill_gaps_noop_when_entries_contiguous() {
         let entries: Vec<HistoryEntry> = (0..5)
-            .map(|i| HistoryEntry::new(i * 1_000_000_000, 10.0, 5.0, vec![], 1.0, 0.5, false))
+            .map(|i| HistoryEntry::new(i * 1_000_000_000, 10.0, 5.0, 0.0, 0.0, 1.0, 0.5, false))
             .collect();
 
         let result = fill_gaps(entries.clone(), 300_000_000_000u64, 30_000_000_000u64);
@@ -1003,7 +1010,7 @@ mod tests {
 
     #[test]
     fn test_fill_gaps_single_entry_noop() {
-        let entry = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
+        let entry = HistoryEntry::new(0, 50.0, 25.0, 0.0, 0.0, 10.0, 5.0, true);
         let result = fill_gaps(vec![entry], 300_000_000_000u64, 30_000_000_000u64);
         assert_eq!(result.len(), 1);
     }
@@ -1011,8 +1018,8 @@ mod tests {
     #[test]
     fn test_fill_gaps_gap_below_threshold_noop() {
         // Gap of only 60 seconds — below GAP_THRESHOLD_NS (300s).
-        let entry1 = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
-        let entry2 = HistoryEntry::new(60 * 1_000_000_000, 5.0, 2.0, vec![], 0.0, 0.0, false);
+        let entry1 = HistoryEntry::new(0, 50.0, 25.0, 0.0, 0.0, 10.0, 5.0, true);
+        let entry2 = HistoryEntry::new(60 * 1_000_000_000, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, false);
 
         let entries = vec![entry1, entry2];
         let result = fill_gaps(entries.clone(), 300_000_000_000u64, 30_000_000_000u64);
@@ -1022,9 +1029,9 @@ mod tests {
     #[test]
     fn test_fill_gaps_deltas_recomputed_after_gap() {
         // Entry 1: timestamp=0s, cpu=50.0, network=10.0 (active state)
-        let entry1 = HistoryEntry::new(0, 50.0, 25.0, vec![], 10.0, 5.0, true);
+        let entry1 = HistoryEntry::new(0, 50.0, 25.0, 0.0, 0.0, 10.0, 5.0, true);
         // Entry 2: timestamp=600s (10 min gap), cpu=5.0, network=0.0 (idle state)
-        let entry2 = HistoryEntry::new(600_000_000_000, 5.0, 2.0, vec![], 0.0, 0.0, false);
+        let entry2 = HistoryEntry::new(600_000_000_000, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, false);
 
         let entries = vec![entry1.clone(), entry2];
         let result = fill_gaps(entries, 300_000_000_000u64, 30_000_000_000u64);
@@ -1053,13 +1060,14 @@ mod tests {
 
     #[test]
     fn test_entry_deltas_basic() {
-        let prev = HistoryEntry::new(0, 10.0, 5.0, vec![20.0], 8.0, 2.0, false);
+        let prev = HistoryEntry::new(0, 10.0, 5.0, 20.0, 20.0, 8.0, 2.0, false);
         // Entry 1 second later with higher values.
         let curr = HistoryEntry::new(
             1_000_000_000, // +1s
             30.0,          // cpu per_core_max increased by 20 → rate = 20%/s
             15.0,          // cpu total_average increased by 10 → rate = 10%/s
-            vec![40.0],    // gpu usage increased by 20 → rate = 20%/s
+            40.0,          // gpu per_gpu_max (single GPU)
+            40.0,          // gpu total_average (same for single GPU)
             18.0,          // network increased by 10 → rate = 10 Mbps/s
             7.0,           // disk increased by 5 → rate = 5 MB/s/s
             true,          // inhibited
@@ -1074,16 +1082,13 @@ mod tests {
         assert!((deltas.network_delta_per_sec.unwrap() - 10.0).abs() < f64::EPSILON);
         // Disk delta should be (7-2)/1.0 = 5 MB/s/s.
         assert!((deltas.disk_delta_per_sec.unwrap() - 5.0).abs() < f64::EPSILON);
-        // GPU delta should be (40-20)/1.0 = 20%/s.
-        assert_eq!(deltas.gpu_deltas_per_sec.len(), 1);
-        assert!((deltas.gpu_deltas_per_sec[0] - 20.0).abs() < f64::EPSILON);
     }
 
     #[test]
     fn test_entry_deltas_zero_elapsed_no_change() {
-        let prev = HistoryEntry::new(100, 10.0, 5.0, vec![], 8.0, 2.0, false);
+        let prev = HistoryEntry::new(100, 10.0, 5.0, 0.0, 0.0, 8.0, 2.0, false);
         // Same timestamp — should return None for elapsed and deltas.
-        let curr = HistoryEntry::new(100, 30.0, 15.0, vec![40.0], 18.0, 7.0, true);
+        let curr = HistoryEntry::new(100, 30.0, 15.0, 40.0, 40.0, 18.0, 7.0, true);
         let deltas = EntryDeltas::compute(&curr, &prev);
 
         assert_eq!(deltas.elapsed_since_last_ns, None); // Zero elapsed → None
@@ -1114,7 +1119,8 @@ mod tests {
                     now_ns + ((i as u64) * 5_000_000_000),
                     10.0 + i as f64,
                     5.0 + i as f64,
-                    vec![],
+                    0.0, // gpu per_gpu_max
+                    0.0, // gpu total_average
                     1.0 * (i + 1) as f64,
                     0.5 * (i + 1) as f64,
                     i % 2 == 0,
@@ -1139,7 +1145,8 @@ mod tests {
                     now_ns + ((i as u64) * 5_000_000_000),
                     1.0 + i as f64,
                     0.5 + i as f64,
-                    vec![],
+                    0.0, // gpu per_gpu_max
+                    0.0, // gpu total_average
                     0.1 * (i + 1) as f64,
                     0.1 * (i + 1) as f64,
                     false,

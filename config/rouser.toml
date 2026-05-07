@@ -13,8 +13,9 @@ total_threshold = 25.0
 ema_alpha = 0.7
 
 [metrics.gpu]
-threshold = 15.0      # GPU usage threshold (percentage)
-ema_alpha = 0.7       # EMA smoothing factor
+per_gpu_threshold = 15.0    # Per-GPU utilization percentage that triggers inhibition
+total_threshold = 15.0      # System-wide average GPU utilization threshold (both thresholds use OR logic)
+ema_alpha = 0.7             # EMA smoothing factor
 
 [metrics.network]
 threshold = 10.0      # Network I/O threshold (Mbps)

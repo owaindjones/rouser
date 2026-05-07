@@ -55,7 +55,8 @@ impl SmoothingState {
 pub struct ThresholdManager {
     cpu_per_core_threshold: f64,
     cpu_total_threshold: f64,
-    gpu_threshold: f64,
+    gpu_per_gpu_threshold: f64,
+    gpu_total_threshold: f64,
     network_threshold: f64,
     disk_threshold: f64,
 }
@@ -65,14 +66,16 @@ impl ThresholdManager {
     pub fn new(
         cpu_per_core_threshold: f64,
         cpu_total_threshold: f64,
-        gpu_threshold: f64,
+        gpu_per_gpu_threshold: f64,
+        gpu_total_threshold: f64,
         network_threshold: f64,
         disk_threshold: f64,
     ) -> Self {
         Self {
             cpu_per_core_threshold,
             cpu_total_threshold,
-            gpu_threshold,
+            gpu_per_gpu_threshold,
+            gpu_total_threshold,
             network_threshold,
             disk_threshold,
         }
@@ -82,13 +85,14 @@ impl ThresholdManager {
         &self,
         smoothed_cpu_max: f64,
         smoothed_cpu_avg: f64,
-        gpu_smoothed_values: &[f64],
+        gpu_aggregate: &crate::metrics::GpuAggregate,
         smoothed_network: f64,
         smoothed_disk: f64,
     ) -> bool {
         smoothed_cpu_max > self.cpu_per_core_threshold
             || smoothed_cpu_avg > self.cpu_total_threshold
-            || gpu_smoothed_values.iter().any(|&v| v > self.gpu_threshold)
+            || gpu_aggregate.per_gpu_max > self.gpu_per_gpu_threshold
+            || gpu_aggregate.total_average > self.gpu_total_threshold
             || smoothed_network > self.network_threshold
             || smoothed_disk > self.disk_threshold
     }
@@ -143,7 +147,8 @@ impl DataManager {
         let threshold_manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
@@ -240,6 +245,8 @@ impl DataManager {
             }
         }
 
+        let gpu_aggregate = crate::metrics::GpuAggregate::from_values(&gpu_smoothed_values);
+
         let sorted_entries = sorted_gpu_display(&metrics.gpu_usage, &gpu_smoothed_values);
         let gpu_debug = gpu_display_string(&sorted_entries);
 
@@ -270,7 +277,7 @@ impl DataManager {
         let should_inhibit = self.threshold_manager.should_inhibit(
             smoothed_cpu_max,
             smoothed_cpu_avg,
-            &gpu_smoothed_values,
+            &gpu_aggregate,
             smoothed_network,
             smoothed_disk,
         );
@@ -545,7 +552,8 @@ mod tests {
                     ema_alpha: 0.3,
                 },
                 gpu: crate::config::GpuConfig {
-                    threshold: 90.0,
+                    per_gpu_threshold: 90.0,
+                    total_threshold: 90.0,
                     ema_alpha: 0.3,
                 },
                 network: crate::config::NetworkConfig {
@@ -582,7 +590,8 @@ mod tests {
         let _manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
@@ -594,12 +603,14 @@ mod tests {
         let manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
 
-        assert!(manager.should_inhibit(90.0, 30.0, &[50.0], 10.0, 5.0));
+        let agg = crate::metrics::GpuAggregate::from_values(&[50.0]);
+        assert!(manager.should_inhibit(90.0, 30.0, &agg, 10.0, 5.0));
     }
 
     #[test]
@@ -608,12 +619,14 @@ mod tests {
         let manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
 
-        assert!(!manager.should_inhibit(50.0, 30.0, &[10.0], 10.0, 5.0));
+        let agg = crate::metrics::GpuAggregate::from_values(&[10.0]);
+        assert!(!manager.should_inhibit(50.0, 30.0, &agg, 10.0, 5.0));
     }
 
     #[test]
@@ -622,12 +635,14 @@ mod tests {
         let manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
 
-        assert!(manager.should_inhibit(80.0, 45.0, &[95.0], 10.0, 5.0));
+        let agg = crate::metrics::GpuAggregate::from_values(&[95.0]);
+        assert!(manager.should_inhibit(80.0, 45.0, &agg, 10.0, 5.0));
     }
 
     #[test]
@@ -636,12 +651,14 @@ mod tests {
         let manager = ThresholdManager::new(
             config.metrics.cpu.per_core_threshold,
             config.metrics.cpu.total_threshold,
-            config.metrics.gpu.threshold,
+            config.metrics.gpu.per_gpu_threshold,
+            config.metrics.gpu.total_threshold,
             config.metrics.network.threshold,
             config.metrics.disk.threshold,
         );
 
-        assert!(manager.should_inhibit(80.0, 45.0, &[50.0, 95.0], 10.0, 5.0));
+        let agg = crate::metrics::GpuAggregate::from_values(&[50.0, 95.0]);
+        assert!(manager.should_inhibit(80.0, 45.0, &agg, 10.0, 5.0));
     }
 
     #[test]
