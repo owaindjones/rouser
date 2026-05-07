@@ -186,6 +186,12 @@ pub struct PredictionConfig {
     /// Maximum additional time for predictive cooldown extension.
     #[serde(default, with = "humantime_serde")]
     pub max_extension_time: Duration,
+    /// Number of hidden neurons in the NG-RC reservoir computing model. Controls model capacity; larger values capture more complex patterns but use more memory (O(n^2) for n hidden_dim).
+    #[serde(default)]
+    pub ml_hidden_dim: usize,
+    /// Size of the delay buffer used by the NG-RC model to create polynomial features from past states. Must be <= history_length / update_interval.
+    #[serde(default)]
+    pub ml_delay_buffer_size: usize,
 }
 
 fn default_history_length() -> Duration {
@@ -200,6 +206,8 @@ impl Default for PredictionConfig {
             update_interval: Duration::from_secs(30),
             history_length: Duration::from_secs(30 * 24 * 60 * 60),
             max_extension_time: Duration::from_secs(3600),
+            ml_hidden_dim: 16,
+            ml_delay_buffer_size: 8,
         }
     }
 }

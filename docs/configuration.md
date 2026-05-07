@@ -63,9 +63,11 @@ duration_threshold = "5s"    # Min time above threshold before inhibiting sleep
 cooldown_duration = "10s"     # Time below threshold before releasing inhibition
 
 [prediction]
-update_interval = "30s"      # Seconds between averaged snapshots; must be >= root update_interval
-history_length = "30d"       # Keep this much historical data; older entries pruned periodically
-max_extension_time = "1h"    # Maximum additional time for predictive cooldown extension
+update_interval = "30s"              # Seconds between averaged snapshots; must be >= root update_interval
+history_length = "30d"               # Keep this much historical data; older entries pruned periodically
+max_extension_time = "1h"            # Maximum additional time for predictive cooldown extension
+ml_hidden_dim = 16                   # Hidden neurons in NG-RC reservoir computing model (O(n^2) memory)
+ml_delay_buffer_size = 8             # Delay buffer size for temporal feature creation from past states
 
 [inhibitor]
 what = "shutdown:idle"     # Lock type: idle, sleep, suspend, shutdown (colon-separated)
@@ -137,13 +139,15 @@ Disk activity is calculated as total bytes transferred across monitored devices 
 
 ### `[prediction]` Section — Adaptive Cooldown Extension
 
-The prediction module learns from historical system metric patterns over days and weeks, then dynamically extends the post-idle cooldown duration when patterns indicate likely continued active use at the current time of day. This reduces false-positive sleep inhibition during typical work hours while still allowing sleep during known idle periods (e.g., late nights). See [prediction-model.md](prediction-model.md) for a detailed explanation of how the model works.
+The prediction module uses an unsupervised NG-RC (Narmala-Gated Reservoir Computing) neural network to learn historical system metric patterns over days and weeks, then dynamically extends the post-idle cooldown duration when learned patterns indicate likely continued active use. This reduces false-positive sleep inhibition during typical work hours while still allowing sleep during known idle periods (e.g., late nights). See [prediction-model.md](prediction-model.md) for a detailed explanation of how the model works.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `update_interval` | duration | `"30s"` | Seconds between averaged snapshots written to history log. Must be greater than or equal to the root `update_interval`. Metrics from each tick are accumulated and averaged, then a single snapshot is flushed every N ticks where N = update_interval / root_update_interval. Set to `"0s"` to disable prediction entirely. |
 | `history_length` | duration | `"30d"` | Amount of historical data to retain. Older entries and files are pruned automatically. Uses humantime format: `"7d"`, `"30d"`, `"90d"` |
 | `max_extension_time` | duration | `"1h"` | Maximum additional time added to the cooldown duration by prediction. The model will never extend beyond this cap, even if historical patterns suggest it. Uses humantime format: `"5m"`, `"30m"`, `"1h"` |
+| `ml_hidden_dim` | usize | `16` | Number of hidden neurons in the NG-RC reservoir computing model. Controls model capacity; larger values capture more complex temporal patterns but use O(n^2) memory (e.g., 16 → ~4KB, 32 → ~16KB). Adjust based on pattern complexity and available memory. |
+| `ml_delay_buffer_size` | usize | `8` | Size of the delay buffer used by the NG-RC model to create polynomial features from past states. Controls how far back in time the model looks for temporal patterns. Should be <= history_length / update_interval (e.g., with 30-day history and 30s intervals, max is ~8640). |
 
 **Data storage**: Historical data is stored as binary files (`history.log.YYYYMMDD`) using bincode v2 serialization under `$XDG_STATE_HOME/rouser/` (defaults to `~/.local/state/rouser/`, or `/var/lib/rouser/` when running as root). Files are date-partitioned for efficient pruning.
 

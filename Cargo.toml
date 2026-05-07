@@ -48,6 +48,9 @@ bincode = { version = "2", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 humantime = "2.1"
 
+# Streaming machine learning (unsupervised NG-RC reservoir computing for cooldown prediction)
+irithyll = { version = "9.9", features = ["serde-bincode"] }
+
 
 [dev-dependencies]
 tempfile = "3.0"
