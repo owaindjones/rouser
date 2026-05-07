@@ -224,7 +224,7 @@ The old `/org/freedesktop/PowerManagement.Inhibit` API is obsolete (deprecated ~
 `config/rouser.toml` is the single source of truth for all configuration defaults — not `src/config.rs`, not documentation, not code comments. When updating default values:
 
 1. **Always update `config/rouser.toml` first** with the new default value
-2. Then update `src/config.rs` to match (default helper functions like `default_ema_alpha_cpu()`)
+2. Then update `src/config.rs` to match (hardcoded values in `Default` trait impls)
 3. Then update all documentation (`docs/configuration.md`, `docs/metrics-overview.md`, etc.)
 
 The code defaults in `config/rouser.toml` are embedded at compile time via `include_str!()` and served as both the shipped config file AND the binary's built-in fallback. Never change a default value without updating all three locations simultaneously.
