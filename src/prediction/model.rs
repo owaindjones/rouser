@@ -213,14 +213,13 @@ impl LastEntryMetrics {
 }
 
 impl PredictionModel {
-    /// Create a new prediction model with ML parameters. Loads existing history if available.
+   /// Create a new prediction model. Loads existing history if available.
     pub fn new(
         is_root: bool,
         update_interval_ns: u64,
         max_extension_time: std::time::Duration,
-        ml_hidden_dim: usize,
-        ml_delay_buffer_size: usize,
     ) -> Self {
+
         let history = HistoryLog::new(is_root);
 
         // Determine checkpoint directory based on privilege level.
@@ -233,11 +232,8 @@ impl PredictionModel {
             PathBuf::from(state_home).join("rouser/ml_checkpoints")
         };
 
-        let mut ml_predictor = MlPredictor::new(
-            ml_hidden_dim,
-            ml_delay_buffer_size,
-            checkpoint_dir.clone(),
-        );
+         let mut ml_predictor = MlPredictor::new(checkpoint_dir.clone());
+
 
         // Load normalization stats from previous training if available.
         let _ = ml_predictor.load();
@@ -532,7 +528,7 @@ mod tests {
 
     fn make_test_model() -> PredictionModel {
         let mut model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
         // Flush every tick so tests don't need to wait for intervals.
         model.set_prediction_update_interval(std::time::Duration::from_secs(1));
         model
@@ -551,7 +547,7 @@ mod tests {
     #[test]
     fn test_predict_cooldown_no_data_returns_zero() {
         let mut model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
         let prediction = model.predict_cooldown();
         assert!(!prediction.additional_time.gt(&std::time::Duration::ZERO));
     }
@@ -577,7 +573,7 @@ mod tests {
     #[test]
     fn test_predict_cooldown_with_insufficient_data() {
         let mut model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
         let prediction = model.predict_cooldown();
         // Should return zero additional time and low confidence with no data.
         assert_eq!(prediction.additional_time, std::time::Duration::ZERO);
@@ -588,7 +584,7 @@ mod tests {
     #[test]
     fn test_multi_tick_averaging_correctness() {
         let mut model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
         // Flush every 5 ticks to verify partial accumulation doesn't produce snapshots.
         model.set_prediction_update_interval(std::time::Duration::from_secs(5));
 
@@ -616,7 +612,7 @@ mod tests {
         assert_eq!(model.data_points(), 2);
 
         let mut model2 =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
         // Flush every 3 ticks to verify exact-value averaging (all identical inputs → average equals input).
         model2.set_prediction_update_interval(std::time::Duration::from_secs(3));
 
@@ -640,7 +636,7 @@ mod tests {
     #[test]
     fn test_predict_cooldown_insufficient_data() {
         let mut model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
         let prediction = model.predict_cooldown();
         assert_eq!(prediction.additional_time, std::time::Duration::ZERO);
         assert_eq!(prediction.confidence, 0.0);
@@ -709,7 +705,7 @@ mod tests {
     #[test]
     fn test_prediction_consumes_delta_trend_signal() {
         let mut model =
-            PredictionModel::new(false, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
+            PredictionModel::new(false, 30_000_000_000u64, std::time::Duration::from_secs(60));
         model.set_prediction_update_interval(std::time::Duration::from_secs(1));
 
         // Record enough entries to pass the 10-point threshold and populate delta features.

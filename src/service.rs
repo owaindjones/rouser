@@ -161,12 +161,10 @@ impl DataManager {
             #[cfg(not(unix))]
             let is_root: bool = false;
 
-            let mut model = PredictionModel::new(
+           let mut model = PredictionModel::new(
                 is_root,
                 config.prediction.update_interval.as_nanos() as u64,
                 config.prediction.max_extension_time,
-                config.prediction.ml_hidden_dim,
-                config.prediction.ml_delay_buffer_size,
             );
             let effective_prediction_interval =
                 std::cmp::max(config.prediction.update_interval, config.update_interval);
@@ -574,12 +572,10 @@ mod tests {
                 what: "sleep".to_string(),
                 mode: "block".to_string(),
             },
-            prediction: crate::config::PredictionConfig {
+          prediction: crate::config::PredictionConfig {
                 update_interval: std::time::Duration::from_secs(30),
                 history_length: std::time::Duration::from_secs(30 * 24 * 60 * 60),
                 max_extension_time: std::time::Duration::from_secs(60),
-                ml_hidden_dim: 16,
-                ml_delay_buffer_size: 8,
             },
         }
     }

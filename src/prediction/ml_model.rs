@@ -224,25 +224,21 @@ pub struct MlPredictor {
 }
 
 impl MlPredictor {
-    /// Create a new ML predictor with configuration parameters and checkpoint path.
-    pub fn new(
-        hidden_dim: usize,
-        delay_buffer_size: usize,
-        checkpoint_dir: PathBuf,
-    ) -> Self {
+    /// Create a new ML predictor. The NG-RC model uses hardcoded constants tuned for system metrics anomaly detection:
+    /// - k=5: looks back at the last 5 snapshots (temporal context window)
+    /// - degree=2: quadratic polynomial features capture nonlinear relationships in CPU/GPU/network/disk patterns
+    pub fn new(checkpoint_dir: PathBuf) -> Self {
         let config = NGRCConfig::builder()
-            .k(delay_buffer_size)
+            .k(5) // Look back at last 5 snapshots for temporal context
             .s(1)
-            .degree(hidden_dim.min(3)) // Use hidden_dim as degree cap (2-3 recommended for NG-RC)
+            .degree(2) // Quadratic polynomial features (minimum allowed, sufficient for anomaly detection)
             .build()
             .expect("valid NGRC config");
 
         let model = NextGenRC::new(config.clone());
 
         debug!(
-            "Created ML predictor with k={}, degree={}",
-            delay_buffer_size,
-            hidden_dim.min(3)
+            "Created ML predictor with temporal_window=5, degree=2"
         );
 
         Self {
@@ -380,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_ml_predictor_creation() {
-        let predictor = MlPredictor::new(16, 8, PathBuf::from("/tmp/test_ml"));
+         let predictor = MlPredictor::new(PathBuf::from("/tmp/test_ml"));
 
         assert_eq!(predictor.get_training_count(), 0);
         assert!(!predictor.has_sufficient_data());
