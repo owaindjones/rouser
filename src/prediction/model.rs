@@ -328,12 +328,6 @@ impl LastEntryMetrics {
             disk_mb_s: entry.disk_mb_s,
         }
     }
-
-    fn apply_deltas(&self, next: &HistoryEntry) -> HistoryEntry {
-        let prev = Self::from_entry(next);
-        EntryDeltas::compute(next, &prev.to_entry());
-        next.clone()
-    }
 }
 
 impl PredictionModel {
