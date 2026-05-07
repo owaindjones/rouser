@@ -153,15 +153,11 @@ impl Default for TimingConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InhibitionConfig {
     /// Operations to inhibit (colon-separated). See D-Bus login1 API for options.
-    #[serde(default = "default_what")]
+    #[serde(default)]
     pub what: String,
     /// Mode of inhibition: block, delay, or block-weak.
     #[serde(default)]
     pub mode: String,
-}
-
-fn default_what() -> String {
-    "shutdown:idle".to_string()
 }
 
 impl Default for InhibitionConfig {

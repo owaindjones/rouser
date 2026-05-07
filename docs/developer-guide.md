@@ -445,18 +445,24 @@ Add inhibitor selection to config:
 ```rust
 #[derive(Debug, Deserialize)]
 pub struct InhibitionConfig {
-    #[serde(default = "default_inhibitor_type")]
+    #[serde(default)]
     pub inhibitor_type: String,  // "login1", "custom", etc.
-    
-    #[serde(default = "default_what")]
+
+    #[serde(default)]
     pub what: String,
-    
-    #[serde(default = "default_mode")]
+
+    #[serde(default)]
     pub mode: String,
 }
 
-fn default_inhibitor_type() -> String {
-    "login1".to_string()
+impl Default for InhibitionConfig {
+    fn default() -> Self {
+        Self {
+            inhibitor_type: "login1".to_string(),
+            what: "shutdown:idle".to_string(),
+            mode: "block".to_string(),
+        }
+    }
 }
 ```
 
