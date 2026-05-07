@@ -52,6 +52,10 @@ pub struct EntryDeltas {
     pub network_delta_per_sec: Option<f64>,
     /// Rate of change of disk throughput in MB/s/s.
     pub disk_delta_per_sec: Option<f64>,
+    /// Rate of change of GPU per_gpu_max usage in %/s.
+    pub gpu_delta_per_gpu_max: Option<f64>,
+    /// Rate of change of GPU total_average usage in %/s.
+    pub gpu_delta_total_average: Option<f64>,
 }
 
 impl EntryDeltas {
@@ -65,6 +69,8 @@ impl EntryDeltas {
                 cpu_delta_per_sec: None,
                 network_delta_per_sec: None,
                 disk_delta_per_sec: None,
+                gpu_delta_per_gpu_max: None,
+                gpu_delta_total_average: None,
             };
         }
 
@@ -88,11 +94,29 @@ impl EntryDeltas {
             None
         };
 
+        let gpu_delta_per_gpu_max = if secs_f64 > 0.0 {
+            Some(
+                (current.gpu_usage.per_gpu_max - prev.gpu_usage.per_gpu_max) / secs_f64,
+            )
+        } else {
+            None
+        };
+
+        let gpu_delta_total_average = if secs_f64 > 0.0 {
+            Some(
+                (current.gpu_usage.total_average - prev.gpu_usage.total_average) / secs_f64,
+            )
+        } else {
+            None
+        };
+
         Self {
             elapsed_since_last_ns: Some(elapsed_ns),
             cpu_delta_per_sec,
             network_delta_per_sec,
             disk_delta_per_sec,
+            gpu_delta_per_gpu_max,
+            gpu_delta_total_average,
         }
     }
 }

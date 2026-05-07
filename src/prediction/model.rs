@@ -205,6 +205,8 @@ struct TrendSignal {
     avg_cpu_delta_per_sec: f64,
     /// Average network I/O trend over the N most recent entries.
     avg_network_delta_per_sec: f64,
+    /// Average GPU per-GPU-max trend (positive = rising) over the N most recent entries.
+    avg_gpu_delta_per_sec: f64,
     /// Count of entries with positive delta signals used in averaging.
     samples: u32,
 }
@@ -216,6 +218,7 @@ impl TrendSignal {
             return Self {
                 avg_cpu_delta_per_sec: 0.0,
                 avg_network_delta_per_sec: 0.0,
+                avg_gpu_delta_per_sec: 0.0,
                 samples: 0,
             };
         }
@@ -229,6 +232,7 @@ impl TrendSignal {
 
         let mut cpu_sum = 0.0f64;
         let mut net_sum = 0.0f64;
+        let mut gpu_sum = 0.0f64;
         let mut samples = 0u32;
 
         // Compute deltas on-the-fly from consecutive real entries in chronological order.
@@ -242,6 +246,7 @@ impl TrendSignal {
             samples += 1;
             cpu_sum += deltas.cpu_delta_per_sec.unwrap_or(0.0);
             net_sum += deltas.network_delta_per_sec.unwrap_or(0.0);
+            gpu_sum += deltas.gpu_delta_per_gpu_max.unwrap_or(0.0);
         }
 
         Self {
@@ -252,6 +257,7 @@ impl TrendSignal {
             },
             // Use the same sample count for network to keep averaging consistent with CPU trend.
             avg_network_delta_per_sec: net_sum / samples.max(1) as f64,
+            avg_gpu_delta_per_sec: gpu_sum / samples.max(1) as f64,
             samples,
         }
     }
@@ -547,7 +553,8 @@ impl PredictionModel {
                 let cpu_trend_factor = (trend_signal.avg_cpu_delta_per_sec / 50.0).clamp(-0.1, 0.1);
                 let net_trend_factor =
                     (trend_signal.avg_network_delta_per_sec / 100.0).clamp(-0.1, 0.1);
-                let trend = cpu_trend_factor + net_trend_factor;
+                let gpu_trend_factor = (trend_signal.avg_gpu_delta_per_sec / 50.0).clamp(-0.1, 0.1);
+                let trend = cpu_trend_factor + net_trend_factor + gpu_trend_factor;
                 1.0 + trend
             } else {
                 1.0 // No adjustment when score is low or no delta data available
