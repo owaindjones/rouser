@@ -311,7 +311,7 @@ History data was migrated from `$XDG_DATA_HOME/rouser` (or `~/.local/share/rouse
 
 ## Prediction Model Refactoring (In Progress)
 
-The prediction module is undergoing a major refactoring to replace the histogram-based TimeKey approach with an unsupervised ML model using NG-RC reservoir computing from the [irithyll](https://crates.io/crates/irithyll) crate. See [`docs/prediction-todo.md`](./docs/predotion-todo.md) for the complete task tracker and architecture decisions.
+The prediction module is undergoing a major refactoring to replace the histogram-based TimeKey approach with an unsupervised ML model using NG-RC reservoir computing from the [irithyll](https://crates.io/crates/irithyll) crate. See [`docs/prediction-todo.md`](./docs/prediction-todo.md) for the complete task tracker and architecture decisions.
 
 **Key changes:**
 - **TimeKey deprecation**: The `(year, week_of_year, seconds_into_week)` histogram key is being removed. Year provides no pattern-matching value (it's monotonically increasing), and 604800 buckets/week is wasteful for sparse data. The ML approach eliminates bucketing entirely — each history entry becomes a feature vector.
