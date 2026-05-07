@@ -69,7 +69,7 @@ impl GpuCollector {
 
     /// Returns true if any physical GPU cards exist on this system.
     pub fn has_gpus(&self) -> bool {
-        self.enumerate_gpus().is_empty()
+        !self.enumerate_gpus().is_empty()
     }
 
     /// Collect utilization data from all detected GPUs.
