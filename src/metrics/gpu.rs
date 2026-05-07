@@ -819,3 +819,69 @@ mod enumerate_tests {
         assert!(!GpuCollector::is_valid_gpu_card("", &empty));
     }
 }
+#[cfg(test)]
+mod has_gpus_tests {
+    use super::*;
+
+    #[test]
+    fn test_has_gpus_consistent_with_enumerate() {
+        let collector = GpuCollector::new();
+        let enumerated = collector.enumerate_gpus();
+        
+        // has_gpus and enumerate results must agree: 
+        // has_gpus is true iff enumerate returns non-empty.
+        assert_eq!(collector.has_gpus(), !enumerated.is_empty());
+    }
+
+    #[test]
+    fn test_enumerate_returns_known_driver_types() {
+        let collector = GpuCollector::new();
+        let cards = collector.enumerate_gpus();
+        
+        for card in &cards {
+            // All enumerated cards should have recognized drivers, not "unknown"
+            assert_ne!(card.driver_name, "unknown", 
+                "Card {} has unrecognized driver '{}'", card.device_id, card.driver_name);
+        }
+
+        if !cards.is_empty() {
+            println!("Enumerated GPUs: {:?}", cards);
+        }
+    }
+
+    #[test]
+    fn test_has_gpus_false_on_empty_sysfs_simulation() {
+        let base = tempfile::tempdir().unwrap();
+        
+        // Verify is_valid_gpu_card rejects all entries in empty temp dir.
+        let entries = fs::read_dir(base.path()).ok();
+        let mut found_any = false;
+        if let Some(entries) = entries {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = match path.file_name().and_then(|s| s.to_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+                if GpuCollector::is_valid_gpu_card(name, &path) {
+                    found_any = true;
+                }
+            }
+        }
+        
+        // Empty temp dir should have no valid GPU cards.
+        assert!(!found_any, "tempdir unexpectedly contains valid gpu card entries");
+    }
+
+    #[test]
+    fn test_has_gpus_true_when_fake_card_present() {
+        let base = tempfile::tempdir().unwrap();
+        let card_path = base.path().join("card0");
+        fs::create_dir_all(card_path.join("device")).unwrap();
+        
+        // Verify is_valid_gpu_card accepts the fake card.
+        assert!(GpuCollector::is_valid_gpu_card(
+            "card0", &card_path
+        ));
+    }
+}

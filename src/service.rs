@@ -270,8 +270,14 @@ impl DataManager {
         );
 
         debug!(
-            "Metrics: CPU max={:.1}% avg={:.1}%, GPU: {}, Network={}, Disk={}",
-            smoothed_cpu_max, smoothed_cpu_avg, gpu_debug, network_log, disk_log
+            "Metrics: CPU max={:.1}% avg={:.1}%, GPU: {} (max={:.1}% avg={:.1}%), Network={}, Disk={}",
+            smoothed_cpu_max,
+            smoothed_cpu_avg,
+            gpu_debug,
+            gpu_aggregate.per_gpu_max,
+            gpu_aggregate.total_average,
+            network_log,
+            disk_log
         );
 
         let should_inhibit = self.threshold_manager.should_inhibit(
