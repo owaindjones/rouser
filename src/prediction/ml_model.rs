@@ -8,7 +8,7 @@ use irithyll::{reservoir::{NextGenRC, NGRCConfig}, StreamingLearner};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Fixed-size feature vector extracted from a HistoryEntry for ML processing.
 /// Contains six normalized metric values: CPU max/avg, GPU max/avg, network MB/s, disk MB/s.
@@ -73,23 +73,12 @@ impl FeatureVector {
 }
 
 /// Running normalization statistics for feature scaling using Welford's online algorithm.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NormalizationStats {
     cpu_stats: StatsTracker,
     gpu_stats: StatsTracker,
     network_stats: StatsTracker,
     disk_stats: StatsTracker,
-}
-
-impl Default for NormalizationStats {
-    fn default() -> Self {
-        Self {
-            cpu_stats: StatsTracker::default(),
-            gpu_stats: StatsTracker::default(),
-            network_stats: StatsTracker::default(),
-            disk_stats: StatsTracker::default(),
-        }
-    }
 }
 
 impl NormalizationStats {
@@ -221,7 +210,7 @@ fn normalize(value: f64, stats: &StatsTracker) -> f64 {
     let mean = stats.get_mean();
     let std = stats.get_std().max(1e-8);
     let normalized = (value - mean) / std;
-    normalized.max(0.0).min(1.0)
+    normalized.clamp(0.0, 1.0)
 }
 
 /// Unsupervised NG-RC predictor for cooldown extension estimation.
@@ -273,7 +262,7 @@ impl MlPredictor {
         self.model.train_one(&array, target, 1.0);
         self.training_count += 1;
 
-        if self.training_count % 50 == 0 {
+        if self.training_count.is_multiple_of(50) {
             debug!("Trained ML model on {} samples", self.training_count);
         }
     }
@@ -296,7 +285,7 @@ impl MlPredictor {
 
         // Anomaly score is based on prediction error (residual) normalized to [0, 1]
         let residual = (actual - predicted).abs();
-        let mean = self.stats.get_cpu_stats().get_mean();
+         let _mean = self.stats.get_cpu_stats().get_mean();
         let std = self.stats.get_cpu_stats().get_std().max(1e-8);
 
         // Normalize residual by training distribution's standard deviation

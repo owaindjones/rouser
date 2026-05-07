@@ -7,5 +7,5 @@ mod ml_model;
 mod model;
 
 pub use history::{fill_gaps, EntryDeltas, HistoryEntry, HistoryLog};
-pub use ml_model::MlPredictor;
+
 pub use model::{CooldownPrediction, PredictionModel};
