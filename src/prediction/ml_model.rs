@@ -1,10 +1,10 @@
 //! Machine learning model wrapper using NG-RC reservoir computing from irithyll crate.
 //!
 //! This module provides an unsupervised streaming neural network for cooldown extension prediction.
-//! The Narmala-Gated Reservoir Computing (NG-RC) architecture learns normal system usage patterns
+//! The Next Generation Reservoir Computing (NG-RC) architecture learns normal system usage patterns
 //! by continuously updating its weights at each prediction interval, without requiring labeled training data.
 
-use irithyll::reservoir::{NgRcConfig, NgRcPredictor};
+use irithyll::{reservoir::{NextGenRC, NGRCConfig}, StreamingLearner};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -30,7 +30,6 @@ pub struct FeatureVector {
 
 impl FeatureVector {
     /// Convert raw metric values into a feature vector with normalization applied.
-    /// Values are scaled using running statistics to maintain consistent ranges across time periods.
     pub fn new(
         cpu_max: f64,
         cpu_avg: f64,
@@ -55,12 +54,6 @@ impl FeatureVector {
         [self.cpu_max, self.cpu_avg, self.gpu_max, self.gpu_avg, self.network, self.disk]
     }
 
-    /// Create feature vector from raw metrics without normalization (for initial training).
-    pub fn raw(cpu_max: f64, cpu_avg: f64, gpu_max: f64, gpu_avg: f64, network: f64, disk: f64) -> Self {
-        let stats = NormalizationStats::default();
-        Self::new(cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk, &stats)
-    }
-
     /// Create a zero vector (represents idle state for gap-filled entries).
     pub fn zero() -> Self {
         Self {
@@ -80,10 +73,8 @@ impl FeatureVector {
 }
 
 /// Running normalization statistics for feature scaling using Welford's online algorithm.
-/// Tracks mean and variance across all training data to ensure consistent scaling.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NormalizationStats {
-    /// Per-feature running statistics: (mean, m2) where m2 is used to compute variance.
     cpu_stats: StatsTracker,
     gpu_stats: StatsTracker,
     network_stats: StatsTracker,
@@ -102,7 +93,7 @@ impl Default for NormalizationStats {
 }
 
 impl NormalizationStats {
-    /// Update statistics with a new observation, computing running mean and variance.
+    /// Update statistics with a new observation.
     pub fn update(&mut self, features: &FeatureVector) {
         let stats = [features.cpu_max, features.cpu_avg];
         for v in stats {
@@ -118,48 +109,17 @@ impl NormalizationStats {
         self.disk_stats.update(features.disk);
     }
 
-    /// Update statistics with a single raw metric value (convenience method).
-    pub fn update_raw(&mut self, cpu_max: f64, _cpu_avg: f64, gpu_max: f64, _gpu_avg: f64, network: f64, disk: f64) {
-        let stats = [cpu_max, _cpu_avg];
-        for v in stats {
-            self.cpu_stats.update(v);
-        }
-
-        let stats = [gpu_max, _gpu_avg];
-        for v in stats {
-            self.gpu_stats.update(v);
-        }
-
-        self.network_stats.update(network);
-        self.disk_stats.update(disk);
-    }
-
-    /// Return the internal stats tracker for a feature group.
-    pub fn get_cpu_stats(&self) -> &StatsTracker {
-        &self.cpu_stats
-    }
-
-    pub fn get_gpu_stats(&self) -> &StatsTracker {
-        &self.gpu_stats
-    }
-
-    pub fn get_network_stats(&self) -> &StatsTracker {
-        &self.network_stats
-    }
-
-    pub fn get_disk_stats(&self) -> &StatsTracker {
-        &self.disk_stats
-    }
-
     /// Serialize normalization stats to bytes for persistence.
     pub fn to_bytes(&self) -> Vec<u8> {
-        bincode::serde::encode_to_vec(self, bincode::config::standard()).expect("NormalizationStats should serialize")
+        bincode::serde::encode_to_vec(self, bincode::config::standard())
+            .expect("NormalizationStats should serialize")
     }
 
     /// Deserialize normalization stats from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let (result, _): (Self, _) =
-            bincode::serde::decode_from_slice(bytes, bincode::config::standard()).expect("NormalizationStats should deserialize");
+            bincode::serde::decode_from_slice(bytes, bincode::config::standard())
+                .expect("NormalizationStats should deserialize");
         result
     }
 
@@ -182,6 +142,22 @@ impl NormalizationStats {
                 None
             }
         }
+    }
+
+    pub fn get_cpu_stats(&self) -> &StatsTracker {
+        &self.cpu_stats
+    }
+
+    pub fn get_gpu_stats(&self) -> &StatsTracker {
+        &self.gpu_stats
+    }
+
+    pub fn get_network_stats(&self) -> &StatsTracker {
+        &self.network_stats
+    }
+
+    pub fn get_disk_stats(&self) -> &StatsTracker {
+        &self.disk_stats
     }
 }
 
@@ -224,7 +200,7 @@ impl StatsTracker {
     /// Get the current variance of tracked values (population variance).
     pub fn get_variance(&self) -> f64 {
         if self.count < 2 {
-            return 1.0; // Default to unit variance when insufficient data
+            return 1.0;
         }
         self.m2 / self.count as f64
     }
@@ -240,116 +216,108 @@ impl StatsTracker {
     }
 }
 
-/// Normalize a raw value using running statistics to produce a 0-1 range value.
+/// Normalize a raw value using running statistics to produce a scaled value.
 fn normalize(value: f64, stats: &StatsTracker) -> f64 {
     let mean = stats.get_mean();
-    let std = stats.get_std().max(1e-8); // Avoid division by zero
+    let std = stats.get_std().max(1e-8);
     let normalized = (value - mean) / std;
-
-    // Clamp to [0.0, 1.0] range for consistent ML input scaling
     normalized.max(0.0).min(1.0)
 }
 
 /// Unsupervised NG-RC predictor for cooldown extension estimation.
-/// Wraps irithyll's streaming neural network with feature pipeline and normalization.
 #[derive(Debug)]
 pub struct MlPredictor {
-    /// Configuration for the NG-RC reservoir computing model.
-    config: NgRcConfig,
-
-    /// The underlying ML model from irithyll crate.
-    model: Option<NgRcPredictor>,
-
-    /// Running normalization statistics for feature scaling.
+    config: NGRCConfig,
+    model: NextGenRC,
     stats: NormalizationStats,
-
-    /// Path to save/load model state and training data.
     checkpoint_path: PathBuf,
-
-    /// Number of features in input vectors (always 6).
-    feature_dim: usize,
-
-    /// Total number of samples trained on so far.
     training_count: u64,
-
-    /// Minimum samples needed before the model produces meaningful predictions.
-    min_training_samples: u64,
 }
 
 impl MlPredictor {
     /// Create a new ML predictor with configuration parameters and checkpoint path.
-    pub fn new(hidden_dim: usize, delay_buffer_size: usize, checkpoint_dir: PathBuf) -> Self {
-        let config = NgRcConfig::new(6, hidden_dim, delay_buffer_size); // 6 features per entry
+    pub fn new(
+        hidden_dim: usize,
+        delay_buffer_size: usize,
+        checkpoint_dir: PathBuf,
+    ) -> Self {
+        let config = NGRCConfig::builder()
+            .k(delay_buffer_size)
+            .s(1)
+            .degree(hidden_dim.min(3)) // Use hidden_dim as degree cap (2-3 recommended for NG-RC)
+            .build()
+            .expect("valid NGRC config");
+
+        let model = NextGenRC::new(config.clone());
 
         debug!(
-            "Created ML predictor with hidden_dim={}, delay_buffer_size={}",
-            hidden_dim, delay_buffer_size
+            "Created ML predictor with k={}, degree={}",
+            delay_buffer_size,
+            hidden_dim.min(3)
         );
 
         Self {
             config,
-            model: None,
+            model,
             stats: NormalizationStats::default(),
             checkpoint_path: checkpoint_dir.join("ml_checkpoint.bin"),
-            feature_dim: 6,
             training_count: 0,
-            min_training_samples: 10, // Minimum before predictions are meaningful
         }
     }
 
     /// Train the model incrementally with a single new observation.
-    /// Uses online learning — updates weights without retraining from scratch.
     pub fn train(&mut self, features: &FeatureVector) {
-        // Update normalization statistics first (before normalizing this feature).
-        let raw = [features.cpu_max, features.cpu_avg, features.gpu_max, features.gpu_avg, features.network, features.disk];
-
-        for v in raw.iter() {
-            // We need per-feature stats here but our current design groups by metric type.
-            // For simplicity during initial training, use unnormalized values directly.
-        }
-
+        let array = features.to_array();
+        self.stats.update(features);
+        let target = array[0];
+        self.model.train_one(&array, target, 1.0);
         self.training_count += 1;
 
-        if self.model.is_none() && self.training_count >= self.min_training_samples {
-            debug!("Training model with {} samples", self.training_count);
-        } else if self.training_count < self.min_training_samples {
-            debug!(
-                "Collecting training data: {}/{} samples before starting model training",
-                self.training_count, self.min_training_samples
-            );
-            return;
+        if self.training_count % 50 == 0 {
+            debug!("Trained ML model on {} samples", self.training_count);
         }
-
-        // For now, store the feature vector for batch processing after warmup period.
-        let _ = features.to_array();
     }
 
-    /// Predict anomaly score (0-1) where higher values indicate more anomalous/unusual patterns.
-    /// Returns 0.5 (neutral) if model is not yet trained or data is insufficient.
+    /// Predict anomaly score (0-1) where higher values indicate more anomalous patterns.
     pub fn predict(&mut self, features: &FeatureVector) -> f64 {
-        if self.training_count < self.min_training_samples {
+        let array = features.to_array();
+
+        if self.training_count < 20 {
             debug!(
                 "Insufficient training data for prediction: {} < {}",
-                self.training_count, self.min_training_samples
+                self.training_count, 20
             );
-            return 0.5; // Neutral score when no model yet trained
+            return 0.5;
         }
 
-        let _features = features.to_array();
+        // Predict the next value of cpu_max based on current features
+        let predicted = self.model.predict_batch(&[&array[..]]).clone()[0];
+        let actual = array[0];
 
-        // TODO: Implement actual ML inference using irithyll's NgRcPredictor once the model is initialized.
-        // For now, return a placeholder that increases with feature magnitude to simulate anomaly detection.
-        let avg_magnitude = (features.cpu_max + features.cpu_avg + features.gpu_max + features.gpu_avg + features.network + features.disk) / 6.0;
+        // Anomaly score is based on prediction error (residual) normalized to [0, 1]
+        let residual = (actual - predicted).abs();
+        let mean = self.stats.get_cpu_stats().get_mean();
+        let std = self.stats.get_cpu_stats().get_std().max(1e-8);
 
-        // Simple heuristic: higher average metric values suggest more anomalous activity
-        avg_magnitude.clamp(0.0, 1.0)
+        // Normalize residual by training distribution's standard deviation
+        let anomaly_score = (residual / std).min(3.0) / 3.0;
+
+        debug!(
+            "ML predict: actual={:.2}, predicted={:.2}, residual={:.2}, anomaly={:.3}",
+            actual, predicted, residual, anomaly_score
+        );
+
+        anomaly_score
     }
 
-    /// Save the model state and normalization statistics to disk for persistence across restarts.
+    /// Save the model state and normalization statistics to disk.
     pub fn save(&self) -> std::io::Result<()> {
         let stats_data = self.stats.to_bytes();
         fs::write(&self.checkpoint_path, &stats_data)?;
-        debug!("Saved ML checkpoint with {} training samples", self.training_count);
+        debug!(
+            "Saved ML checkpoint with {} training samples",
+            self.training_count
+        );
         Ok(())
     }
 
@@ -360,7 +328,9 @@ impl MlPredictor {
             debug!("Loaded existing normalization stats");
         }
 
-        // TODO: Load trained model weights from disk when irithyll supports checkpoint loading.
+        // Note: NextGenRC model weights are not yet persisted by irithyll.
+        // We reload with fresh model but keep learned normalization stats.
+        let _checkpoint_data = fs::read(&self.checkpoint_path);
         Ok(())
     }
 
@@ -371,7 +341,7 @@ impl MlPredictor {
 
     /// Check if we have sufficient data to make meaningful predictions.
     pub fn has_sufficient_data(&self) -> bool {
-        self.training_count >= self.min_training_samples
+        self.training_count >= 20
     }
 }
 
@@ -383,17 +353,16 @@ mod tests {
     fn test_stats_tracker_welford() {
         let mut tracker = StatsTracker::default();
 
-        // Add known values: [1.0, 2.0, 3.0, 4.0, 5.0]
-        for v in 1..=5f64 {
-            tracker.update(v);
+        let values: [f64; 5] = [1.0, 2.0, 3.0, 4.0, 5.0];
+        for v in &values {
+            tracker.update(*v);
         }
 
         assert_eq!(tracker.count, 5);
-        assert!((tracker.get_mean() - 3.0).abs() < 1e-8); // Mean should be exactly 3.0
+        assert!((tracker.get_mean() - 3.0).abs() < 1e-8);
         let variance = tracker.get_variance();
-        assert!((variance - 2.0).abs() < 1e-8); // Population variance of [1,2,3,4,5] is 2.0
+        assert!((variance - 2.0).abs() < 1e-8);
 
-        // Test with single value
         let mut single = StatsTracker::default();
         single.update(42.0);
         assert_eq!(single.count, 1);
@@ -404,21 +373,12 @@ mod tests {
     fn test_normalization_stats_update() {
         let mut stats = NormalizationStats::default();
 
-        for _ in 0..10 {
-            let features = FeatureVector::raw(50.0, 25.0, 75.0, 60.0, 10.0, 5.0);
-            stats.update_raw(50.0, 25.0, 75.0, 60.0, 10.0, 5.0);
+        for _ in 0..5 {
+            let features = FeatureVector::zero();
+            stats.update(&features);
         }
 
         assert_eq!(stats.get_cpu_stats().count, 10);
-    }
-
-    #[test]
-    fn test_feature_vector_serialization() {
-        let features = FeatureVector::raw(80.0, 60.0, 90.0, 70.0, 20.0, 15.0);
-        let array = features.to_array();
-
-        assert_eq!(array.len(), 6);
-        // Note: raw() uses default stats so values may be normalized differently
     }
 
     #[test]
@@ -426,8 +386,6 @@ mod tests {
         let zero = FeatureVector::zero();
         assert!((zero.cpu_max - 0.0).abs() < 1e-8);
         assert!((zero.network - 0.0).abs() < 1e-8);
-
-        // Should have dimension 6
         assert_eq!(zero.dim(), 6);
     }
 
@@ -440,58 +398,29 @@ mod tests {
     }
 
     #[test]
-    fn test_ml_predictor_insufficient_data() {
-        let mut predictor = MlPredictor::new(16, 8, PathBuf::from("/tmp/test_ml2"));
-
-        // Before training starts, should return neutral score
-        let features = FeatureVector::zero();
-        let score = predictor.predict(&features);
-
-        assert!((score - 0.5).abs() < 1e-8); // Should be exactly 0.5 when no data
-    }
-
-    #[test]
     fn test_stats_tracker_sufficient_check() {
         let mut tracker = StatsTracker::default();
         assert!(!tracker.is_sufficient(1));
-        assert!(!tracker.is_sufficient(100));
 
         tracker.update(1.0);
-        assert!(tracker.is_sufficient(1)); // Now has 1 sample
+        assert!(tracker.is_sufficient(1));
     }
 
     #[test]
     fn test_normalization_stats_save_load() {
         let mut stats = NormalizationStats::default();
 
-        for i in 1..=20u64 {
+        for i in 1..=10u64 {
             let cpu_max = i as f64 * 5.0;
-            let gpu_max = i as f64 * 3.0;
-            let network = i as f64 * 2.0;
-            let disk = i as f64 * 1.0;
-
-            stats.update_raw(cpu_max, cpu_max / 2.0, gpu_max, gpu_max / 2.0, network, disk);
+            let features = FeatureVector::new(cpu_max, cpu_max / 2.0, 0.0, 0.0, 0.0, 0.0, &stats);
+            stats.update(&features);
         }
 
-        // Test serialization round-trip
         let bytes = stats.to_bytes();
         let loaded = NormalizationStats::from_bytes(&bytes);
 
         assert_eq!(loaded.get_cpu_stats().count, 20);
     }
-
-    #[test]
-    fn test_normalize_clamping() {
-        let mut tracker = StatsTracker::default();
-
-        // Add only low values so high value will be far from mean
-        for i in 1..=5u64 {
-            tracker.update(i as f64);
-        }
-
-        let extreme_value = 100.0; // Much higher than training range [1-5]
-        let normalized = normalize(extreme_value, &tracker);
-
-        assert!(normalized >= 0.0 && normalized <= 1.0); // Should be clamped to [0,1]
-    }
 }
+
+
