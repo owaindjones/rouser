@@ -1,44 +1,53 @@
 # Prediction Model
 
-The prediction module provides adaptive cooldown extension based on historical system usage patterns. When metrics drop below inhibition thresholds, rouser consults its learned patterns to determine whether it should extend the idle wait period before releasing sleep inhibition — reducing false-positive wake-ups during typical active-use hours.
+The prediction module provides adaptive cooldown extension based on historical system usage patterns. When metrics drop below inhibition thresholds, rouser consults its learned models to determine whether it should extend the idle wait period before releasing sleep inhibition — reducing false-positive wake-ups during typical active-use hours.
 
 ## Overview
 
-Without prediction, rouser releases sleep inhibition after a fixed `cooldown_duration` (default 10s) of all metrics being below threshold. With prediction enabled, if historical patterns indicate that similar times are usually followed by renewed activity, rouser extends this wait period by up to `max_extension_time`.
+Without prediction, rouser releases sleep inhibition after a fixed `cooldown_duration` (default 10s) of all metrics being below threshold. With prediction enabled, if historical patterns indicate that similar usage levels are typically followed by renewed activity, rouser extends this wait period by up to `max_extension_time`.
 
-The model uses purely statistical pattern matching across three time dimensions — no external ML libraries or training pipelines required:
-- **Year**: Captures seasonal trends (winter vs summer usage)
-- **Week of year**: Captures monthly/annual cycles within a year
-- **Seconds into week**: Precise position enabling hour-of-day + weekday/weekend distinction
+The model uses an **unsupervised streaming neural network** — specifically a Narmala-Gated Reservoir Computing (NG-RC) architecture from the [irithyll](https://crates.io/crates/irithyll) crate. Unlike the previous histogram-based approach that bucketed data by time-of-day, this model treats each metric dimension as an independent feature and learns normal usage patterns without requiring labeled training data.
 
-## Data Collection
+### Architecture: Feature Vectors → Unsupervised Learning
 
-rouser collects metrics every `update_interval` seconds (root config, default 1s). Instead of writing each raw sample to the history log directly, it accumulates these per-tick samples in memory and writes an **averaged snapshot** at a longer interval defined by `[prediction].update_interval` (default 30s).
+Each history entry (flushed every `[prediction].update_interval`, default 30s) is converted into a fixed-size **feature vector** of six normalized values:
+
+| Feature | Source | Description |
+|---------|--------|-------------|
+| CPU per-core max | `/proc/stat` | Highest individual core usage across all cores (0–100%) |
+| CPU total average | `/proc/stat` | Average utilization across all cores weighted by frequency (0–100%) |
+| GPU per-GPU max | NVML / sysfs | Maximum GPU utilization across all detected GPUs (0–100%) |
+| GPU total average | NVML / sysfs | Mean utilization averaged across all GPUs (0–100%) |
+| Network I/O | `/proc/net/dev` | Total throughput in Mbps across all monitored interfaces |
+| Disk activity | `/proc/diskstats` | Combined read + write throughput in MB/s |
+
+The model is **unsupervised** — it learns what "normal" system usage looks like by continuously updating its weights at each prediction `update_interval`. When metrics drop below inhibition thresholds, the model evaluates how anomalous the current state is compared to learned patterns. Higher anomaly scores produce longer cooldown extensions.
+
+### Data Collection and Averaging
+
+rouser collects raw metrics every root `update_interval` seconds (default 1s). It accumulates these per-tick samples in memory and writes an **averaged snapshot** at a longer interval defined by `[prediction].update_interval` (default 30s).
 
 For example, with root `update_interval = "1s"` and prediction `update_interval = "30s"`, rouser collects 30 raw samples per minute, computes their arithmetic mean for each metric dimension, then writes one averaged data point to the history log. This produces smoother historical data that better represents sustained usage patterns rather than momentary spikes.
 
-Each averaged snapshot contains:
-
-| Field | Source | Description |
-|-------|--------|-------------|
-| Timestamp (nanoseconds) | System time | UTC epoch nanosecond precision of flush wall-clock time |
-| CPU max per-core | `/proc/stat` | Average highest per-core usage across accumulated samples |
-| GPU usages | NVML / sysfs | Per-GPU average utilization (averaged independently by slot index) |
-| Network I/O | `/proc/net/dev` | Average throughput in Mbps across all monitored interfaces |
-| Disk activity | `/proc/diskstats` | Average read + write throughput in MB/s |
-| Inhibition state | Internal | Majority vote: true if rouser was inhibited for >50% of accumulated ticks |
-
 ### Rate-of-Change (Delta) Features
 
-Deltas are not stored in history files. Instead, they are computed on-the-fly at prediction time by comparing consecutive flushed entries: `delta = (current - previous) / elapsed_time`. This avoids storing redundant data while preserving the ability to detect rising or falling trends across the historical record.
+Deltas are computed on-the-fly at prediction time by comparing consecutive flushed entries: `delta = (current - previous) / elapsed_time`. This avoids storing redundant rate-of-change data while preserving the ability to detect rising or falling trends across the historical record.
+
+The following deltas are computed per-entry-pair:
+- **CPU**: per-core max and total average change in %/s
+- **GPU**: per-GPU max and total average change in %/s
+- **Network**: throughput change in Mbps/s
+- **Disk**: throughput change in MB/s/s
+
+These deltas feed into the trend signal, which provides an additional dimension beyond raw metric values — helping distinguish between a temporary dip during active work versus genuine inactivity.
 
 ### Gap Handling via Zero-Fill Interpolation
 
-When the computer is shut down or sleeping, no data points are written to the history log. Without correction, this creates a temporal gap that causes the prediction model to be overfit on active-period data only — it would see high activity during those gaps and incorrectly predict future activity.
+When the computer is shut down or sleeping, no data points are written to the history log. Without correction, this creates a temporal gap that would cause the prediction model to be overfit on active-period data only — it would see high activity during those gaps and incorrectly predict future activity.
 
 To address this, rouser detects gaps between consecutive entries at prediction time — any gap exceeding `[prediction].update_interval` is considered a large gap (e.g., >30s with default config). Rouser inserts **synthetic zero-value entries** at `update_interval` intervals within such gaps. These synthetic records have all metric values set to 0 and `inhibited: false`, representing idle periods where no activity was recorded because the system was powered off or sleeping. Synthetic entries exist only in memory during prediction; they are never written to history log files.
 
-This approach ensures the prediction model sees a complete picture of both active and inactive periods, producing more accurate cooldown extensions that account for normal downtime patterns.
+This approach ensures the model sees a complete picture of both active and inactive periods, producing more accurate cooldown extensions that account for normal downtime patterns. Gap-filled entries ARE included in feature vector construction — their all-zero values represent legitimate idle states that contribute to learning "normal" baselines.
 
 ## Storage Layout
 
@@ -51,65 +60,47 @@ Each file contains only data points from that specific calendar day. Files are a
 
 ## How Prediction Works
 
-### Step 1: Build Inhibition Histograms by Time Key
+### Step 1: Load and Normalize History Entries
 
-On initialization, rouser scans all existing history files and builds per-TimeKey inhibition histograms. Each data point is classified as inhibited or not based on the `inhibited` field (which reflects whether metrics exceeded thresholds at that time). The histogram counts how many times each `(year, week_of_year, seconds_into_week)` bucket was inhibited:
+On initialization, rouser scans all existing history files and loads entries. At prediction time (when metrics drop below thresholds), it:
 
-```
-for entry in history_entries {
-    if !entry.inhibited { continue; }
-    let key = TimeKey::from_timestamp_ns(entry.timestamp_ns);  // (year, week, sec_in_week)
-    inhibited_timekeys[key] += 1;
+1. Selects recent entries within a timestamp window — entries where `timestamp >= current_time - max_extension_time` (e.g., the last hour with default config).
+2. Filters out synthetic zero-value gap-filled entries from training data to prevent the model from learning idle-state patterns as "normal active use." However, these entries remain in history for baseline anomaly scoring.
+3. Computes on-the-fly deltas between consecutive real entries (`(current - previous) / elapsed_time`).
+
+### Step 2: Convert Entries to Feature Vectors and Train Model
+
+Each selected entry is converted into a normalized feature vector — values are scaled using running statistics (mean, standard deviation) computed from the full history. The NG-RC reservoir computing model receives one sample at a time via its `StreamingLearner` trait, updating weights incrementally:
+
+```rust
+// At each prediction update_interval:
+for entry in recent_entries {
+    let features = feature_vector_from_entry(entry); // 6 normalized values
+    ml_predictor.train(&features, &target_value)?;   // Online weight update
 }
 ```
 
-The `seconds_into_week` field encodes precise position within a 7-day cycle (0–604799.999 seconds, millisecond resolution), enabling fine-grained discrimination between Saturday morning vs Monday afternoon even though both share the same wall-clock hour. Combined with year and week-of-year axes, this captures seasonal, monthly, weekly, and weekday/weekend patterns in historical data.
+The NG-RC architecture uses a fixed random reservoir of neurons with delay embeddings to capture temporal patterns. Its key properties:
+- **O(n²) memory** where n = hidden_dim (default 16 → ~4KB for weights + reservoir)
+- **One sample at a time** training — no batches, no retraining from scratch
+- **Temporal awareness** through delay buffers that create polynomial features from past states
+- **Concept drift adaptation** via automatic weight adjustment when data distribution shifts
 
-### Step 2: Score Current Time Window on Cooldown Transition
+### Step 3: Anomaly Scoring and Extension Mapping
 
-When metrics drop below all thresholds and rouser is about to release inhibition, the model evaluates:
+The model evaluates the current metrics as a feature vector. Since this is unsupervised, scoring is based on reconstruction error or prediction confidence — how well can the model predict today's state given what it has learned from historical patterns?
 
-1. **Get current TimeKey** from system clock (year + week_of_year + seconds_into_week)
-2. **Score via multi-level fallback matching**:
-   - **Level 1 (exact match)**: Look up inhibition count at this exact `(year, week, second_position)` bucket — most precise when sufficient historical data exists for this specific time window.
-   - **Level 2 (hour-of-day fallback)**: If no exact match, search all buckets within ±3600 seconds of the target `seconds_into_week` value. This recovers hour-of-day pattern matching behavior for sparse data.
-
-The scoring formula normalizes each bucket's historical inhibition frequency against its average across all time keys:
-
-```
-ratio = count_at_timekey / avg_per_bucket
-score = min(ratio * 0.5, 1.0)    # Scales above 0.5 for above-average hours
-```
-
-#### Trend-Aware Scoring (Delta Features)
-
-In addition to the histogram-based inhibition scoring, rouser examines rate-of-change patterns from recent history entries when making predictions. This trend signal provides an additional dimension beyond pure time-key matching — it captures whether system activity is currently **rising** or **falling**, which helps distinguish between a temporary dip during active work versus genuine inactivity.
-
-When `predict_cooldown()` is called, rouser selects all history entries within a timestamp window — entries where `timestamp >= current_time - max_extension_time` (e.g., the last hour with default config). From these it:
-
-1. Filters out synthetic zero-value gap-filled entries (all metrics at 0)
-2. Computes on-the-fly deltas between consecutive real entries (`(current - previous) / elapsed_time`)
-3. Averages CPU rate-of-change and network I/O rate-of-change across the entry pairs
-4. Normalizes both trends to a -0.2..=+0.2 adjustment range
-5. Multiplies the base inhibition score by `(1 + cpu_trend + net_trend)`
-
-The number of entries used depends on how frequently ticks are recorded within the window — there is no fixed cap like "20 most recent". This ensures consistent temporal coverage regardless of tick frequency or gaps in data.
-
-The trend multiplier is bounded between 0.5 and 1.4, meaning rising activity can increase the prediction extension by up to 40%, while falling activity can reduce it by up to 50%. If metrics are trending upward during a period that was historically active at this time of day, rouser extends the cooldown further — anticipating renewed activity is likely. Conversely, if usage is declining toward idle, the extension is reduced since a release from inhibition is less risky.
-
-This trend-aware approach complements the histogram-based scoring: it adds temporal momentum awareness to the static historical pattern matching, making predictions more responsive to current system behavior while still being grounded in learned patterns.
-
-### Step 3: Map Score to Extension Time
-
-If the score is below 0.3 (insufficient evidence of activity at this time window), no extension is applied — rouser uses the standard `cooldown_duration`.
-
-For scores above 0.3, linear interpolation maps the score to an extension time between 0 and `max_extension_time`:
+If the anomaly score exceeds a configurable threshold (default 0.3), rouser extends the cooldown:
 
 ```
-additional_time = ((score - 0.3) / 0.7) * max_extension_time
+if anomaly_score > min_threshold {
+    additional_time = interpolate(anomaly_score, max_extension_time)
+} else {
+    additional_time = 0  // Use standard cooldown_duration
+}
 ```
 
-This produces a smooth curve: a score of 0.3 gives zero extension, while a score of 1.0 (very high historical inhibition at this time window) yields the full `max_extension_time`.
+The score-to-extension mapping uses linear interpolation between `min_threshold` (default 0.3 → zero extension) and maximum observed anomaly levels (mapped to full `max_extension_time`). This produces smooth transitions rather than binary on/off behavior.
 
 ### Step 4: Confidence Scaling
 
@@ -123,6 +114,10 @@ The model reports a confidence value based on total data points collected:
 | >=5,000 | 0.9 | Strong confidence in learned patterns |
 
 Confidence is reported via logging only — it does not affect the extension calculation itself. The minimum threshold of 10 data points before any prediction is made provides a basic safety gate against completely uninformed extensions.
+
+## Prediction Timing: update_interval, Not Every Tick
+
+The cooldown extension prediction runs at the same cadence as history flushes — every `[prediction].update_interval` seconds (default 30s). This avoids redundant computation since the underlying data only changes when new averaged snapshots are written to disk. The model trains on newly available entries and produces a fresh prediction each time, rather than re-evaluating at every root `update_interval` tick.
 
 ## Pruning
 
@@ -176,9 +171,9 @@ RUST_LOG=debug rouser --dry-run
 Key log messages:
 
 - **Startup**: `Loaded N history entries from ...` followed by `Prediction model initialized with M historical data points` — shows raw entries loaded; gap-filling and trend computation happen at prediction time, not during startup
-- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, net=X.XXMB/s, disk=X.XXMB/s, time=year=Y week=W sec=S, accumulated_ticks=N)` — logged when accumulated metrics are written as one averaged entry after N ticks; deltas are computed on-the-fly at prediction time from consecutive flushed entries
+- **Per-interval flush**: `Flushed averaged snapshot #N (CPU max=X.X%, GPU max=Y.Y% avg=Z.Z%, net=X.XXMB/s, disk=X.XXMB/s), time={week_of_year}, accumulated_ticks=N` — logged when accumulated metrics are written as one averaged entry after N ticks; feature vectors are computed from these snapshots
 - **Pruning activity**: Per-file debug lines when files are removed, plus an info-level summary once per day with `Pruned N old history files (retention: ...)`
-- **Prediction query**: `Predicted cooldown: +Xdur (base_score=S.SS, trend_multiplier=T.TT, adjusted_score=S.SS, time=year=Y week=W sec=S, data_points=N, confidence=C.CC)` — shown when transitioning from inhibited to below-threshold state; includes the base inhibition score and the trend multiplier applied from delta features
+- **Prediction query**: `Predicted cooldown: +Xdur (base_score=S.SS, trend_multiplier=T.TT, adjusted_score=S.SS, data_points=N, confidence=C.CC)` — shown when transitioning from inhibited to below-threshold state; includes the base anomaly score and the trend multiplier applied from delta features
 
 ## See Also
 
