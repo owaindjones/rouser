@@ -95,17 +95,13 @@ impl EntryDeltas {
         };
 
         let gpu_delta_per_gpu_max = if secs_f64 > 0.0 {
-            Some(
-                (current.gpu_usage.per_gpu_max - prev.gpu_usage.per_gpu_max) / secs_f64,
-            )
+            Some((current.gpu_usage.per_gpu_max - prev.gpu_usage.per_gpu_max) / secs_f64)
         } else {
             None
         };
 
         let gpu_delta_total_average = if secs_f64 > 0.0 {
-            Some(
-                (current.gpu_usage.total_average - prev.gpu_usage.total_average) / secs_f64,
-            )
+            Some((current.gpu_usage.total_average - prev.gpu_usage.total_average) / secs_f64)
         } else {
             None
         };

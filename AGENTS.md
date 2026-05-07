@@ -308,3 +308,16 @@ echo "https://github.com/{owner}/{repo}/actions/runs/RUN_ID"
 ## XDG State Directory Migration
 
 History data was migrated from `$XDG_DATA_HOME/rouser` (or `~/.local/share/rouser`) to `$XDG_STATE_HOME/rouser` (or `~/.local/state/rouser`). This is a breaking change: existing history files at the old path are not read by new binaries. The fallback for read-only `/home` with no writable state dir uses `/tmp/rouser-history.<pid>` with 0700 permissions to minimize TOCTOU risk on shared systems. When updating config defaults or docs, always reference `XDG_STATE_HOME`, never `XDG_DATA_HOME`.
+
+## Prediction Model Refactoring (In Progress)
+
+The prediction module is undergoing a major refactoring to replace the histogram-based TimeKey approach with an unsupervised ML model using NG-RC reservoir computing from the [irithyll](https://crates.io/crates/irithyll) crate. See [`docs/prediction-todo.md`](./docs/predotion-todo.md) for the complete task tracker and architecture decisions.
+
+**Key changes:**
+- **TimeKey deprecation**: The `(year, week_of_year, seconds_into_week)` histogram key is being removed. Year provides no pattern-matching value (it's monotonically increasing), and 604800 buckets/week is wasteful for sparse data. The ML approach eliminates bucketing entirely — each history entry becomes a feature vector.
+- **Feature vectors**: Six normalized values per entry: CPU max, CPU avg, GPU max, GPU avg, network MB/s, disk MB/s. No time-key bucketing; temporal patterns learned via reservoir delay embeddings.
+- **Unsupervised learning**: NG-RC updates weights at each prediction `update_interval` (default 30s) without labeled data. Anomaly score maps to cooldown extension.
+- **Gap-filled entries preserved**: Unlike the previous approach that filtered out zero-value gap entries, these represent valid idle states and contribute to baseline anomaly scoring.
+- **GPU deltas added**: EntryDeltas now includes `gpu_delta_per_gpu_max` and `gpu_delta_total_average`, updated in TrendSignal alongside CPU/network/disk trends.
+
+**Config changes:** New fields planned for `[prediction]`: `hidden_dim: usize (default 16)`, `delay_buffer_size: usize (default 8)` to control reservoir capacity.
