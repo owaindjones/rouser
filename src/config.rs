@@ -87,7 +87,7 @@ impl Default for NetworkConfig {
         Self {
             threshold: 10.0,
             ema_alpha: 0.5,
-            exclude_interfaces: Vec::new(),
+            exclude_interfaces: vec!["lo".to_string()],
             include_interfaces: Vec::new(),
         }
     }
@@ -111,7 +111,7 @@ impl Default for DiskConfig {
         Self {
             threshold: 10.0,
             ema_alpha: 0.5,
-            exclude_device_prefixes: Vec::new(),
+            exclude_device_prefixes: vec!["loop".to_string(), "fd".to_string(), "sr".to_string(), "cdrom".to_string()],
         }
     }
 }
@@ -143,8 +143,8 @@ pub struct TimingConfig {
 impl Default for TimingConfig {
     fn default() -> Self {
         Self {
-            duration_threshold: Duration::from_secs(30),
-            cooldown_duration: Duration::from_secs(60),
+            duration_threshold: Duration::from_secs(5),
+            cooldown_duration: Duration::from_secs(10),
         }
     }
 }
@@ -428,7 +428,7 @@ mod tests {
     fn test_timing_defaults() {
         let timing = TimingConfig::default();
 
-        assert_eq!(timing.duration_threshold.as_secs(), 30);
-        assert_eq!(timing.cooldown_duration.as_secs(), 60);
+        assert_eq!(timing.duration_threshold.as_secs(), 5);
+        assert_eq!(timing.cooldown_duration.as_secs(), 10);
     }
 }
