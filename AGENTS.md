@@ -320,4 +320,4 @@ The prediction module is undergoing a major refactoring to replace the histogram
 - **Gap-filled entries preserved**: Unlike the previous approach that filtered out zero-value gap entries, these represent valid idle states and contribute to baseline anomaly scoring.
 - **GPU deltas added**: EntryDeltas now includes `gpu_delta_per_gpu_max` and `gpu_delta_total_average`, updated in TrendSignal alongside CPU/network/disk trends.
 
-**Config changes:** New fields planned for `[prediction]`: `hidden_dim: usize (default 16)`, `delay_buffer_size: usize (default 8)` to control reservoir capacity.
+**Config simplification:** The original plan included user-facing ML config options (`hidden_dim`, `delay_buffer_size`) but these were removed as unnecessary complexity for a sleep-inhibition daemon. NG-RC uses hardcoded defaults: k=5 temporal lookback window, polynomial degree=2 (minimum allowed). Users never need to tune ML parameters — the model auto-configures with sensible values.

@@ -81,7 +81,7 @@ for entry in recent_entries {
 ```
 
 The NG-RC architecture uses a fixed random reservoir of neurons with delay embeddings to capture temporal patterns. Its key properties:
-- **O(n²) memory** where n = hidden_dim (default 16 → ~4KB for weights + reservoir)
+- **O(k²) memory** where k = temporal lookback window (default 5 snapshots, fixed at build time)
 - **One sample at a time** training — no batches, no retraining from scratch
 - **Temporal awareness** through delay buffers that create polynomial features from past states
 - **Concept drift adaptation** via automatic weight adjustment when data distribution shifts
