@@ -117,8 +117,7 @@ impl Default for DiskConfig {
 }
 
 /// Aggregated metrics configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Metrics {
     #[serde(default)]
     pub cpu: CpuConfig,
