@@ -119,8 +119,8 @@ Use the affected module as scope: `service`, `config`, `gpu`, `cpu`, `network`, 
 ## Configuration Conventions
 
 - TOML format via the `toml` crate with serde derive macros.
-- All config values have sensible defaults defined as `fn default_*() -> T` helper functions.
-- Optional fields use `#[serde(default)]`; required overrides use `#[serde(default = "default_fn")]`.
+- All config values have sensible defaults defined in `config/rouser.toml`, embedded at compile time via `include_str!()`. Struct fields use bare `#[serde(default)]`; Duration fields may need explicit helper functions only when humantime_serde requires a function-typed default (e.g., `default_history_length()` for 30-day history).
+- Explicit `Default` trait impls on config structs hardcode values from `config/rouser.toml`. Never add `fn default_*() -> T` helper functions — the TOML file is the single source of truth.
 - Duration parsing uses `humantime_serde` for human-readable format (e.g., `"5s"`, `"30m"`).
 
 ## XDG Base Directory Compliance
