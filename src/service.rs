@@ -434,6 +434,8 @@ impl DataManager {
         }
 
         // Predict cooldown extension when transitioning from inhibited to below-threshold.
+        // Only set initial prediction here — the active cooldown block (above) re-evaluates
+        // every tick and produces fresher predictions based on updated in-memory model state.
         if was_inhibited && !should_inhibit {
             let prediction = match &self.prediction_model {
                 Some(model) => model.predict_cooldown(),
@@ -443,17 +445,18 @@ impl DataManager {
                 },
             };
 
-            // Log info only when first applying a non-zero extension (not on re-evaluation).
-            if !prediction.additional_time.is_zero() && self.predicted_additional_time.is_zero() {
-                info!(
-                    "Predictive cooldown extension: +{}s (confidence={:.0}%), \
-                     historical patterns suggest active usage at this hour",
-                    prediction.additional_time.as_secs(),
-                    prediction.confidence * 100.0,
-                );
+            // Only apply from the transition block if no prediction exists yet (first tick below threshold).
+            if self.predicted_additional_time.is_zero() {
+                self.predicted_additional_time = prediction.additional_time;
+                if !prediction.additional_time.is_zero() {
+                    info!(
+                        "Predictive cooldown extension: +{}s (confidence={:.0}%), \
+                         historical patterns suggest active usage at this hour",
+                        prediction.additional_time.as_secs(),
+                        prediction.confidence * 100.0,
+                    );
+                }
             }
-
-            self.predicted_additional_time = prediction.additional_time;
         } else if should_inhibit && self.metrics_above_threshold_since.is_some() {
             // Metrics spiked again — reset extension and flag for fresh cooldown cycle.
             self.predicted_additional_time = std::time::Duration::ZERO;

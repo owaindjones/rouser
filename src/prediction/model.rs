@@ -287,6 +287,8 @@ pub struct PredictionModel {
     last_flushed_ns: u64,
     /// Full metrics of the last flushed entry — used to compute deltas for the next snapshot.
     last_flushed_entry_metrics: Option<LastEntryMetrics>,
+    recent_entries: Vec<HistoryEntry>,
+    max_recent_entries: usize,
 }
 
 /// Captures metric values from a single flushed history entry for delta computation.
@@ -385,6 +387,8 @@ impl PredictionModel {
                 max_ts
             },
             last_flushed_entry_metrics,
+            recent_entries: Vec::new(),
+            max_recent_entries: 200,
         }
     }
 
@@ -443,6 +447,19 @@ impl PredictionModel {
                         TimeKey::from_timestamp_ns(snapshot.timestamp_ns).display(),
                         samples,
                     );
+
+                    // Update in-memory inhibition counts for online prediction.
+                    if inhibited {
+                        let time_key = TimeKey::from_timestamp_ns(snapshot.timestamp_ns);
+                        *self.inhibited_timekeys.entry(time_key).or_default() += 1;
+                    }
+
+                    // Add to rolling window for trend analysis without disk reads.
+                    self.recent_entries.push(snapshot.clone());
+                    while self.recent_entries.len() > self.max_recent_entries {
+                        self.recent_entries.remove(0);
+                    }
+
                     self.last_flushed_ns = snapshot.timestamp_ns;
 
                     self.history.append_with_summary(snapshot, Some(summary));
@@ -478,13 +495,13 @@ impl PredictionModel {
             .as_nanos() as u64
             - self.max_extension_time.as_nanos() as u64;
 
-        // Read all raw entries, filter to window within max_extension_time of now.
-        let mut recent_entries: Vec<HistoryEntry> = self
-            .history
-            .read_all()
-            .into_iter()
-            .filter(|e| e.timestamp_ns >= cutoff_ns)
-            .collect();
+        // Use in-memory rolling window for trend analysis, falling back to disk read only
+        // when no entries have been flushed yet (initial startup).
+        let mut recent_entries: Vec<HistoryEntry> = if self.recent_entries.is_empty() {
+            self.history.read_all().into_iter().filter(|e| e.timestamp_ns >= cutoff_ns).collect()
+        } else {
+            self.recent_entries.iter().filter(|e| e.timestamp_ns >= cutoff_ns).cloned().collect()
+        };
 
         // Sort by timestamp for gap detection and delta computation.
         recent_entries.sort_by_key(|e| e.timestamp_ns);
