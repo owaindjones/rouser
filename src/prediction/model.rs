@@ -244,6 +244,8 @@ impl PredictionModel {
             entries.len()
         );
 
+        ml_predictor.train_from_history(&entries);
+
         // Initialize last_flushed_entry_metrics from the most recent loaded entry for delta computation.
         let last_flushed_entry_metrics = entries.last().map(LastEntryMetrics::from_entry);
 
@@ -327,17 +329,23 @@ impl PredictionModel {
 
                     self.data_points += 1;
 
-                    // Train ML model on this entry's features for anomaly detection.
-                    let feature_vector = crate::prediction::ml_model::FeatureVector::new(
+                    // Update normalization stats with raw values and train on raw features so the model learns actual distributions.
+                    self.normalization_stats.get_cpu_stats_mut().update(snapshot.cpu_usage.per_core_max);
+                    self.normalization_stats.get_cpu_stats_mut().update(snapshot.cpu_usage.total_average);
+                    self.normalization_stats.get_gpu_stats_mut().update(snapshot.gpu_usage.per_gpu_max);
+                    self.normalization_stats.get_gpu_stats_mut().update(snapshot.gpu_usage.total_average);
+                    self.normalization_stats.get_network_stats_mut().update(snapshot.network_mbps);
+                    self.normalization_stats.get_disk_stats_mut().update(snapshot.disk_mb_s);
+
+                    let raw_features = [
                         snapshot.cpu_usage.per_core_max,
                         snapshot.cpu_usage.total_average,
                         snapshot.gpu_usage.per_gpu_max,
                         snapshot.gpu_usage.total_average,
                         snapshot.network_mbps,
                         snapshot.disk_mb_s,
-                        &self.normalization_stats,
-                    );
-                    self.ml_predictor.train(&feature_vector);
+                    ];
+                    self.ml_predictor.train_raw(&raw_features);
 
                     let summary = format!(
                             "Flushed averaged snapshot #{} (CPU max={:.1}%, GPU {}/{}%, net={:.2}MB/s, disk={:.2}MB/s), accumulated_ticks={}",
@@ -394,13 +402,10 @@ impl PredictionModel {
             (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         };
 
-        // Create feature vector for ML prediction.
-        let feature_vector = crate::prediction::ml_model::FeatureVector::new(
-            cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk, &self.normalization_stats,
-        );
+       let features = [cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk];
 
         // Get anomaly score from ML model (0-1 scale).
-        let ml_score = self.ml_predictor.predict(&feature_vector);
+        let ml_score = self.ml_predictor.predict_raw(&features);
 
         // Compute trend signal from recent history entries with delta features.
         let cutoff_ns = std::time::SystemTime::now()
@@ -519,6 +524,14 @@ impl PredictionModel {
     #[allow(dead_code)]
     pub fn data_points(&self) -> u64 {
         self.data_points
+    }
+}
+
+impl Drop for PredictionModel {
+    fn drop(&mut self) {
+        if let Err(e) = self.ml_predictor.save() {
+            debug!("Failed to save ML checkpoint on shutdown: {}", e);
+        }
     }
 }
 

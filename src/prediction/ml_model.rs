@@ -10,6 +10,8 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::debug;
 
+use crate::prediction::HistoryEntry;
+
 /// Fixed-size feature vector extracted from a HistoryEntry for ML processing.
 /// Contains six normalized metric values: CPU max/avg, GPU max/avg, network MB/s, disk MB/s.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,6 +150,22 @@ impl NormalizationStats {
     pub fn get_disk_stats(&self) -> &StatsTracker {
         &self.disk_stats
     }
+
+    pub fn get_cpu_stats_mut(&mut self) -> &mut StatsTracker {
+        &mut self.cpu_stats
+    }
+
+    pub fn get_gpu_stats_mut(&mut self) -> &mut StatsTracker {
+        &mut self.gpu_stats
+    }
+
+    pub fn get_network_stats_mut(&mut self) -> &mut StatsTracker {
+        &mut self.network_stats
+    }
+
+    pub fn get_disk_stats_mut(&mut self) -> &mut StatsTracker {
+        &mut self.disk_stats
+    }
 }
 
 /// Welford's online algorithm for computing running mean and variance in O(1) memory.
@@ -241,6 +259,10 @@ impl MlPredictor {
             "Created ML predictor with temporal_window=5, degree=2"
         );
 
+        if let Err(e) = fs::create_dir_all(&checkpoint_dir) {
+            debug!("Failed to create checkpoint directory {:?}: {}", checkpoint_dir, e);
+        }
+
         Self {
             config,
             model,
@@ -263,10 +285,7 @@ impl MlPredictor {
         }
     }
 
-    /// Predict anomaly score (0-1) where higher values indicate more anomalous patterns.
-    pub fn predict(&mut self, features: &FeatureVector) -> f64 {
-        let array = features.to_array();
-
+    pub fn predict_raw(&mut self, features: &[f64]) -> f64 {
         if self.training_count < 20 {
             debug!(
                 "Insufficient training data for prediction: {} < {}",
@@ -275,13 +294,11 @@ impl MlPredictor {
             return 0.5;
         }
 
-        // Predict the next value of cpu_max based on current features
-        let predicted = self.model.predict_batch(&[&array[..]]).clone()[0];
-        let actual = array[0];
+        let predicted = self.model.predict_batch(&[features]).clone()[0];
+        let actual = features[0];
 
         // Anomaly score is based on prediction error (residual) normalized to [0, 1]
         let residual = (actual - predicted).abs();
-         let _mean = self.stats.get_cpu_stats().get_mean();
         let std = self.stats.get_cpu_stats().get_std().max(1e-8);
 
         // Normalize residual by training distribution's standard deviation
@@ -295,6 +312,11 @@ impl MlPredictor {
         anomaly_score
     }
 
+    pub fn predict(&mut self, features: &FeatureVector) -> f64 {
+        let array = features.to_array();
+        self.predict_raw(&array)
+    }
+
     /// Save the model state and normalization statistics to disk.
     pub fn save(&self) -> std::io::Result<()> {
         let stats_data = self.stats.to_bytes();
@@ -306,15 +328,12 @@ impl MlPredictor {
         Ok(())
     }
 
-    /// Load the model state and normalization statistics from disk.
-    pub fn load(&mut self) -> std::io::Result<()> {
-        if let Some(stats) = NormalizationStats::load(&self.checkpoint_path.join("stats.bin")) {
+ pub fn load(&mut self) -> std::io::Result<()> {
+        if let Some(stats) = NormalizationStats::load(&self.checkpoint_path) {
             self.stats = stats;
-            debug!("Loaded existing normalization stats");
+            debug!("Loaded existing normalization stats from checkpoint");
         }
 
-        // Note: NextGenRC model weights are not yet persisted by irithyll.
-        // We reload with fresh model but keep learned normalization stats.
         let _checkpoint_data = fs::read(&self.checkpoint_path);
         Ok(())
     }
@@ -322,6 +341,44 @@ impl MlPredictor {
     /// Get the number of training samples collected so far.
     pub fn get_training_count(&self) -> u64 {
         self.training_count
+    }
+
+  pub fn train_raw(&mut self, features: &[f64]) {
+        self.model.train_one(features, features[0], 1.0);
+        self.training_count += 1;
+
+        if self.training_count.is_multiple_of(50) {
+            debug!("Trained ML model on {} samples", self.training_count);
+        }
+    }
+
+    pub fn train_from_history(&mut self, entries: &[HistoryEntry]) {
+        if entries.is_empty() {
+            return;
+        }
+
+        let count = entries.len();
+        for entry in entries {
+            self.stats.get_cpu_stats_mut().update(entry.cpu_usage.per_core_max);
+            self.stats.get_cpu_stats_mut().update(entry.cpu_usage.total_average);
+            self.stats.get_gpu_stats_mut().update(entry.gpu_usage.per_gpu_max);
+            self.stats.get_gpu_stats_mut().update(entry.gpu_usage.total_average);
+            self.stats.get_network_stats_mut().update(entry.network_mbps);
+            self.stats.get_disk_stats_mut().update(entry.disk_mb_s);
+
+            let array = [
+                entry.cpu_usage.per_core_max,
+                entry.cpu_usage.total_average,
+                entry.gpu_usage.per_gpu_max,
+                entry.gpu_usage.total_average,
+                entry.network_mbps,
+                entry.disk_mb_s,
+            ];
+            self.model.train_one(&array, array[0], 1.0);
+            self.training_count += 1;
+        }
+
+        debug!("Trained ML predictor on {} historical entries", count);
     }
 
     /// Check if we have sufficient data to make meaningful predictions.
