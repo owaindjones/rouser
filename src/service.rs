@@ -2,7 +2,7 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 
 use crate::config::Config;
-use crate::prediction::{CooldownPrediction, PredictionModel};
+use crate::prediction::PredictionModel;
 
 use crate::inhibit::InhibitionState;
 use crate::metrics::{
@@ -165,6 +165,8 @@ impl DataManager {
                 is_root,
                 config.prediction.update_interval.as_nanos() as u64,
                 config.prediction.max_extension_time,
+                config.prediction.ml_hidden_dim,
+                config.prediction.ml_delay_buffer_size,
             );
             let effective_prediction_interval =
                 std::cmp::max(config.prediction.update_interval, config.update_interval);
@@ -373,14 +375,8 @@ impl DataManager {
             // Re-evaluate prediction every tick during cooldown waiting to adapt extension
             // based on current trends (increases or decreases the remaining wait time).
             let was_active = !self.predicted_additional_time.is_zero();
-            if self.prediction_model.is_some() {
-                let prediction = match &self.prediction_model {
-                    Some(model) => model.predict_cooldown(),
-                    None => CooldownPrediction {
-                        additional_time: std::time::Duration::ZERO,
-                        confidence: 0.0,
-                    },
-                };
+            if let Some(model) = &mut self.prediction_model {
+                let prediction = model.predict_cooldown();
 
                 // Log info-level only when first applying a non-zero extension per transition;
                 // log debug-level for subsequent updates during extended cooldown.
@@ -450,24 +446,20 @@ impl DataManager {
         // Only set initial prediction here — the active cooldown block (above) re-evaluates
         // every tick and produces fresher predictions based on updated in-memory model state.
         if was_inhibited && !should_inhibit {
-            let prediction = match &self.prediction_model {
-                Some(model) => model.predict_cooldown(),
-                None => CooldownPrediction {
-                    additional_time: std::time::Duration::ZERO,
-                    confidence: 0.0,
-                },
-            };
+            if let Some(model) = &mut self.prediction_model {
+                let prediction = model.predict_cooldown();
 
-            // Only apply from the transition block if no prediction exists yet (first tick below threshold).
-            if self.predicted_additional_time.is_zero() {
-                self.predicted_additional_time = prediction.additional_time;
-                if !prediction.additional_time.is_zero() {
-                    info!(
-                        "Predictive cooldown extension: +{}s (confidence={:.0}%), \
-                         historical patterns suggest active usage at this hour",
-                        prediction.additional_time.as_secs(),
-                        prediction.confidence * 100.0,
-                    );
+                // Only apply from the transition block if no prediction exists yet (first tick below threshold).
+                if self.predicted_additional_time.is_zero() {
+                    self.predicted_additional_time = prediction.additional_time;
+                    if !prediction.additional_time.is_zero() {
+                        info!(
+                            "Predictive cooldown extension: +{}s (confidence={:.0}%), \
+                             historical patterns suggest active usage at this hour",
+                            prediction.additional_time.as_secs(),
+                            prediction.confidence * 100.0,
+                        );
+                    }
                 }
             }
         } else if should_inhibit && self.metrics_above_threshold_since.is_some() {

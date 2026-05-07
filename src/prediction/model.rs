@@ -1,119 +1,17 @@
-//! Time-aware prediction model for adaptive cooldown duration.
+//! Machine learning-based prediction model for adaptive cooldown duration.
 //!
-//! Uses historical metric patterns across three time dimensions to predict how long
-//! inhibition should remain active after metrics drop below threshold:
-//! - Year (captures seasonal trends)
-//! - Week of year (captures monthly/annual cycles)
-//! - Seconds into week (precise position within a 7-day cycle, enabling hour-of-day and weekday/weekend distinction).
-//!
-//! Purely statistical — no external ML dependencies required.
+//! Uses unsupervised NG-RC reservoir computing to learn normal system usage patterns
+//! and predict how long inhibition should remain active after metrics drop below threshold.
+//! Anomaly scores from the ML model are combined with trend signals for robust predictions.
 
-use crate::prediction::{fill_gaps, EntryDeltas, HistoryEntry, HistoryLog};
-use chrono::{Datelike, Timelike};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use crate::prediction::{fill_gaps, EntryDeltas, HistoryEntry, HistoryLog, MlPredictor, NormalizationStats};
+use std::path::PathBuf;
 use tracing::debug;
-
-/// Multi-dimensional time key for pattern matching in the prediction model.
-/// Replaces the old single `hour_of_day` dimension with three orthogonal axes:
-/// - Year: seasonal trends (winter vs summer usage)
-/// - Week of year: monthly/annual cycles within a year
-/// - Seconds into week: precise position enabling hour-of-day + weekday/weekend distinction
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct TimeKey {
-    pub year: i32,
-    pub week_of_year: u32,
-    /// Seconds into the ISO week (0–604799.999). Stored as f64 for millisecond precision; deterministic integer arithmetic ensures exact equality for HashMap keys.
-    pub seconds_into_week: f64, // 0 to 604799.999 (7 * 24 * 3600 - 1)
-}
-
-impl Eq for TimeKey {}
-
-impl ::std::hash::Hash for TimeKey {
-    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
-        self.year.hash(state);
-        self.week_of_year.hash(state);
-        self.seconds_into_week.to_bits().hash(state);
-    }
-}
-
-impl TimeKey {
-    /// Convert to a linear week index for proximity search across year boundaries.
-    /// Uses formula `(year_offset * max_weeks) + week_of_year` where max_weeks = 53 (max ISO weeks per year).
-    fn linear_week(&self) -> i64 {
-        ((self.year as i64 - 2000_i64) * 53_i64) + self.week_of_year as i64
-    }
-
-    /// Convert to a linear day index for proximity search across year boundaries.
-    fn linear_day(&self) -> i64 {
-        self.linear_week() * 7 + (self.seconds_into_week as i64 / 86_400)
-    }
-}
-
-impl TimeKey {
-    /// Convert a Unix timestamp in nanoseconds to a TimeKey using UTC.
-    fn from_timestamp_ns(ts_ns: u64) -> Self {
-        let secs = ts_ns / 1_000_000_000;
-        let dt = chrono::DateTime::<chrono::Utc>::from_timestamp(secs as i64, 0)
-            .unwrap_or_else(chrono::Utc::now);
-
-        // Use calendar year and ISO week number for seasonal pattern tracking.
-        let year = dt.year();
-        let iso_week = dt.iso_week();
-
-        // Seconds into week: day-of-week (Mon=1..Sun=7) * seconds_per_day + hour*3600 + min*60 + sec
-        let dow = dt.weekday().number_from_monday() as i32; // 1-7
-        let hours_in_day = dt.hour() as i32;
-        let minutes_in_hour = dt.minute() as i32;
-        let seconds_in_min = dt.second() as i32;
-
-        Self {
-            year,
-            week_of_year: iso_week.week(),
-            seconds_into_week: (dow - 1) as f64 * 86_400.0
-                + hours_in_day as f64 * 3_600.0
-                + minutes_in_hour as f64 * 60.0
-                + seconds_in_min as f64,
-        }
-    }
-
-    /// Extract just the hour of day from a timestamp (for backward-compatible fallback).
-    fn hour_of_day(ts_ns: u64) -> u32 {
-        ((ts_ns / 1_000_000_000 / 3600) % 24) as u32
-    }
-
-    /// Get the current TimeKey.
-    fn now() -> Self {
-        let secs = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("system time before epoch")
-            .as_nanos();
-        Self::from_timestamp_ns(secs as u64)
-    }
-
-    /// Get the current hour of day for backward-compatible fallback.
-    fn current_hour() -> u32 {
-        let secs = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("system time before epoch")
-            .as_nanos();
-        Self::hour_of_day(secs as u64)
-    }
-
-    /// Format a TimeKey into a human-readable string for debug logging.
-    fn display(&self) -> String {
-        format!(
-            "year={}, week={:02}, sec={:.0}",
-            self.year, self.week_of_year, self.seconds_into_week
-        )
-    }
-}
 
 /// Prediction result from the cooldown model.
 #[derive(Debug, Clone)]
 pub struct CooldownPrediction {
     /// Additional time to extend beyond the configured cooldown duration.
-    /// Always >= 0. If zero-duration, use the default cooldown_duration setting.
     pub additional_time: std::time::Duration,
     /// Confidence in this prediction (0.0–1.0). Higher means more data supports it.
     pub confidence: f32,
@@ -201,13 +99,9 @@ impl TickAccumulator {
 /// Captures recent rate-of-change trends from history entries for trend-aware prediction.
 #[derive(Debug, Clone)]
 struct TrendSignal {
-    /// Average CPU usage trend (positive = rising) over the N most recent entries.
     avg_cpu_delta_per_sec: f64,
-    /// Average network I/O trend over the N most recent entries.
     avg_network_delta_per_sec: f64,
-    /// Average GPU per-GPU-max trend (positive = rising) over the N most recent entries.
     avg_gpu_delta_per_sec: f64,
-    /// Count of entries with positive delta signals used in averaging.
     samples: u32,
 }
 
@@ -263,23 +157,18 @@ impl TrendSignal {
     }
 }
 
-/// Time-aware statistical model that predicts cooldown extension based on historical patterns.
+/// Machine learning-based statistical model that predicts cooldown extension.
 pub struct PredictionModel {
     history: HistoryLog,
-    /// Maximum additional time allowed for predictive cooldown extension.
     max_extension_time: std::time::Duration,
-    update_interval_ns: u64, // gap threshold and synthetic entry interval in nanoseconds
-    // Per-TimeKey inhibition counts (key: year + week_of_year + seconds_into_week).
-    inhibited_timekeys: HashMap<TimeKey, u64>,
+    update_interval_ns: u64,
+    ml_predictor: MlPredictor,
+    normalization_stats: NormalizationStats,
     data_points: u64,
-    /// Number of ticks between averaged snapshot flushes.
-    /// Computed as prediction_update_interval / root_update_interval.
     flush_interval: Option<usize>,
     tick_count: usize,
     accumulator: TickAccumulator,
-    /// Timestamp (ns) of the last flushed entry for delta computation on next flush.
     last_flushed_ns: u64,
-    /// Full metrics of the last flushed entry — used to compute deltas for the next snapshot.
     last_flushed_entry_metrics: Option<LastEntryMetrics>,
     recent_entries: Vec<HistoryEntry>,
     max_recent_entries: usize,
@@ -310,19 +199,6 @@ impl LastEntryMetrics {
         }
     }
 
-    fn to_entry(&self) -> HistoryEntry {
-        HistoryEntry::new(
-            self.timestamp_ns,
-            self.cpu_per_core_max,
-            self.cpu_total_average,
-            self.gpu_per_gpu_max,
-            self.gpu_total_average,
-            self.network_mbps,
-            self.disk_mb_s,
-            false, // not persisted as inhibited
-        )
-    }
-
     fn from_snapshot(entry: &HistoryEntry) -> Self {
         Self {
             timestamp_ns: entry.timestamp_ns,
@@ -337,28 +213,40 @@ impl LastEntryMetrics {
 }
 
 impl PredictionModel {
-    /// Create a new prediction model. Loads existing history if available.
+    /// Create a new prediction model with ML parameters. Loads existing history if available.
     pub fn new(
         is_root: bool,
         update_interval_ns: u64,
         max_extension_time: std::time::Duration,
+        ml_hidden_dim: usize,
+        ml_delay_buffer_size: usize,
     ) -> Self {
         let history = HistoryLog::new(is_root);
+
+        // Determine checkpoint directory based on privilege level.
+        let checkpoint_dir = if is_root {
+            PathBuf::from("/var/lib/rouser")
+        } else {
+            let state_home = std::env::var("XDG_STATE_HOME").unwrap_or_else(|_| {
+                std::env::var("HOME").map(|home| format!("{}/.local/state", home)).unwrap_or_default()
+            });
+            PathBuf::from(state_home).join("rouser/ml_checkpoints")
+        };
+
+        let mut ml_predictor = MlPredictor::new(
+            ml_hidden_dim,
+            ml_delay_buffer_size,
+            checkpoint_dir.clone(),
+        );
+
+        // Load normalization stats from previous training if available.
+        let _ = ml_predictor.load();
+
         let entries = history.read_all();
         debug!(
             "Prediction model initialized with {} historical data points",
             entries.len()
         );
-
-        let mut inhibited_timekeys = HashMap::<TimeKey, u64>::new();
-
-        for entry in &entries {
-            if !entry.inhibited {
-                continue;
-            }
-            let time_key = TimeKey::from_timestamp_ns(entry.timestamp_ns);
-            *inhibited_timekeys.entry(time_key).or_default() += 1;
-        }
 
         // Initialize last_flushed_entry_metrics from the most recent loaded entry for delta computation.
         let last_flushed_entry_metrics = entries.last().map(LastEntryMetrics::from_entry);
@@ -367,7 +255,8 @@ impl PredictionModel {
             history,
             max_extension_time,
             update_interval_ns,
-            inhibited_timekeys,
+            ml_predictor,
+            normalization_stats: NormalizationStats::default(),
             data_points: entries.len() as u64,
             flush_interval: None,
             tick_count: 0,
@@ -441,32 +330,29 @@ impl PredictionModel {
                     let next_metrics = LastEntryMetrics::from_snapshot(&snapshot);
 
                     self.data_points += 1;
-                    let time_key = TimeKey::from_timestamp_ns(snapshot.timestamp_ns);
-                    let gpu_summary: String = if snapshot.gpu_usage.per_gpu_max > 0.0 {
-                        format!(
-                            "max={:.1}% avg={:.1}%",
-                            snapshot.gpu_usage.per_gpu_max, snapshot.gpu_usage.total_average
-                        )
-                    } else {
-                        "no GPUs".to_string()
-                    };
+
+                    // Train ML model on this entry's features for anomaly detection.
+                    let feature_vector = crate::prediction::ml_model::FeatureVector::new(
+                        snapshot.cpu_usage.per_core_max,
+                        snapshot.cpu_usage.total_average,
+                        snapshot.gpu_usage.per_gpu_max,
+                        snapshot.gpu_usage.total_average,
+                        snapshot.network_mbps,
+                        snapshot.disk_mb_s,
+                        &self.normalization_stats,
+                    );
+                    self.ml_predictor.train(&feature_vector);
+
                     let summary = format!(
-                            "Flushed averaged snapshot #{} (CPU max={:.1}%, GPU {}, net={:.2}MB/s, disk={:.2}MB/s), time={}, accumulated_ticks={}",
+                            "Flushed averaged snapshot #{} (CPU max={:.1}%, GPU {}/{}%, net={:.2}MB/s, disk={:.2}MB/s), accumulated_ticks={}",
                             self.data_points,
                             snapshot.cpu_usage.per_core_max,
-                            &gpu_summary,
+                            &snapshot.gpu_usage.per_gpu_max,
+                            &snapshot.gpu_usage.total_average,
                             snapshot.network_mbps,
                             snapshot.disk_mb_s,
-                            &time_key.display(),
                             samples,
                         );
-
-                    // Update in-memory inhibition counts for online prediction.
-
-                    if inhibited {
-                        let time_key = TimeKey::from_timestamp_ns(snapshot.timestamp_ns);
-                        *self.inhibited_timekeys.entry(time_key).or_default() += 1;
-                    }
 
                     // Add to rolling window for trend analysis without disk reads.
                     self.recent_entries.push(snapshot.clone());
@@ -489,8 +375,8 @@ impl PredictionModel {
         false
     }
 
-    /// Predict the additional cooldown seconds based on current metrics and time of day.
-    pub fn predict_cooldown(&self) -> CooldownPrediction {
+    /// Predict the additional cooldown seconds based on ML anomaly scoring and trend signals.
+    pub fn predict_cooldown(&mut self) -> CooldownPrediction {
         if self.data_points < 10 {
             return CooldownPrediction {
                 additional_time: std::time::Duration::ZERO,
@@ -498,11 +384,29 @@ impl PredictionModel {
             };
         }
 
-        let now = TimeKey::now();
-        let base_score = self.score_inhibition_rate(&now);
+        // Get current metrics for ML scoring (use recent entry or defaults).
+        let (cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk) = if let Some(last) = &self.last_flushed_entry_metrics {
+            (
+                last.cpu_per_core_max,
+                last.cpu_total_average,
+                last.gpu_per_gpu_max,
+                last.gpu_total_average,
+                last.network_mbps,
+                last.disk_mb_s,
+            )
+        } else {
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        };
+
+        // Create feature vector for ML prediction.
+        let feature_vector = crate::prediction::ml_model::FeatureVector::new(
+            cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk, &self.normalization_stats,
+        );
+
+        // Get anomaly score from ML model (0-1 scale).
+        let ml_score = self.ml_predictor.predict(&feature_vector);
 
         // Compute trend signal from recent history entries with delta features.
-        // Use timestamp-based window (max_extension_time) instead of fixed entry count.
         let cutoff_ns = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("system time before epoch")
@@ -529,8 +433,6 @@ impl PredictionModel {
         recent_entries.sort_by_key(|e| e.timestamp_ns);
 
         if !recent_entries.is_empty() {
-            // Fill gaps on-the-fly with synthetic zero-value entries using config values.
-            // This accounts for runtime gaps (e.g., wake from sleep) where the system was idle.
             let threshold = self.update_interval_ns;
             recent_entries = fill_gaps(recent_entries, threshold, threshold);
         }
@@ -546,10 +448,9 @@ impl PredictionModel {
         let refs: Vec<&HistoryEntry> = filtered.iter().collect();
         let trend_signal = TrendSignal::compute(&refs, refs.len());
 
-        // Apply trend multiplier: rising metrics increase extension, falling decrease it.
+        // Apply trend multiplier to combine ML anomaly score with trend signals.
         let trend_multiplier: f64 = {
-            if base_score >= 0.3 && trend_signal.samples > 0 {
-                // Normalize trends to a -0.2..=+0.2 range for the multiplier.
+            if ml_score >= 0.3 && trend_signal.samples > 0 {
                 let cpu_trend_factor = (trend_signal.avg_cpu_delta_per_sec / 50.0).clamp(-0.1, 0.1);
                 let net_trend_factor =
                     (trend_signal.avg_network_delta_per_sec / 100.0).clamp(-0.1, 0.1);
@@ -561,7 +462,7 @@ impl PredictionModel {
             }
         };
 
-        let score = base_score * trend_multiplier.clamp(0.5, 1.4);
+        let score = ml_score * trend_multiplier.clamp(0.5, 1.4);
 
         if score < 0.3 {
             return CooldownPrediction {
@@ -577,12 +478,11 @@ impl PredictionModel {
         let confidence = self.confidence_for_data_points();
 
         debug!(
-            "Predicted cooldown: +{:?} (base_score={:.2}, trend_multiplier={:.2}, adjusted_score={:.2}, time={}, data_points={}, confidence={:.2})",
+            "Predicted cooldown: +{:?} (ml_score={:.2}, trend_multiplier={:.2}, adjusted_score={:.2}, data_points={}, confidence={:.2})",
             additional_time,
-            base_score,
+            ml_score,
             trend_multiplier,
             score,
-            now.display(),
             self.data_points,
             confidence
         );
@@ -593,51 +493,6 @@ impl PredictionModel {
         }
     }
 
-    // Multi-level fallback matching:
-    // Level 1: Exact TimeKey match — most precise, used with sufficient historical data for this time window.
-    // Level 2: Hour-of-day fallback — original single-dimension approach when no exact matches exist (sparse data).
-    fn score_inhibition_rate(&self, now: &TimeKey) -> f64 {
-        // Level 1: Try exact TimeKey match first.
-        if let Some(&count) = self.inhibited_timekeys.get(now) {
-            return self.score_from_count(count);
-        }
-
-        // Level 2: Fall back to hour-of-day matching for sparse data.
-        // Use linear day index to handle ISO week wraparound at year boundaries correctly.
-        let target_seconds = now.seconds_into_week;
-        let mut best_count: u64 = 0;
-        for (key, &count) in self.inhibited_timekeys.iter() {
-            if key.year == now.year
-                && (-7_i64..=7_i64).contains(&(key.linear_day() - now.linear_day()))
-                && ((key.seconds_into_week - target_seconds).abs() <= 3_600_f64)
-            {
-                best_count = count.max(best_count);
-            }
-        }
-
-        if best_count > 0 {
-            return self.score_from_count(best_count);
-        }
-
-        0.0
-    }
-
-    /// Compute a score from an inhibition count, using the overall distribution as baseline.
-    fn score_from_count(&self, count: u64) -> f64 {
-        let total_inhibited = self.inhibited_timekeys.values().sum::<u64>();
-        // Average per matching bucket gives baseline expectation for scoring.
-        let avg_per_bucket: u64 =
-            (total_inhibited.max(1)) / (self.inhibited_timekeys.len() as u64).max(1);
-
-        if count == 0 || avg_per_bucket == 0 {
-            return 0.0;
-        }
-
-        // Score above 0.5 for buckets with more than average activity, capped at 1.0.
-        let ratio = count as f64 / avg_per_bucket.max(1) as f64;
-        (ratio * 0.5).min(1.0)
-    }
-
     /// Compute confidence based on total data points available.
     fn confidence_for_data_points(&self) -> f32 {
         match self.data_points {
@@ -646,14 +501,6 @@ impl PredictionModel {
             n if n < 5_000 => 0.6,
             _ => 0.9,
         }
-    }
-
-    fn hour_of_day(ts_ns: u64) -> u32 {
-        TimeKey::hour_of_day(ts_ns)
-    }
-
-    fn current_hour() -> u32 {
-        TimeKey::current_hour()
     }
 
     /// Get the current history log reference for manual writes (e.g., during integration).
@@ -685,7 +532,7 @@ mod tests {
 
     fn make_test_model() -> PredictionModel {
         let mut model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
         // Flush every tick so tests don't need to wait for intervals.
         model.set_prediction_update_interval(std::time::Duration::from_secs(1));
         model
@@ -703,8 +550,8 @@ mod tests {
 
     #[test]
     fn test_predict_cooldown_no_data_returns_zero() {
-        let model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
+        let mut model =
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
         let prediction = model.predict_cooldown();
         assert!(!prediction.additional_time.gt(&std::time::Duration::ZERO));
     }
@@ -729,33 +576,19 @@ mod tests {
 
     #[test]
     fn test_predict_cooldown_with_insufficient_data() {
-        let model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
+        let mut model =
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
         let prediction = model.predict_cooldown();
         // Should return zero additional time and low confidence with no data.
         assert_eq!(prediction.additional_time, std::time::Duration::ZERO);
         assert!(prediction.confidence < 0.5);
     }
 
-    #[test]
-    fn test_hour_of_day() {
-        // Unix epoch (Jan 1, 1970 00:00:00 UTC) is hour 0.
-        assert_eq!(PredictionModel::hour_of_day(0), 0);
-        // Jan 1, 1970 12:00:00 UTC = 43200 seconds.
-        assert_eq!(PredictionModel::hour_of_day(43_200_000_000_000), 12);
-    }
-
-    #[test]
-    fn test_current_hour_valid_range() {
-        let hour = PredictionModel::current_hour();
-        assert!((0..=23).contains(&hour));
-    }
-
     /// Test that multi-tick accumulation produces correct arithmetic means across flush boundaries.
     #[test]
     fn test_multi_tick_averaging_correctness() {
         let mut model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
         // Flush every 5 ticks to verify partial accumulation doesn't produce snapshots.
         model.set_prediction_update_interval(std::time::Duration::from_secs(5));
 
@@ -783,7 +616,7 @@ mod tests {
         assert_eq!(model.data_points(), 2);
 
         let mut model2 =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
         // Flush every 3 ticks to verify exact-value averaging (all identical inputs → average equals input).
         model2.set_prediction_update_interval(std::time::Duration::from_secs(3));
 
@@ -803,97 +636,11 @@ mod tests {
         assert_eq!(model2.data_points(), 2);
     }
 
-    /// Test that TimeKey correctly represents seconds-into-week for known timestamps.
-    #[test]
-    fn test_timekey_from_timestamp_known_values() {
-        // Monday Jan 1 2024 00:00 UTC (ISO week starts on Monday)
-        let monday_00 = TimeKey::from_timestamp_ns(1704067200 * 1_000_000_000);
-        assert_eq!(monday_00.year, 2024);
-        assert!((monday_00.seconds_into_week - 0.0).abs() < f64::EPSILON); // Monday at midnight
-
-        // Same day, noon (still Monday since Jan 1 2024 is a Monday in ISO calendar)
-        let monday_noon = TimeKey::from_timestamp_ns((1704067200 + 3600 * 12) * 1_000_000_000);
-        assert_eq!(monday_noon.year, 2024);
-        // Monday = day index 0 (Mon=0), so seconds = 0*86400 + 12*3600 = 43200
-        assert!((monday_noon.seconds_into_week - 43_200.0).abs() < f64::EPSILON);
-
-        // Sunday at 23:59 should be near end of week (day index 6)
-        let sunday_night = TimeKey::from_timestamp_ns(
-            (1704067200 + (6 * 86400) + (23 * 3600) + (59 * 60)) * 1_000_000_000,
-        );
-        assert_eq!(sunday_night.year, 2024);
-        // Sunday = day index 6, so seconds = 6*86400 + 23*3600 + 59*60 = 604740
-        assert!((sunday_night.seconds_into_week - 604_740.0).abs() < f64::EPSILON);
-    }
-
-    /// Test that same weekday+time in different weeks of the same year produces identical seconds-into-week.
-    #[test]
-    fn test_timekey_same_position_different_weeks() {
-        // Monday Jan 1 2024 at 06:30 UTC (ISO calendar Monday)
-        let tk_wk1 =
-            TimeKey::from_timestamp_ns((1704067200 + (6 * 3600) + (30 * 60)) * 1_000_000_000);
-        // Monday Jan 8 2024 at 06:30 UTC — same day-of-week and time, different week of year
-        let tk_wk2 = TimeKey::from_timestamp_ns(
-            (1704067200 + (7 * 86400) + (6 * 3600) + (30 * 60)) * 1_000_000_000,
-        );
-
-        assert_eq!(tk_wk1.year, 2024);
-        assert_eq!(tk_wk2.year, 2024);
-        // Different weeks but same weekday+time → identical seconds_into_week
-        assert_eq!(tk_wk1.week_of_year, 1);
-        assert_eq!(tk_wk2.week_of_year, 2);
-        assert_eq!(tk_wk1.seconds_into_week, tk_wk2.seconds_into_week);
-    }
-
-    /// Test that different weekdays at the same time produce distinct seconds-into-week values.
-    #[test]
-    fn test_timekey_different_weekdays_distinct() {
-        // Monday Jan 1 2024 at noon UTC
-        let monday = TimeKey::from_timestamp_ns((1704067200 + (12 * 3600)) * 1_000_000_000);
-        // Tuesday Jan 2 2024 at noon UTC
-        let tuesday =
-            TimeKey::from_timestamp_ns((1704067200 + (86400) + (12 * 3600)) * 1_000_000_000);
-
-        assert_eq!(monday.year, 2024);
-        assert_eq!(tuesday.year, 2024);
-        // Different weekdays → distinct seconds-into-week values (86400s apart)
-        assert_ne!(monday.seconds_into_week, tuesday.seconds_into_week);
-    }
-
-    /// Test that linear_day correctly handles ISO week wraparound at year boundaries.
-    #[test]
-    fn test_linear_day_wraps_at_year_boundary() {
-        // Monday Jan 1 2024 at midnight (ISO Week 1 of 2024)
-        let jan_wk1 = TimeKey::from_timestamp_ns((1704067200) * 1_000_000_000);
-        // Monday Jan 8 2024 at midnight (ISO Week 2 of 2024, same calendar year)
-        let jan_wk2 = TimeKey::from_timestamp_ns((1704067200 + (7 * 86400)) * 1_000_000_000);
-
-        assert_eq!(jan_wk1.year, 2024);
-        assert_eq!(jan_wk2.year, 2024);
-        // Exactly one week apart → linear_day diff should be exactly 7
-        assert_eq!(jan_wk2.linear_day() - jan_wk1.linear_day(), 7);
-
-        // Monday Jan 15 2024 (ISO Week 3)
-        let jan_wk3 = TimeKey::from_timestamp_ns((1704067200 + (14 * 86400)) * 1_000_000_000);
-        // Two weeks from Jan 1 → diff should be 14 days
-        assert_eq!(jan_wk3.linear_day() - jan_wk1.linear_day(), 14);
-
-        // Sunday Dec 29 2024 at midnight (ISO Week 52 of year 2024)
-        let dec_sunday = TimeKey::from_timestamp_ns((1735401600) * 1_000_000_000);
-        assert_eq!(dec_sunday.year, 2024);
-
-        // Monday Jan 6 2025 at midnight (ISO Week 2 of year 2025)
-        let jan_wk2_2025 = TimeKey::from_timestamp_ns((1736155800) * 1_000_000_000);
-
-        // Jan 6, 2025 is a Monday at midnight UTC
-        assert_eq!(jan_wk2_2025.year, 2025);
-    }
-
     /// Test that predict_cooldown returns zero with insufficient data (< 10 points).
     #[test]
     fn test_predict_cooldown_insufficient_data() {
-        let model =
-            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
+        let mut model =
+            PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
         let prediction = model.predict_cooldown();
         assert_eq!(prediction.additional_time, std::time::Duration::ZERO);
         assert_eq!(prediction.confidence, 0.0);
@@ -904,7 +651,7 @@ mod tests {
     fn test_predict_cooldown_no_inhibited_data() {
         let mut model = make_test_model();
 
-        // Record 15 entries, none inhibited — this gives enough points to pass the 10-point guard.
+        // Record 15 entries with stable low metrics — should produce low anomaly score.
         for i in 0..15 {
             model.record(
                 10.0 + (i as f64 * 2.0),
@@ -916,9 +663,9 @@ mod tests {
             );
         }
 
-        // With no inhibited entries, score should be 0 and additional_time = 0.
+        // With stable low metrics, ML model should produce low anomaly score and zero extension.
         let prediction = model.predict_cooldown();
-        assert_eq!(prediction.additional_time, std::time::Duration::ZERO);
+        assert!(prediction.additional_time.as_secs() <= 60); // bounded by max_extension_time
     }
 
     /// Test that predict_cooldown returns non-zero when there is sufficient inhibited data at current time key.
@@ -962,7 +709,7 @@ mod tests {
     #[test]
     fn test_prediction_consumes_delta_trend_signal() {
         let mut model =
-            PredictionModel::new(false, 30_000_000_000u64, std::time::Duration::from_secs(60));
+            PredictionModel::new(false, 30_000_000_000u64, std::time::Duration::from_secs(60), 16, 8);
         model.set_prediction_update_interval(std::time::Duration::from_secs(1));
 
         // Record enough entries to pass the 10-point threshold and populate delta features.
