@@ -472,8 +472,9 @@ impl DataManager {
                     smoothed_disk,
                 );
 
-                // Only apply from the transition block if no prediction exists yet (first tick below threshold).
-                if self.predicted_additional_time.is_zero() {
+                // Only apply from the transition block if no prediction exists yet (first tick below threshold)
+                // and record() didn't just flush this tick (same reasoning as above — model trained on same features).
+                if !tick_flushed && self.predicted_additional_time.is_zero() {
                     self.predicted_additional_time = prediction.additional_time;
                     if !prediction.additional_time.is_zero() {
                         info!(
