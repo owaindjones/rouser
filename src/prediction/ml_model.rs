@@ -117,11 +117,10 @@ impl NormalizationStats {
     }
 
     /// Deserialize normalization stats from bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Self {
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         let (result, _): (Self, _) =
-            bincode::serde::decode_from_slice(bytes, bincode::config::standard())
-                .expect("NormalizationStats should deserialize");
-        result
+            bincode::serde::decode_from_slice(bytes, bincode::config::standard()).ok()?;
+        Some(result)
     }
 
     /// Save normalization stats to a file.
@@ -135,8 +134,12 @@ impl NormalizationStats {
     pub fn load(path: &PathBuf) -> Option<Self> {
         match fs::read(path) {
             Ok(data) => {
-                debug!("Loaded normalization stats from {:?}", path);
-                Some(Self::from_bytes(&data))
+                if let Some(stats) = Self::from_bytes(&data) {
+                    debug!("Loaded normalization stats from {:?}", path);
+                    return Some(stats);
+                }
+                debug!("Corrupted checkpoint data at {:?}", path);
+                None
             }
             Err(e) => {
                 debug!("No existing normalization stats at {:?}: {}", path, e);
@@ -480,7 +483,8 @@ mod tests {
         }
 
         let bytes = stats.to_bytes();
-        let loaded = NormalizationStats::from_bytes(&bytes);
+        let loaded =
+            NormalizationStats::from_bytes(&bytes).expect("should deserialize valid bytes");
 
         assert_eq!(loaded.get_cpu_stats().count, 20);
     }
