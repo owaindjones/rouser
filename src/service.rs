@@ -289,8 +289,9 @@ impl DataManager {
         );
 
         // Record metrics into prediction history if enabled. Accumulates per-tick and flushes averaged snapshots on interval.
+        let mut tick_flushed = false;
         if let Some(ref mut model) = self.prediction_model {
-            let _flushed = model.record(
+            let flushed = model.record(
                 smoothed_cpu_max,
                 smoothed_cpu_avg,
                 gpu_smoothed_values.clone(),
@@ -298,6 +299,7 @@ impl DataManager {
                 smoothed_disk,
                 should_inhibit,
             );
+            tick_flushed = flushed;
             // debug! already logs inside model.record() when a snapshot is flushed.
         }
 
@@ -382,23 +384,34 @@ impl DataManager {
                     smoothed_disk,
                 );
 
-                // Log info-level only when first applying a non-zero extension per transition;
-                // log debug-level for subsequent updates during extended cooldown.
-                if was_active && self.predicted_additional_time != prediction.additional_time {
+                // Skip updating predicted_additional_time when record() just flushed this tick.
+                // After flushing, the ML model is trained on those exact features so predict_raw
+                // would return near-perfect predictions with artificially low anomaly scores for
+                // nearly identical metrics from the same tick — which would incorrectly reset cooldown to 0s.
+                if !tick_flushed {
+                    // Log info-level only when first applying a non-zero extension per transition;
+                    // log debug-level for subsequent updates during extended cooldown.
+                    if was_active && self.predicted_additional_time != prediction.additional_time {
+                        debug!(
+                            "Updated predictive cooldown extension: {:?} -> {:?}",
+                            self.predicted_additional_time, prediction.additional_time
+                        );
+                    } else if !was_active && !prediction.additional_time.is_zero() {
+                        info!(
+                            "Predictive cooldown extension: +{}s (confidence={:.0}%), \
+                             historical patterns suggest active usage at this hour",
+                            prediction.additional_time.as_secs(),
+                            prediction.confidence * 100.0,
+                        );
+                    }
+
+                    self.predicted_additional_time = prediction.additional_time;
+                } else {
                     debug!(
-                        "Updated predictive cooldown extension: {:?} -> {:?}",
-                        self.predicted_additional_time, prediction.additional_time
-                    );
-                } else if !was_active && !prediction.additional_time.is_zero() {
-                    info!(
-                        "Predictive cooldown extension: +{}s (confidence={:.0}%), \
-                         historical patterns suggest active usage at this hour",
-                        prediction.additional_time.as_secs(),
-                        prediction.confidence * 100.0,
+                        "Skipping cooldown prediction update: snapshot just flushed this tick \
+                         (model was trained on same features — predict_raw would give artificially low anomaly scores)"
                     );
                 }
-
-                self.predicted_additional_time = prediction.additional_time;
             }
 
             if !self.just_released && self.state.is_inhibited() {
