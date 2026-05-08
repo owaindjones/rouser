@@ -331,25 +331,14 @@ impl PredictionModel {
 
                     self.data_points += 1;
 
-                    // Update normalization stats with raw values and train on raw features so the model learns actual distributions.
-                    self.normalization_stats
-                        .get_cpu_stats_mut()
-                        .update(snapshot.cpu_usage.per_core_max);
-                    self.normalization_stats
-                        .get_cpu_stats_mut()
-                        .update(snapshot.cpu_usage.total_average);
-                    self.normalization_stats
-                        .get_gpu_stats_mut()
-                        .update(snapshot.gpu_usage.per_gpu_max);
-                    self.normalization_stats
-                        .get_gpu_stats_mut()
-                        .update(snapshot.gpu_usage.total_average);
-                    self.normalization_stats
-                        .get_network_stats_mut()
-                        .update(snapshot.network_mbps);
-                    self.normalization_stats
-                        .get_disk_stats_mut()
-                        .update(snapshot.disk_mb_s);
+                    self.ml_predictor.update_stats(
+                        snapshot.cpu_usage.per_core_max,
+                        snapshot.cpu_usage.total_average,
+                        snapshot.gpu_usage.per_gpu_max,
+                        snapshot.gpu_usage.total_average,
+                        snapshot.network_mbps,
+                        snapshot.disk_mb_s,
+                    );
 
                     let raw_features = [
                         snapshot.cpu_usage.per_core_max,

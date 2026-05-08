@@ -366,6 +366,23 @@ impl MlPredictor {
         }
     }
 
+    pub fn update_stats(
+        &mut self,
+        cpu_max: f64,
+        cpu_avg: f64,
+        gpu_max: f64,
+        gpu_avg: f64,
+        network_mbps: f64,
+        disk_mb_s: f64,
+    ) {
+        self.stats.get_cpu_stats_mut().update(cpu_max);
+        self.stats.get_cpu_stats_mut().update(cpu_avg);
+        self.stats.get_gpu_stats_mut().update(gpu_max);
+        self.stats.get_gpu_stats_mut().update(gpu_avg);
+        self.stats.get_network_stats_mut().update(network_mbps);
+        self.stats.get_disk_stats_mut().update(disk_mb_s);
+    }
+
     pub fn train_from_history(&mut self, entries: &[HistoryEntry]) {
         if entries.is_empty() {
             return;
