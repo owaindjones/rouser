@@ -374,7 +374,13 @@ impl DataManager {
             // based on current trends (increases or decreases the remaining wait time).
             let was_active = !self.predicted_additional_time.is_zero();
             if let Some(model) = &mut self.prediction_model {
-                let prediction = model.predict_cooldown();
+                let prediction = model.predict_cooldown(
+                    smoothed_cpu_max,
+                    smoothed_cpu_avg,
+                    &gpu_smoothed_values,
+                    smoothed_network,
+                    smoothed_disk,
+                );
 
                 // Log info-level only when first applying a non-zero extension per transition;
                 // log debug-level for subsequent updates during extended cooldown.
@@ -445,7 +451,13 @@ impl DataManager {
         // every tick and produces fresher predictions based on updated in-memory model state.
         if was_inhibited && !should_inhibit {
             if let Some(model) = &mut self.prediction_model {
-                let prediction = model.predict_cooldown();
+                let prediction = model.predict_cooldown(
+                    smoothed_cpu_max,
+                    smoothed_cpu_avg,
+                    &gpu_smoothed_values,
+                    smoothed_network,
+                    smoothed_disk,
+                );
 
                 // Only apply from the transition block if no prediction exists yet (first tick below threshold).
                 if self.predicted_additional_time.is_zero() {

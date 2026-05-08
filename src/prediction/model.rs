@@ -393,8 +393,14 @@ impl PredictionModel {
         false
     }
 
-    /// Predict the additional cooldown seconds based on ML anomaly scoring and trend signals.
-    pub fn predict_cooldown(&mut self) -> CooldownPrediction {
+    pub fn predict_cooldown(
+        &mut self,
+        cpu_max: f64,
+        cpu_avg: f64,
+        gpu_usages: &[f64],
+        network: f64,
+        disk: f64,
+    ) -> CooldownPrediction {
         if self.data_points < 10 {
             return CooldownPrediction {
                 additional_time: std::time::Duration::ZERO,
@@ -402,20 +408,13 @@ impl PredictionModel {
             };
         }
 
-        // Get current metrics for ML scoring (use recent entry or defaults).
-        let (cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk) =
-            if let Some(last) = &self.last_flushed_entry_metrics {
-                (
-                    last.cpu_per_core_max,
-                    last.cpu_total_average,
-                    last.gpu_per_gpu_max,
-                    last.gpu_total_average,
-                    last.network_mbps,
-                    last.disk_mb_s,
-                )
-            } else {
-                (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-            };
+        let (gpu_max, gpu_avg) = if gpu_usages.is_empty() {
+            (0.0, 0.0)
+        } else {
+            let max = gpu_usages.iter().cloned().fold(0.0f64, f64::max);
+            let sum: f64 = gpu_usages.iter().sum();
+            (max, sum / gpu_usages.len() as f64)
+        };
 
         let features = [cpu_max, cpu_avg, gpu_max, gpu_avg, network, disk];
 
@@ -576,7 +575,7 @@ mod tests {
     fn test_predict_cooldown_no_data_returns_zero() {
         let mut model =
             PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
-        let prediction = model.predict_cooldown();
+        let prediction = model.predict_cooldown(0.0, 0.0, &[], 0.0, 0.0);
         assert!(!prediction.additional_time.gt(&std::time::Duration::ZERO));
     }
 
@@ -602,7 +601,7 @@ mod tests {
     fn test_predict_cooldown_with_insufficient_data() {
         let mut model =
             PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
-        let prediction = model.predict_cooldown();
+        let prediction = model.predict_cooldown(0.0, 0.0, &[], 0.0, 0.0);
         // Should return zero additional time and low confidence with no data.
         assert_eq!(prediction.additional_time, std::time::Duration::ZERO);
         assert!(prediction.confidence < 0.5);
@@ -665,7 +664,7 @@ mod tests {
     fn test_predict_cooldown_insufficient_data() {
         let mut model =
             PredictionModel::new(true, 30_000_000_000u64, std::time::Duration::from_secs(60));
-        let prediction = model.predict_cooldown();
+        let prediction = model.predict_cooldown(0.0, 0.0, &[], 0.0, 0.0);
         assert_eq!(prediction.additional_time, std::time::Duration::ZERO);
         assert_eq!(prediction.confidence, 0.0);
     }
@@ -688,7 +687,7 @@ mod tests {
         }
 
         // With stable low metrics, ML model should produce low anomaly score and zero extension.
-        let prediction = model.predict_cooldown();
+        let prediction = model.predict_cooldown(0.0, 0.0, &[], 0.0, 0.0);
         assert!(prediction.additional_time.as_secs() <= 60); // bounded by max_extension_time
     }
 
@@ -702,7 +701,7 @@ mod tests {
             model.record(60.0, 30.0, vec![40.0], 10.0, 5.0, i % 3 != 0); // inhibited on ~67% of ticks
         }
 
-        let prediction = model.predict_cooldown();
+        let prediction = model.predict_cooldown(0.0, 0.0, &[], 0.0, 0.0);
         // With sufficient inhibited data points, score may or may not exceed threshold depending on
         // current time-of-week vs historical patterns — verify the API returns valid values.
         assert!(prediction.additional_time.as_secs() <= 60); // bounded by max_extension_time
@@ -750,7 +749,7 @@ mod tests {
             );
         }
 
-        let prediction = model.predict_cooldown();
+        let prediction = model.predict_cooldown(0.0, 0.0, &[], 0.0, 0.0);
         // The rising CPU trend should produce a non-zero additional_time when inhibition data exists.
         assert!(prediction.additional_time.as_secs() <= 60); // bounded by max_extension_time
     }
