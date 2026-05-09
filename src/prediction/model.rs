@@ -174,6 +174,10 @@ pub struct PredictionModel {
     last_flushed_entry_metrics: Option<LastEntryMetrics>,
     recent_entries: Vec<HistoryEntry>,
     max_recent_entries: usize,
+    /// Pre-computed filled entries for gap detection in trend analysis.
+    /// Computed once at load time and updated incrementally when new snapshots are flushed,
+    /// avoiding redundant sort + fill_gaps calls on every predict_coordinat invocation.
+    filled_entries_cache: Vec<HistoryEntry>,
 }
 
 /// Captures metric values from a single flushed history entry for delta computation.
@@ -251,6 +255,13 @@ impl PredictionModel {
         // Initialize last_flushed_entry_metrics from the most recent loaded entry for delta computation.
         let last_flushed_entry_metrics = entries.last().map(LastEntryMetrics::from_entry);
 
+        // Pre-compute filled entries once at startup to avoid redundant gap detection on every predict_coordinat call.
+        let filled_entries_cache = if entries.is_empty() {
+            Vec::new()
+        } else {
+            fill_gaps(entries.clone(), update_interval_ns, update_interval_ns)
+        };
+
         Self {
             history,
             max_extension_time,
@@ -270,6 +281,7 @@ impl PredictionModel {
             last_flushed_entry_metrics,
             recent_entries: Vec::new(),
             max_recent_entries: 200,
+            filled_entries_cache,
         }
     }
 
@@ -367,6 +379,12 @@ impl PredictionModel {
                         self.recent_entries.remove(0);
                     }
 
+                    let mut updated = self.filled_entries_cache.clone();
+                    updated.push(snapshot.clone());
+                    updated.sort_by_key(|e| e.timestamp_ns);
+                    self.filled_entries_cache =
+                        fill_gaps(updated, self.update_interval_ns, self.update_interval_ns);
+
                     self.last_flushed_ns = snapshot.timestamp_ns;
 
                     self.history.append_with_summary(snapshot, Some(summary));
@@ -417,32 +435,17 @@ impl PredictionModel {
             .as_nanos() as u64
             - self.max_extension_time.as_nanos() as u64;
 
-        // Use in-memory rolling window for trend analysis, falling back to disk read only
-        // when no entries have been flushed yet (initial startup).
-        let mut recent_entries: Vec<HistoryEntry> = if self.recent_entries.is_empty() {
-            self.history
-                .read_all()
-                .into_iter()
-                .filter(|e| e.timestamp_ns >= cutoff_ns)
-                .collect()
-        } else {
-            self.recent_entries
-                .iter()
-                .filter(|e| e.timestamp_ns >= cutoff_ns)
-                .cloned()
-                .collect()
-        };
-
-        // Sort by timestamp for gap detection and delta computation.
-        recent_entries.sort_by_key(|e| e.timestamp_ns);
-
-        if !recent_entries.is_empty() {
-            let threshold = self.update_interval_ns;
-            recent_entries = fill_gaps(recent_entries, threshold, threshold);
-        }
+        // Use pre-computed filled entries cache for trend analysis.
+        // This avoids redundant sort + fill_gaps calls on every predict_coordinat invocation (which runs twice per tick).
+        let recent_cutoff: Vec<_> = self
+            .filled_entries_cache
+            .iter()
+            .filter(|e| e.timestamp_ns >= cutoff_ns)
+            .cloned()
+            .collect();
 
         // Filter out synthetic zero-value entries before computing trends.
-        let filtered: Vec<_> = recent_entries
+        let filtered: Vec<_> = recent_cutoff
             .into_iter()
             .filter(|e| e.cpu_usage.per_core_max > 0.0 || e.gpu_usage.per_gpu_max > 0.0)
             .rev()
