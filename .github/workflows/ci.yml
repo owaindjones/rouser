@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
 
       - name: Install zizmor
-        uses: taiki-e/install-action@7769b73c2ec98c38dfcf2e18c83cfd4880c038c1  # v2
+        uses: taiki-e/install-action@cde8c9e634f4a17bc06b61413ac0ef75450eac46  # v2
         with:
           tool: zizmor
 
@@ -65,7 +65,7 @@ jobs:
         run: cargo test --all-targets
 
       - name: Security audit (cargo audit)
-        uses: taiki-e/install-action@7769b73c2ec98c38dfcf2e18c83cfd4880c038c1  # v2
+        uses: taiki-e/install-action@cde8c9e634f4a17bc06b61413ac0ef75450eac46  # v2
         with:
           tool: cargo-audit
       - name: Run security audit
@@ -113,7 +113,7 @@ jobs:
 
       - name: Install cross-compilation toolchain (cross-rs)
         if: matrix.arch == 'aarch64'
-        uses: taiki-e/install-action@7769b73c2ec98c38dfcf2e18c83cfd4880c038c1  # v2
+        uses: taiki-e/install-action@cde8c9e634f4a17bc06b61413ac0ef75450eac46  # v2
         with:
           tool: cross
 
