@@ -11,6 +11,7 @@ nav:
   - Command Line: command-line.md
   - Systemd User Service: systemd-user-service.md
   - Metrics Overview: metrics-overview.md
+  - Prediction Model: prediction-model.md
   - Averaging & EMA Smoothing: averaging.md
   - D-Bus Inhibition: d-bus-inhibition.md
   - Security: security.md

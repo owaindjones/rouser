@@ -155,8 +155,7 @@ Include contextual identifiers in log messages: GPU device IDs (`card0(nvidia)`)
 ### Configuration Conventions
 
 - TOML format via the `toml` crate with serde derive macros.
-- All config values have sensible defaults defined as `fn default_*() -> T` helper functions.
-- Optional fields use `#[serde(default)]`; required overrides use `#[serde(default = "default_fn")]`.
+- All config values have sensible defaults defined in `config/rouser.toml`, embedded at compile time via `include_str!()`. Struct fields use bare `#[serde(default)]`; explicit `Default` trait impls on config structs hardcode these same values. Never add `fn default_*() -> T` helper functions — the TOML file is the single source of truth.
 - Duration parsing uses `humantime_serde` for human-readable format (e.g., `"5s"`, `"30m"`).
 
 ---

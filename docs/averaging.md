@@ -94,8 +94,9 @@ threshold = 80.0
 ema_alpha = 0.1        # Default smoothing for CPU
 
 [metrics.gpu]
-threshold = 90.0
-ema_alpha = 0.2        # More responsive for GPU
+per_gpu_threshold = 90.0    # Per-GPU max usage threshold
+total_threshold = 85.0      # System-wide average threshold (both use OR logic)
+ema_alpha = 0.2             # More responsive for GPU
 
 [metrics.network]
 threshold = 100.0
@@ -117,15 +118,16 @@ ema_alpha = 0.1        # Standard smoothing for disk I/O
 
 ### Per-GPU EMA Smoothing
 
-Each detected GPU applies the same `ema_alpha` from `[metrics.gpu]`, but independently. There is no per-GPU config override — the threshold and smoothing factor apply uniformly to all GPUs:
+Each detected GPU applies the same `ema_alpha` from `[metrics.gpu]`, but independently. There is no per-GPU config override — both thresholds and the smoothing factor apply uniformly to all GPUs:
 
 ```toml
 [metrics.gpu]
-threshold = 90.0    # Applies to ALL detected GPUs
-ema_alpha = 0.2     # Applied per-device, not globally averaged
+per_gpu_threshold = 90.0    # Per-GPU max usage threshold (applies to ALL detected GPUs)
+total_threshold = 85.0      # System-wide average threshold
+ema_alpha = 0.2             # Applied per-device, not globally averaged
 ```
 
-This means card0(nvidia) at 95% and card1(amdgpu) at 87% are each compared against the same threshold independently — one exceeding it triggers inhibition regardless of the other's state.
+This means card0(nvidia) at 95% and card1(amdgpu) at 87% are each compared against the `per_gpu_threshold` independently — one exceeding it triggers inhibition regardless of the other's state. The system-wide average is also checked: if both GPUs hover near `total_threshold`, that alone can trigger inhibition even if neither per-GPU value exceeds its threshold.
 
 ## Threshold Evaluation
 
@@ -323,8 +325,9 @@ total_threshold = 60.0
 ema_alpha = 0.1        # Default smoothing for CPU
 
 [metrics.gpu]
-threshold = 90.0
-ema_alpha = 0.2
+per_gpu_threshold = 90.0    # Per-GPU max usage threshold
+total_threshold = 75.0      # System-wide average threshold (both use OR logic)
+ema_alpha = 0.2             # EMA smoothing for GPU
 
 [metrics.network]
 threshold = 50.0
@@ -354,8 +357,9 @@ total_threshold = 70.0
 ema_alpha = 0.15       # More responsive for compilation bursts
 
 [metrics.gpu]
-threshold = 95.0
-ema_alpha = 0.2        # Responsive for GPU workloads
+per_gpu_threshold = 95.0    # Per-GPU max usage threshold (high for gaming)
+total_threshold = 80.0      # System-wide average threshold (both use OR logic)
+ema_alpha = 0.2             # EMA smoothing for GPU
 
 [metrics.network]
 threshold = 100.0
@@ -385,8 +389,9 @@ total_threshold = 60.0
 ema_alpha = 0.2        # Quick spike detection
 
 [metrics.gpu]
-threshold = 90.0
-ema_alpha = 0.25       # Very responsive for gaming GPU activity
+per_gpu_threshold = 90.0     # Per-GPU max usage threshold (high for gaming)
+total_threshold = 85.0       # System-wide average threshold (both use OR logic)
+ema_alpha = 0.25             # Very responsive for gaming GPU activity
 
 [timing]
 duration_threshold = "15s"   # Shorter threshold — gamers prefer instant response

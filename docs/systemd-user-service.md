@@ -40,7 +40,8 @@ per_core_threshold = 80.0   # CPU max usage % (0–100) above which to inhibit s
 total_threshold = 25.0      # Total averaged CPU usage % (default: 25.0)
 
 [metrics.gpu]
-threshold = 15.0            # GPU usage % per device (default: 15.0)
+per_gpu_threshold = 25.0    # Per-GPU max usage that triggers inhibition
+total_threshold = 40.0      # System-wide average threshold (both use OR logic)
 ema_alpha = 0.7             # EMA smoothing factor for GPU readings
 
 [metrics.network]
@@ -77,134 +78,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/home/%i/.local/bin/rouser --config /home/%i/.config/rouser/config.toml
-Restart=on-failure
-RestartSec=5s
+ExecStart=%h/.local/bin/rouser
 
-# Security hardening
-NoNewPrivileges=true
-ProtectSystem=strict
-PrivateTmp=true
-ProtectHome=read-only
-ReadWritePaths=%h/.config/rouser
-
-[Install]
-WantedBy=default.target
-```
-
-### Step 3: Create Log Directory
-
-```bash
-mkdir -p ~/.local/log/rouser
-```
-
-### Step 4: Configure and Start Service
-
-```bash
-# Reload user systemd daemon
-systemctl --user daemon-reload
-
-# Enable service to start on login
-systemctl --user enable rouser
-
-# Start the service
-systemctl --user start rouser
-
-# Check status
-systemctl --user status rouser
-```
-
-Expected output:
-
-```
-● rouser.service - Rouser - User Sleep Inhibition Daemon
-     Loaded: loaded (/home/username/.config/systemd/user/rouser.service; enabled)
-     Active: active (running) since Mon 2026-03-26 10:00:00 UTC; 5min ago
-   Main PID: 1234 (rouser)
-      Tasks: 4 (limit: 4915)
-     Memory: 2.5M
-```
-
-### Step 5: Verify Inhibition
-
-Check active inhibitors:
-
-```bash
-# List active inhibitors
-loginctl list-inhibitors
-
-# Should show rouser as an inhibitor
-```
-
-## Service Management
-
-### Start/Stop/Restart
-
-```bash
-# Start service
-systemctl --user start rouser
-
-# Stop service
-systemctl --user stop rouser
-
-# Restart service
-systemctl --user restart rouser
-
-# Reload configuration (without restart)
-systemctl --user reload rouser
-```
-
-### Check Status
-
-```bash
-# Check if running
-systemctl --user is-active rouser
-
-# View detailed status
-systemctl --user status rouser
-
-# View logs
-journalctl --user -u rouser -f
-
-# View last 50 lines
-journalctl --user -u rouser -n 50
-
-# View logs for specific time range
-journalctl --user -u rouser --since "2024-03-26 00:00:00" --until "2024-03-26 23:59:59"
-```
-
-### Enable/Disable
-
-```bash
-# Enable on login
-systemctl --user enable rouser
-
-# Disable (but keep file)
-systemctl --user disable rouser
-
-# Check if enabled
-systemctl --user is-enabled rouser
-```
-
-## Alternative: Systemd System Service
-
-For system-wide installation (requires root):
-
-### Create System Service File
-
-Create `/etc/systemd/system/rouser.service`:
-
-```ini
-[Unit]
-Description=Rouser - System Sleep Inhibition Daemon
-Documentation=https://github.com/owaindjones/rouser
-After=network.target
-
-[Service]
-Type=simple
-User=root
-Group=root
-ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
 Restart=on-failure
 RestartSec=5s
 
@@ -250,8 +125,9 @@ User=%u
 NoNewPrivileges=true
 ProtectSystem=strict
 PrivateTmp=true
-ProtectHome=true
-ReadWritePaths=%h/.config/rouser %h/.local/log/rouser
+ReadOnlyPaths=%h/.local/bin %h/.config/rouser
+ReadWritePaths=%h/.local/state/rouser
+ProtectHome=read-only
 ```
 
 ### System Service (More Restrictive)
@@ -263,7 +139,8 @@ For system-wide installation with enhanced security:
 Type=simple
 User=rouser
 Group=rouser
-ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
+ExecStart=/usr/local/bin/rouser
+
 Restart=on-failure
 RestartSec=5s
 
@@ -318,7 +195,7 @@ Prevent resource exhaustion:
 ```ini
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/rouser --config /etc/rouser/config.toml
+ExecStart=/usr/local/bin/rouser
 
 # Resource limits
 MemoryLimit=256M

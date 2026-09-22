@@ -19,6 +19,7 @@ rouser keeps headless servers and desktops awake during active use. It monitors 
 - **Multi-metric monitoring**: CPU (per-core frequency-weighted), GPU (NVIDIA/AMD/Intel), network I/O, disk activity
 - **Configurable thresholds**: Independent per-core and total-CPU thresholds, per-GPU reporting
 - **EMA smoothing**: Per-metric exponential moving average for stable readings
+- **Predictive cooldown**: Learns from historical usage patterns to extend idle cooldown duration, reducing false-positive sleep inhibition during typical active-use hours
 - **Systemd integration**: Uses `org.freedesktop.login1.Manager.Inhibit` D-Bus API
 - **TOML configuration**: Embedded default config; auto-installs to user or system paths on first run, merges `/etc/rouser/config.toml` and `~/.config/rouser/config.toml` if present
 - **Dry-run mode**: Test without inhibiting sleep
@@ -71,6 +72,7 @@ See [Configuration Reference](docs/configuration.md) for all options with defaul
 | [Configuration Reference](docs/configuration.md) | All config options with embedded-default values |
 | [Command Line](docs/command-line.md) | CLI arguments and usage examples |
 | [Metrics Overview](docs/metrics-overview.md) | How CPU, GPU, network, disk metrics are collected |
+| [Prediction Model](docs/prediction-model.md) | How adaptive cooldown extension works from historical patterns |
 | [GPU Usage Measurement](docs/gpu-usage-measurement.md) | What NVML, amdgpu, and i915 actually measure |
 | [D-Bus Inhibition](docs/d-bus-inhibition.md) | How sleep inhibition works under the hood |
 

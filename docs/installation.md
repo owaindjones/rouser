@@ -110,7 +110,8 @@ per_core_threshold = 80.0       # Per-core CPU max usage % above which to inhibi
 total_threshold = 25.0          # Total averaged CPU usage % (default: 25.0)
 
 [metrics.gpu]
-threshold = 15.0                # GPU usage % per device (default: 15.0)
+per_gpu_threshold = 25.0        # Per-GPU max usage that triggers inhibition (default: 25.0)
+total_threshold = 40.0          # System-wide average threshold (both use OR logic)
 ema_alpha = 0.7                 # EMA smoothing factor for GPU readings
 
 [metrics.network]
@@ -311,8 +312,9 @@ total_threshold = 50.0
 ema_alpha = 0.3
 
 [metrics.gpu]
-threshold = 85.0
-ema_alpha = 0.3
+per_gpu_threshold = 85.0    # Per-GPU max usage that triggers inhibition
+total_threshold = 70.0      # System-wide average threshold (both use OR logic)
+ema_alpha = 0.3             # EMA smoothing factor for GPU readings
 
 [metrics.network]
 threshold = 50.0
@@ -345,11 +347,12 @@ total_threshold = 70.0
 ema_alpha = 0.3
 
 [metrics.gpu]
-threshold = 95.0       # Gaming or GPU workloads
-ema_alpha = 0.3
+per_gpu_threshold = 95.0    # Per-GPU max usage that triggers inhibition (gaming/GPU workloads)
+total_threshold = 80.0      # System-wide average threshold (both use OR logic)
+ema_alpha = 0.3             # EMA smoothing factor for GPU readings
 
 [metrics.network]
-threshold = 200.0      # Large downloads/uploads
+threshold = 200.0           # Large downloads/uploads
 ema_alpha = 0.2
 exclude_interfaces = ["lo"]
 

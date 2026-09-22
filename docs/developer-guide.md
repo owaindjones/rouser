@@ -351,10 +351,10 @@ impl ThresholdManager {
     
     pub fn check(&self, config: &Config) -> bool {
         // Check each metric against its threshold using smoothed values
-        let cpu_ok = self.check_metric(&self.cpu_state, metrics.cpu.usage(), config.metrics.cpu.threshold);
-        let gpu_ok = self.gpu_states.iter().all(|state| {
-            self.check_metric(state, /* GPU value */, config.metrics.gpu.threshold)
-        });
+        let cpu_ok = self.check_metric(&self.cpu_state, metrics.cpu.usage(), config.metrics.cpu.per_core_threshold);
+        let gpu_agg = GpuAggregate::from_gpus(&metrics.gpu_usage);
+        let gpu_ok = gpu_agg.per_gpu_max > config.metrics.gpu.per_gpu_threshold
+            || gpu_agg.total_average > config.metrics.gpu.total_threshold;
         // ... similar for network and disk
         cpu_ok || gpu_ok || /* others */ false
     }
@@ -445,18 +445,24 @@ Add inhibitor selection to config:
 ```rust
 #[derive(Debug, Deserialize)]
 pub struct InhibitionConfig {
-    #[serde(default = "default_inhibitor_type")]
+    #[serde(default)]
     pub inhibitor_type: String,  // "login1", "custom", etc.
-    
-    #[serde(default = "default_what")]
+
+    #[serde(default)]
     pub what: String,
-    
-    #[serde(default = "default_mode")]
+
+    #[serde(default)]
     pub mode: String,
 }
 
-fn default_inhibitor_type() -> String {
-    "login1".to_string()
+impl Default for InhibitionConfig {
+    fn default() -> Self {
+        Self {
+            inhibitor_type: "login1".to_string(),
+            what: "shutdown:idle".to_string(),
+            mode: "block".to_string(),
+        }
+    }
 }
 ```
 
